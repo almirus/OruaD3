@@ -1,0 +1,25 @@
+wing: orua_d3
+rooms:
+- name: bin
+  description: Files from bin/
+  keywords:
+  - bin
+  - bin
+- name: documentation
+  description: Files from doc/
+  keywords:
+  - documentation
+  - doc
+- name: test_files
+  description: Files from test_files/
+  keywords:
+  - test_files
+  - test_files
+- name: scripts
+  description: Files from tools/
+  keywords:
+  - scripts
+  - tools
+- name: general
+  description: Files that don't fit other rooms
+  keywords: []
