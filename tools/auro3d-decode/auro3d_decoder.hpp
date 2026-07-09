@@ -40,6 +40,8 @@ struct AuroAdolInstructionInfo {
     std::uint8_t value2_bits = 0;
     bool has_decoded_layout = false;
     std::uint32_t decoded_layout = 0;
+    bool has_carrier_layout = false;
+    std::uint32_t carrier_layout = 0;
     bool has_primary_downmix_gain = false;
     std::uint8_t primary_downmix_channel = 0;
     std::uint8_t primary_downmix_scaler = 0;
@@ -62,6 +64,13 @@ struct AuroMetadataInfo {
     std::uint32_t layout_id = 0;
     std::string layout_name;
     unsigned output_channels = 0;
+    std::uint32_t carrier_layout_id = 0;
+    std::string carrier_layout_name;
+    unsigned carrier_channels = 0;
+    bool uses_mix3 = false;
+    bool has_closest_layout_without_mix3 = false;
+    std::uint32_t closest_layout_without_mix3 = 0;
+    std::string closest_layout_without_mix3_name;
     unsigned carrier_channel = 0;
     std::uint64_t sync_sample = 0;
     unsigned block_size = 0;
@@ -94,6 +103,21 @@ struct NativeDecoderConfigState {
 };
 
 struct NativeRuntimeConfigurationState {
+    bool auro_update_is_stereo_device = false;
+    bool auro_update_headset_connected = false;
+    std::uint32_t auro_update_decoder_mode = 0;
+    std::uint32_t auro_update_output_sample_type = 0;
+    std::uint32_t auro_update_output_bit_depth = 0;
+    std::uint32_t auro_update_output_layout_mask = 0;
+    std::uint32_t auro_update_pcm_input_layout_mask = 0;
+    std::uint32_t auro_update_pcm_input_sample_rate = 0;
+    std::uint32_t auro_update_pcm_input_sample_type = 0;
+    bool auro_update_channels_backs_before_surrounds = false;
+    bool auro_update_virtualization_enabled = false;
+    bool auro_update_listening_mode_auro3d = false;
+    bool auro_update_abr_mode_enabled = false;
+    std::uint32_t auro_update_hp_user_preset = 0;
+    std::uint32_t auro_update_hp_hrtf_preset = 0;
     std::uint32_t virtualizer_mode = 0;
     std::uint32_t effective_virtualizer_mode = 1;
     std::uint32_t room_preset = 0;
@@ -229,8 +253,8 @@ public:
     /// Сила рендера baseline AURO-DSP (0..15, таблица strength_translate).
     void set_dsp_strength(unsigned strength) { dsp_strength_ = strength; }
 
-    /// Число выходных каналов для AURO export. 0 = auto from metadata, then JNI/APK default stereo=2.
-    /// Explicit multichannel requests are mapped through native output slots up to kCurrentNativeExportChannelLimit.
+    /// AURO export channel count. 0 = auto from Auro metadata. No Auro-Matic/XinN upmix fallback.
+    /// Explicit multichannel requests require metadata-bearing codec output in native slots.
     void set_dsp_output_channels(unsigned channels) { dsp_output_channels_req_ = channels; }
 
     /// Headroom в dB для baseline AURO-DSP (0..24), применяется как множитель к gain.
@@ -252,6 +276,7 @@ public:
     const NativeDynamicParametersState& native_dynamic_parameters() const { return native_dynamic_parameters_; }
     const NativeA3dengRenderState& native_a3deng_render_state() const { return native_a3deng_render_state_; }
     const AuroMetadataInfo& auro_metadata() const { return auro_metadata_; }
+    const std::vector<std::uint32_t>& output_channel_slot_map() const { return output_channel_slot_map_; }
     std::uint64_t dsp_clipped_samples() const { return dsp_clipped_samples_; }
     void close();
 
@@ -262,12 +287,33 @@ private:
     void rebuild_native_runtime_configuration_state();
     void rebuild_native_dynamic_parameters_state();
     void rebuild_native_a3deng_render_state();
+    void rebuild_a3deng_partial_blob();
     bool apply_native_dynamic_parameters_update();
     bool validate_native_processor_io_model() const;
     void rebuild_codec_v3_partial_state();
+    void rebuild_auro_decoder_impl_state();
     void rebuild_native_xinn_partial_state();
+    void rebuild_native_asc4he_partial_state();
     void run_codec_v3_partial_step();
+    std::uint64_t render_codec_v3_a3deng_pop(
+        std::uint8_t* a3deng_base,
+        std::uint8_t* output_bytes,
+        std::uint32_t frames,
+        std::uint32_t output_mask,
+        std::uint32_t input_mask);
+    static std::uint64_t a3deng_codec_v3_pop_render_trampoline(
+        void* user,
+        std::uint8_t* a3deng_base,
+        std::uint8_t* output_bytes,
+        std::uint32_t frames,
+        std::uint32_t output_mask,
+        std::uint32_t input_mask);
+    static std::int64_t codec_v3_processor_process_bridge(
+        std::uint8_t* processor_base,
+        const auro3deng::ProcessorIOBufferDesc* in_desc,
+        const auro3deng::ProcessorIOBufferDesc* out_desc);
     bool run_native_xinn_partial_step();
+    bool run_native_asc4he_partial_step(std::uint32_t copy_back_mask);
     void rebuild_codec_v3_output_generator_state();
     void parser_rebind_frame_parse_results_103610(std::uint64_t frame_ptr);
     void apply_native_input_channel_mapping();
@@ -310,10 +356,18 @@ private:
     std::vector<std::uint32_t> native_xinn_sample_rate_words_;
     std::vector<float> native_xinn_float_span_storage_;
     std::vector<float> native_xinn_process_scratch_storage_;
+    std::vector<std::uint8_t> native_xinn_block_records_storage_;
     bool native_xinn_partial_ready_ = false;
     std::uint32_t native_xinn_partial_input_mask_ = 0;
     std::uint32_t native_xinn_partial_output_mask_ = 0;
     std::uint32_t native_xinn_partial_mode_ = 0;
+    std::vector<std::uint8_t> native_asc4he_processor_state_;
+    std::vector<std::uint8_t> native_asc4he_static_params_;
+    std::vector<float> native_asc4he_float_span_storage_;
+    std::vector<std::uint64_t> native_asc4he_channel_table_;
+    bool native_asc4he_partial_ready_ = false;
+    std::uint32_t native_asc4he_partial_input_mask_ = 0;
+    std::uint32_t native_asc4he_partial_output_mask_ = 0;
     std::vector<std::uint32_t> output_channel_slot_map_;
     unsigned native_work_buffer_count_ = 0;
     unsigned native_input_buffer_count_ = 0;
@@ -326,6 +380,11 @@ private:
     NativeA3dengStaticConfigurationState native_a3deng_static_configuration_{};
     NativeDynamicParametersState native_dynamic_parameters_{};
     NativeA3dengRenderState native_a3deng_render_state_{};
+    std::vector<std::uint8_t> a3deng_partial_blob_;
+    std::vector<std::uint8_t> auro_decoder_impl_blob_;
+    bool a3deng_partial_blob_constructed_ = false;
+    std::uint32_t a3deng_partial_blob_block_size_ = 0u;
+    std::uint32_t a3deng_partial_blob_output_mode_ = 0u;
     auro3deng::ProcessorIOBufferDesc input_desc_{};
     auro3deng::ProcessorIOBufferDesc output_desc_{};
     auro3deng::CodecV3DispatchStateEb5a0 codec_v3_dispatch_{};
@@ -342,6 +401,8 @@ private:
     std::vector<std::uint64_t> codec_v3_segment_frame_ptrs_;
     std::vector<std::uint8_t> codec_v3_fake_frame_deque_storage_;
     std::vector<std::uint8_t> codec_v3_ready_frame_deque_storage_;
+    std::vector<std::uint8_t> codec_v3_fake_frame_deque_frame_storage_;
+    std::vector<std::uint8_t> codec_v3_ready_frame_deque_frame_storage_;
     std::vector<std::uint8_t> codec_v3_fake_frame_storage_;
     std::vector<std::uint8_t> codec_v3_fake_frame_storage_next_;
     std::vector<std::uint8_t> codec_v3_ready_frame_storage_;
@@ -357,7 +418,9 @@ private:
     std::vector<std::int32_t> codec_v3_output_errors_storage_;
     std::vector<std::int32_t> codec_v3_output_scratch_storage_;
     std::uint64_t codec_v3_parser_timeline_cursor_ = 0;
+    std::uint64_t codec_v3_og_timeline_cursor_ = 0;
     std::uint32_t codec_v3_parser_state_ = 0;
+    bool codec_v3_requested_layout_ever_satisfied_ = false;
 };
 
 } // namespace auro3d

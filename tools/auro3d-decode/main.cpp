@@ -42,11 +42,65 @@ void configure_console_encoding() {
 #endif
 }
 
+const char* auro_slot_name(std::uint32_t slot) {
+    switch (slot) {
+    case 0: return "FL";
+    case 1: return "FR";
+    case 2: return "C";
+    case 3: return "LFE";
+    case 4: return "LS";
+    case 5: return "RS";
+    case 6: return "CS";
+    case 7: return "LB";
+    case 8: return "RB";
+    case 9: return "HL";
+    case 10: return "HR";
+    case 11: return "HC";
+    case 12: return "T";
+    case 13: return "HLS";
+    case 14: return "HRS";
+    case 15: return "HCS";
+    case 16: return "HLB";
+    case 17: return "HRB";
+    case 18: return "LC";
+    case 19: return "RC";
+    case 20: return "LFE2";
+    case 21: return "BL";
+    case 22: return "BR";
+    case 23: return "BC";
+    case 24: return "BLS";
+    case 25: return "BRS";
+    case 26: return "OBJ";
+    default: return "?";
+    }
+}
+
+void print_decode_mode_channel_list(
+    const char* label,
+    const std::vector<std::uint32_t>& slots,
+    std::uint32_t mask,
+    bool want_in_mask) {
+    std::cerr << label << "=";
+    bool any = false;
+    for (std::size_t ch = 0; ch < slots.size(); ++ch) {
+        const std::uint32_t slot = slots[ch];
+        const bool in_mask = slot < 31u && ((mask >> slot) & 1u) != 0u;
+        if (in_mask != want_in_mask)
+            continue;
+        if (any)
+            std::cerr << ",";
+        std::cerr << "ch" << ch << "(" << auro_slot_name(slot) << ")";
+        any = true;
+    }
+    if (!any)
+        std::cerr << "none";
+}
+
 void print_usage() {
     std::cerr
         << auro3d_decode::kName << " " << auro3d_decode::kVersion << " — консольный декодер AURO на базе RE libauro.so / libauro3d.so.\n\n"
         << "Использование:\n"
-        << "  " << auro3d_decode::kName << " -i <input.wav|input.s24le> -o <output.wav> [опции]\n\n"
+        << "  " << auro3d_decode::kName << " -i <input.wav|input.flac|input.s24le> -o <output.wav> [опции]\n\n"
         << "Опции:\n"
         << "  -i, --input FILE\n"
         << "  -o, --output FILE\n"
@@ -55,9 +109,8 @@ void print_usage() {
         << "  --channels N         число каналов для --raw\n"
         << "  --block N            block size в сэмплах; по умолчанию " << auro3d::kDefaultJniBlockSize << "\n"
         << "  --dsp-strength N     сила декодера/рендера (0..15; по умолчанию 12)\n"
-        << "  --dsp-output-channels N  output channels; 0/omitted = auto from Auro metadata, fallback "
-        << auro3d::kDefaultOutputChannels
-        << ", current native path up to " << auro3d::kCurrentNativeExportChannelLimit << "\n"
+        << "  --dsp-output-channels N  output channels; 0/omitted = auto from Auro metadata; no Auro-Matic/XinN fallback, current native path up to "
+        << auro3d::kCurrentNativeExportChannelLimit << "\n"
         << "  --output-bits N      WAV PCM depth: 16 or 24; по умолчанию 24\n"
         << "  --dsp-headroom-db X  headroom в dB (0..24; по умолчанию 6)\n"
         << "  --room-preset N      room preset AURO (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
@@ -306,6 +359,24 @@ int main(int argc, char** argv) {
     const auro3d::NativeDynamicParametersState dynamic_cfg = dec.native_dynamic_parameters();
     const auro3d::NativeA3dengRenderState render_cfg = dec.native_a3deng_render_state();
     const auro3d::AuroMetadataInfo auro_meta = dec.auro_metadata();
+    const std::vector<std::uint32_t>& output_slots = dec.output_channel_slot_map();
+    const bool auromatic_layout =
+        auro_meta.found
+        && (auro_meta.layout_id & 0x3FE00u) == 0u
+        && auro_meta.carrier_layout_id != 0u
+        && auro_meta.carrier_layout_id != auro_meta.layout_id
+        && auro_meta.output_channels > auro_meta.carrier_channels;
+    std::cerr << "decode_channel_modes ";
+    print_decode_mode_channel_list("carrier_passthrough", output_slots, native_cfg.input_mask, true);
+    std::cerr << " ";
+    print_decode_mode_channel_list(auromatic_layout ? "auromatic" : "native", output_slots, native_cfg.input_mask, false);
+    if (!auromatic_layout)
+        std::cerr << " auromatic=none";
+    if (auro_meta.found && auro_meta.has_closest_layout_without_mix3) {
+        std::cerr << " auromatic_candidate_layout=0x" << std::hex
+                  << auro_meta.closest_layout_without_mix3 << std::dec;
+    }
+    std::cerr << "\n";
     if (opt.verbose) {
         std::cerr << "sample_rate=" << cfg_open.sample_rate
                   << " channels=" << cfg_open.channels
@@ -317,12 +388,20 @@ int main(int argc, char** argv) {
             std::cerr << "auro_layout_id=" << auro_meta.layout_id
                       << " layout=" << auro_meta.layout_name
                       << " metadata_channels=" << auro_meta.output_channels
+                      << " carrier_layout_id=" << auro_meta.carrier_layout_id
+                      << " carrier_layout=" << auro_meta.carrier_layout_name
+                      << " carrier_channels=" << auro_meta.carrier_channels
+                      << " uses_mix3=" << auro_meta.uses_mix3
                       << " carrier_channel=" << auro_meta.carrier_channel
                       << " sync_sample=" << auro_meta.sync_sample
                       << " metadata_block=" << auro_meta.block_size
                       << " scanned_sync_blocks=" << auro_meta.scanned_sync_blocks
                       << " adol_blocks=" << auro_meta.adol_block_count
                       << " unique_adol_instructions=" << auro_meta.adol_instructions.size() << "\n";
+            if (auro_meta.has_closest_layout_without_mix3) {
+                std::cerr << "auro_closest_without_mix3=" << auro_meta.closest_layout_without_mix3
+                          << " layout=" << auro_meta.closest_layout_without_mix3_name << "\n";
+            }
             for (const auto& ins : auro_meta.adol_instructions) {
                 std::cerr << "  adol first_sync_block=" << ins.sync_block_index
                           << " block=" << ins.block_index
@@ -341,6 +420,8 @@ int main(int argc, char** argv) {
                 }
                 if (ins.has_decoded_layout)
                     std::cerr << " decoded_layout=0x" << std::hex << ins.decoded_layout << std::dec;
+                if (ins.has_carrier_layout)
+                    std::cerr << " carrier_layout=0x" << std::hex << ins.carrier_layout << std::dec;
                 if (ins.has_primary_downmix_gain)
                     std::cerr << " primary_downmix_ch=" << static_cast<unsigned>(ins.primary_downmix_channel)
                               << " primary_downmix_scaler=" << static_cast<unsigned>(ins.primary_downmix_scaler);
