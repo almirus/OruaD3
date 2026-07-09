@@ -674,27 +674,12 @@ std::int64_t run_output_stage_1024a9_bridge(void* user) {
             *step->og_timeline_cursor_ptr;
     }
 
-    HostOgDecideDecodeCtx decide_ctx{};
-    decide_ctx.dispatch = step->dispatch;
-    decide_ctx.output_generator_base = step->output_generator_base;
-    // IDA ACV3Decoder::decide_decode_: downmix(a1+88, a1+92) vs downmix(frame, a1+92)
-    // where a1+88 = pcm input/carrier and a1+92 = requested output. Prefer-started
-    // when frame_downmix_count > input_downmix_count (height frame beats carrier).
-    const std::uint32_t carrier_layout = step->input_mask & kCodecV3ChannelMask;
-    const std::uint32_t requested_layout = (step->dispatch && step->dispatch->required_output_mask != 0u)
-        ? (step->dispatch->required_output_mask & kCodecV3ChannelMask)
-        : carrier_layout;
-    decide_ctx.output_layout = carrier_layout;
-    decide_ctx.target_layout = requested_layout;
-
     auro3deng::OutputGeneratorRuntimeFns1024a9 fns{};
     fns.delay_line_get_channel = auro3deng::delay_line_get_channel_from_buffer_106ab0;
     fns.delay_line_get_buffer = codec_v3_delay_line_get_buffer_bridge;
     fns.frame_deque_find_first_with_end_after = auro3deng::frame_deque_find_first_with_end_after_13d570_partial;
     fns.frame_mark_as_unused = auro3deng::frame_mark_as_unused_106cd0_default_partial;
     fns.frame_deque_pop_front = codec_v3_frame_deque_pop_front_keep_frame_13d670_bridge;
-    fns.pre_segments_callback = host_og_pre_segments_decide_decode_bridge;
-    fns.pre_segments_ctx = reinterpret_cast<std::uint64_t>(&decide_ctx);
     auro3deng::DecoderOutputStageContext1024a9 ctx{};
     ctx.delay_line = step->delay_line;
     ctx.output_generator_base = step->output_generator_base;
@@ -3875,17 +3860,6 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
     std::uint32_t produced_mask = codec_v3_dispatch_.produced_output_mask & kCodecV3ChannelMask;
     const std::uint32_t requested_mask = native_config_state_.requested_output_mask & kCodecV3ChannelMask;
     const std::uint32_t input_mask = native_config_state_.input_mask & kCodecV3ChannelMask;
-    const std::uint32_t passthrough_mask = requested_mask & input_mask;
-    for (std::uint32_t slot = 0; slot < auro_codec_v3_ida::kAuroProcessorIoChannelPtrCount; ++slot) {
-        if ((passthrough_mask & (1u << slot)) == 0u)
-            continue;
-        if (input_desc_.channel_ptr[slot] == 0u || output_desc_.channel_ptr[slot] == 0u)
-            continue;
-        std::memcpy(
-            reinterpret_cast<void*>(static_cast<std::uintptr_t>(output_desc_.channel_ptr[slot])),
-            reinterpret_cast<const void*>(static_cast<std::uintptr_t>(input_desc_.channel_ptr[slot])),
-            plane_bytes);
-    }
     constexpr std::uint32_t kHeightMask = auro_codec_v3_ida::kAuroChannelMaskHeightLayer;
     const std::uint32_t req_height = native_config_state_.requested_output_mask & kHeightMask;
     const bool height_satisfied_by_input =
@@ -3912,8 +3886,6 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
         * static_cast<std::uint64_t>(std::max<std::uint32_t>(2u, native_config_state_.stage1_count + 1u));
     const bool past_warmup = codec_v3_delay_line_.absolute_cursor >= warmup_samples;
     if (past_warmup && !codec_v3_requested_layout_ever_satisfied_)
-        return DecodeError::NotImplemented;
-    if (past_warmup && (!requested_ok || !native_height_ok))
         return DecodeError::NotImplemented;
     // По умолчанию stereo, но при явном запросе рендерим все выходные слоты.
     const float gain = auro3deng::strength_translate(static_cast<std::uint32_t>(dsp_strength_)) * dsp_headroom_gain_;

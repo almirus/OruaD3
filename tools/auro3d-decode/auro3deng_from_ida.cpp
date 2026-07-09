@@ -1860,7 +1860,9 @@ std::int64_t decoder_run_output_stage_1024a9_partial(
     run_ctx.frame_deque_ptr = reinterpret_cast<std::uint64_t>(ctx->ready_frame_deque_base);
     run_ctx.total_samples = ctx->total_samples;
     run_ctx.produced_output_mask = ctx->produced_output_mask;
-    run_ctx.runtime_fns = codec_v3_default_output_runtime_1024a9();
+    run_ctx.runtime_fns = runtime_fns
+        ? OutputGeneratorRuntimeFns1024a9{}
+        : codec_v3_default_output_runtime_1024a9();
     if (runtime_fns) {
         const auto& ext = *reinterpret_cast<const OutputGeneratorRuntimeFns1024a9*>(runtime_fns);
         if (ext.delay_line_get_channel) run_ctx.runtime_fns.delay_line_get_channel = ext.delay_line_get_channel;
@@ -11407,23 +11409,43 @@ std::int64_t output_generator_process_segments_raw_1024a9(
         *reinterpret_cast<std::uint32_t*>(output_generator_base + kOgOff_output_status_flag) =
             segment_used_copy_input ? 0u : 1u;
 
-        // IDA LABEL_144: started and non-started; for j in 0..30 zero if bit j not in produced (v40).
-        zero_unproduced_output_channels_1024a9(
-            seg,
-            acb,
-            segment_produced_mask,
-            kCodecV3ChannelMask);
+        const bool started_decode = seg.frame_ptr != 0 && use_started_decode_path_1024a9(seg);
+        // Old libauro3d LABEL_85: started decode jumps directly to LABEL_129;
+        // zero-missing only runs on the delay-line/copy path.
+        if (!started_decode) {
+            zero_unproduced_output_channels_1024a9(
+                seg,
+                acb,
+                segment_produced_mask,
+                kCodecV3ChannelMask);
+        }
 
         // IDA LABEL_102..153: started (v131) -> *a3 |= frame+24, без zero-missing.
         // non-started -> *a3 |= *buffer (seg.channel_mask) после copy/warmup.
         if (io_channel_mask_out) {
             const std::uint32_t external_mask =
-                (seg.frame_ptr != 0 && use_started_decode_path_1024a9(seg))
+                started_decode
                     ? frame_output_mask_1024a9(seg)
-                    : (segment_used_copy_input
-                        ? (acb.input_mask & 0x7FFFFFFFu & kCodecV3ChannelMask)
-                        : (seg.frame_ptr != 0 ? seg.channel_mask : segment_produced_mask));
+                    : seg.channel_mask;
             *io_channel_mask_out |= external_mask;
+            if (std::getenv("AURO3D_DEBUG_FRAMES") != nullptr) {
+                static std::atomic<unsigned> debug_count{0};
+                const unsigned n = debug_count.fetch_add(1);
+                if (n < 32) {
+                    std::fprintf(
+                        stderr,
+                        "og_segment[%u] start=%llu len=%llu chmask=0x%x flags=0x%x started=%u produced=0x%x external=0x%x out=0x%x\n",
+                        n,
+                        static_cast<unsigned long long>(seg.start),
+                        static_cast<unsigned long long>(seg.len),
+                        seg.channel_mask,
+                        seg.frame_flags,
+                        started_decode ? 1u : 0u,
+                        segment_produced_mask,
+                        external_mask,
+                        *io_channel_mask_out);
+                }
+            }
         }
         timeline_cursor += seg.len;
         *reinterpret_cast<std::uint64_t*>(output_generator_base + kOgOff_timeline_cursor) = timeline_cursor;
