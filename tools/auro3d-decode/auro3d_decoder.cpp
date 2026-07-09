@@ -2223,6 +2223,10 @@ bool decode_flac_to_pcm24_wav_bytes(
 
 namespace auro3d {
 
+const char* auro_channel_layout_to_string(std::uint32_t layout) {
+    return ::auro_channel_layout_to_string(layout);
+}
+
 const char* decode_error_message(DecodeError e) {
     switch (e) {
     case DecodeError::Ok: return "ok";

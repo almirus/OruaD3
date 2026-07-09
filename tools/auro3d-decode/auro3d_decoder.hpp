@@ -19,6 +19,8 @@ constexpr unsigned kDefaultRoomPreset = 0u;         // HOME
 constexpr unsigned kDefaultHrtfPreset = 0u;         // HPV2
 constexpr unsigned kDefaultVirtualizerMode = 0u;    // ENABLED
 
+const char* auro_channel_layout_to_string(std::uint32_t layout);
+
 struct DecoderConfig {
     uint32_t sample_rate = 0;
     uint16_t channels = 0;
