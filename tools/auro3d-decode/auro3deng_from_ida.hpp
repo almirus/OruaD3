@@ -276,7 +276,7 @@ void auro_matic_v3_XinN_fl32_update_peak_amplitude_556450_partial(
 std::int64_t auro_matic_XinN_fl32_process_inplace_574e30_partial(std::uint64_t xinn_state, void** channel_span_31);
 std::int64_t auro_matic_XinN_fl32_process_scratch_574ee0_partial(std::uint64_t xinn_state, void** channel_span_31);
 constexpr std::size_t kXinnPlanBlobBytesPortable = 96u;
-constexpr std::size_t kXinnUpdateBlobBytesPortable = 256u;
+constexpr std::size_t kXinnUpdateBlobBytesPortable = 276u;
 
 std::uint32_t xinn_prepare_mode_from_input_mask_portable(std::uint32_t input_mask);
 void xinn_fill_tuning_static_defaults_portable(

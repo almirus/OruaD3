@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <cstdio>
@@ -29,9 +30,9 @@ constexpr std::uint32_t kProcessorDescOutputLayout = 0u;
 constexpr std::uint32_t kInvalidChannelSlot = 0xFFFFFFFFu;
 constexpr std::uint32_t kCodecV3ChannelCount = 31u;
 constexpr std::uint32_t kCodecV3ChannelMask = 0x7FFFFFFFu;
-// Current target: metadata-bearing Auro codec decode only.
-// Auro-Matic/XinN synthetic upmix is intentionally disabled.
-constexpr bool kEnableAuroMaticXinNUpmix = false;
+// Native codec-v3 decode is preferred. XinN fills only requested height slots
+// that the carrier/native decoder did not provide.
+constexpr bool kEnableAuroMaticXinNUpmix = true;
 constexpr bool kEnableSyntheticHeightFallback = false;
 constexpr std::size_t kCodecV3OgStateBytes = 2048u;
 constexpr std::size_t kCodecV3OgOutTableBytes = 16u + kCodecV3ChannelCount * sizeof(std::uint64_t);
@@ -74,7 +75,7 @@ static_assert(kCodecV3FrameDequeCopiedSlotCapacity == kCodecV3FrameSlotCapacity,
 constexpr std::size_t kCodecV3FakeFrameChannelBytes = 4096u;
 constexpr std::size_t kNativeXinnStepStateBytes = 484064u;
 constexpr std::size_t kNativeXinnPlanBlobBytes = 96u;
-constexpr std::size_t kNativeXinnUpdateBlobBytes = 256u;
+constexpr std::size_t kNativeXinnUpdateBlobBytes = 276u;
 constexpr std::uintptr_t kNativeXinnStepOffBlockInfoPtr = 483952u;
 constexpr std::uintptr_t kNativeXinnBlockInfoOffRecords = 32u;
 
@@ -2156,8 +2157,46 @@ bool read_file_bytes(const std::string& path, std::vector<std::uint8_t>& bytes, 
     return true;
 }
 
+bool read_file_prefix(
+    const std::string& path,
+    std::size_t maximum_bytes,
+    std::vector<std::uint8_t>& bytes,
+    std::string& err) {
+    err.clear();
+    bytes.clear();
+    std::ifstream in(path, std::ios::binary);
+    if (!in) {
+        err = "cannot open file";
+        return false;
+    }
+    bytes.resize(maximum_bytes);
+    in.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(maximum_bytes));
+    const std::streamsize count = in.gcount();
+    if (count < 0 || (in.bad() && count == 0)) {
+        err = "read error";
+        bytes.clear();
+        return false;
+    }
+    bytes.resize(static_cast<std::size_t>(count));
+    return true;
+}
+
 bool is_flac_stream(const std::vector<std::uint8_t>& bytes) {
     return bytes.size() >= 4 && std::memcmp(bytes.data(), "fLaC", 4) == 0;
+}
+
+bool is_matroska_stream(const std::vector<std::uint8_t>& bytes) {
+    static constexpr std::uint8_t kEbmlHeader[] = {0x1A, 0x45, 0xDF, 0xA3};
+    return bytes.size() >= sizeof(kEbmlHeader)
+        && std::memcmp(bytes.data(), kEbmlHeader, sizeof(kEbmlHeader)) == 0;
+}
+
+bool is_iso_base_media_stream(const std::vector<std::uint8_t>& bytes) {
+    return bytes.size() >= 12 && std::memcmp(bytes.data() + 4, "ftyp", 4) == 0;
+}
+
+bool is_ffmpeg_audio_input(const std::vector<std::uint8_t>& bytes) {
+    return is_flac_stream(bytes) || is_matroska_stream(bytes) || is_iso_base_media_stream(bytes);
 }
 
 std::string shell_quote_path(const std::string& path) {
@@ -2188,24 +2227,122 @@ std::string temp_wav_path() {
 #endif
     const auto ticks = std::chrono::high_resolution_clock::now().time_since_epoch().count();
     std::ostringstream name;
-    name << dir << "auro3d_decode_flac_" << ticks << "_" << std::rand() << ".wav";
+    name << dir << "auro3d_decode_audio_" << ticks << "_" << std::rand() << ".wav";
     return name.str();
 }
 
-bool decode_flac_to_pcm24_wav_bytes(
+bool run_command_capture_stdout(const std::string& command, std::string& output) {
+    output.clear();
+#ifdef _WIN32
+    FILE* pipe = _popen(command.c_str(), "r");
+#else
+    FILE* pipe = popen(command.c_str(), "r");
+#endif
+    if (!pipe)
+        return false;
+
+    std::array<char, 4096> buffer{};
+    while (std::fgets(buffer.data(), static_cast<int>(buffer.size()), pipe))
+        output.append(buffer.data());
+
+#ifdef _WIN32
+    return _pclose(pipe) == 0;
+#else
+    return pclose(pipe) == 0;
+#endif
+}
+
+std::string ascii_lower(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return value;
+}
+
+unsigned parse_probe_unsigned(const std::string& value) {
+    if (value.empty() || value == "N/A")
+        return 0u;
+    char* end = nullptr;
+    const unsigned long parsed = std::strtoul(value.c_str(), &end, 10);
+    return end && *end == '\0' ? static_cast<unsigned>(parsed) : 0u;
+}
+
+bool find_supported_audio_stream(const std::string& path, unsigned& stream_index, std::string& err) {
+    const std::string command =
+        "ffprobe -v error -select_streams a "
+        "-show_entries stream=index,codec_name,profile,bits_per_sample,bits_per_raw_sample "
+        "-of compact=p=0:nk=0 " + shell_quote_path(path);
+    std::string probe_output;
+    if (!run_command_capture_stdout(command, probe_output)) {
+        err = "ffprobe failed to inspect input audio streams";
+        return false;
+    }
+
+    std::istringstream lines(probe_output);
+    std::string line;
+    while (std::getline(lines, line)) {
+        unsigned index = std::numeric_limits<unsigned>::max();
+        unsigned bits_per_sample = 0u;
+        unsigned bits_per_raw_sample = 0u;
+        std::string codec;
+        std::string profile;
+
+        std::istringstream fields(line);
+        std::string field;
+        while (std::getline(fields, field, '|')) {
+            const std::size_t equals = field.find('=');
+            if (equals == std::string::npos)
+                continue;
+            const std::string key = field.substr(0, equals);
+            const std::string value = field.substr(equals + 1);
+            if (key == "index")
+                index = parse_probe_unsigned(value);
+            else if (key == "codec_name")
+                codec = ascii_lower(value);
+            else if (key == "profile")
+                profile = ascii_lower(value);
+            else if (key == "bits_per_sample")
+                bits_per_sample = parse_probe_unsigned(value);
+            else if (key == "bits_per_raw_sample")
+                bits_per_raw_sample = parse_probe_unsigned(value);
+        }
+
+        const unsigned bit_depth = bits_per_raw_sample != 0u
+            ? bits_per_raw_sample
+            : bits_per_sample;
+        const bool flac24 = codec == "flac" && bit_depth == 24u;
+        const bool dts_hd_ma = codec == "dts"
+            && profile.find("dts-hd ma") != std::string::npos
+            && (bit_depth == 0u || bit_depth == 24u);
+        if (index != std::numeric_limits<unsigned>::max() && (flac24 || dts_hd_ma)) {
+            stream_index = index;
+            return true;
+        }
+    }
+
+    err = "no 24-bit FLAC or DTS-HD MA audio stream found";
+    return false;
+}
+
+bool decode_supported_audio_to_pcm24_wav_bytes(
     const std::string& path,
     std::vector<std::uint8_t>& wav_bytes,
     std::string& err) {
     err.clear();
     wav_bytes.clear();
+    unsigned stream_index = 0u;
+    if (!find_supported_audio_stream(path, stream_index, err))
+        return false;
+
     const std::string tmp_wav = temp_wav_path();
     const std::string cmd =
         "ffmpeg -y -v error -i " + shell_quote_path(path)
-        + " -map 0:a:0 -c:a pcm_s24le -f wav " + shell_quote_path(tmp_wav);
+        + " -map 0:" + std::to_string(stream_index)
+        + " -c:a pcm_s24le -f wav " + shell_quote_path(tmp_wav);
     const int rc = std::system(cmd.c_str());
     if (rc != 0) {
         std::remove(tmp_wav.c_str());
-        err = "ffmpeg failed to decode FLAC to PCM24 WAV";
+        err = "ffmpeg failed to decode selected audio stream to PCM24 WAV";
         return false;
     }
     const bool ok = read_file_bytes(tmp_wav, wav_bytes, err);
@@ -3097,7 +3234,7 @@ void Decoder::parser_rebind_frame_parse_results_103610(std::uint64_t frame_ptr) 
     auro3deng::parser_rebind_frame_parse_results_103610_partial(frame_ptr, &ctx);
 }
 
-bool Decoder::run_native_xinn_partial_step() {
+bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
     if (!kEnableAuroMaticXinNUpmix)
         return false;
     if (block_size_ == 0)
@@ -3125,25 +3262,17 @@ bool Decoder::run_native_xinn_partial_step() {
         if (!src)
             continue;
         for (unsigned s = 0; s < block_size_; ++s)
-            dst[s] = static_cast<float>(src[s]);
+            dst[s] = static_cast<float>(src[s]) * (1.0f / 8388608.0f);
     }
 
     const std::uint32_t subblocks = static_cast<std::uint32_t>(block_size_ / 32u);
     if (subblocks == 0u || (block_size_ % 32u) != 0u)
         return false;
-    const std::uint64_t block_info = *reinterpret_cast<const std::uint64_t*>(
-        native_xinn_step_state_.data() + kNativeXinnStepOffBlockInfoPtr);
-    const std::uint64_t block_records_u64 = block_info != 0u
-        ? *reinterpret_cast<const std::uint64_t*>(
-            static_cast<std::uintptr_t>(block_info + kNativeXinnBlockInfoOffRecords))
-        : 0u;
-    const auto* block_records = reinterpret_cast<const std::uint8_t*>(
-        static_cast<std::uintptr_t>(block_records_u64));
     const std::int64_t rc = auro3deng::auro_a3deng_v4_pipeline_step_upmix_XinN_process_35b440_partial(
         reinterpret_cast<std::uint64_t>(native_xinn_step_state_.data()),
         span.data(),
         subblocks,
-        block_records,
+        nullptr,
         nullptr,
         auro3deng::auro_a3deng_v4_pipeline_step_upmix_XinN_reset_audio_state_35b730_partial);
     if (rc != 0) {
@@ -3151,7 +3280,7 @@ bool Decoder::run_native_xinn_partial_step() {
         return false;
     }
 
-    const std::uint32_t copy_back_mask = native_config_state_.effective_output_mask & 0x7FFFFFFu;
+    copy_back_mask &= native_config_state_.effective_output_mask & 0x7FFFFFFu;
     for (std::uint32_t slot = 0; slot < auro_codec_v3_ida::kAuroProcessorIoChannelPtrCount; ++slot) {
         if ((copy_back_mask & (1u << slot)) == 0u)
             continue;
@@ -3163,7 +3292,8 @@ bool Decoder::run_native_xinn_partial_step() {
         if (!dst)
             continue;
         for (unsigned s = 0; s < block_size_; ++s)
-            dst[s] = clamp_i32_to_pcm24(static_cast<std::int64_t>(std::lrintf(src[s])));
+            dst[s] = clamp_i32_to_pcm24(
+                static_cast<std::int64_t>(std::lrintf(src[s] * 8388608.0f)));
     }
     return true;
 }
@@ -3574,18 +3704,21 @@ bool load_all_pcm_s24le_interleaved_i32(
     interleaved_out.clear();
     cfg_out = {};
 
-    std::vector<std::uint8_t> file_bytes;
-    if (!read_file_bytes(path, file_bytes, err))
+    std::vector<std::uint8_t> prefix;
+    if (!read_file_prefix(path, 12u, prefix, err))
         return false;
-
-    if (!raw && is_flac_stream(file_bytes)) {
-        if (!decode_flac_to_pcm24_wav_bytes(path, file_bytes, err))
-            return false;
+    if (raw && is_ffmpeg_audio_input(prefix)) {
+        err = "compressed/container input cannot be used with --raw";
+        return false;
     }
 
-    if (raw && is_flac_stream(file_bytes)) {
-        err = "FLAC input cannot be used with --raw";
-        return false;
+    std::vector<std::uint8_t> file_bytes;
+    if (!raw && is_ffmpeg_audio_input(prefix)) {
+        if (!decode_supported_audio_to_pcm24_wav_bytes(path, file_bytes, err))
+            return false;
+    } else {
+        if (!read_file_bytes(path, file_bytes, err))
+            return false;
     }
 
     std::size_t pcm_b = 0;
@@ -3673,15 +3806,18 @@ DecodeError Decoder::open(const std::string& path) {
     auro_metadata_ = {};
 
     std::string input_err;
-    if (!read_file_bytes(path, file_bytes_, input_err))
+    std::vector<std::uint8_t> prefix;
+    if (!read_file_prefix(path, 12u, prefix, input_err))
         return DecodeError::IoError;
-    if (!raw_forced_ && is_flac_stream(file_bytes_)) {
-        if (!decode_flac_to_pcm24_wav_bytes(path, file_bytes_, input_err))
-            return DecodeError::BadInput;
-    }
-    if (raw_forced_ && is_flac_stream(file_bytes_))
+    if (raw_forced_ && is_ffmpeg_audio_input(prefix))
         return DecodeError::BadInput;
-
+    if (!raw_forced_ && is_ffmpeg_audio_input(prefix)) {
+        if (!decode_supported_audio_to_pcm24_wav_bytes(path, file_bytes_, input_err))
+            return DecodeError::BadInput;
+    } else {
+        if (!read_file_bytes(path, file_bytes_, input_err))
+            return DecodeError::IoError;
+    }
     std::string wav_err;
     std::size_t pcm_b = 0;
     std::size_t pcm_len = 0;
@@ -3727,8 +3863,9 @@ DecodeError Decoder::open(const std::string& path) {
         opened_ = false;
         return DecodeError::NotImplemented;
     }
-    if (block_request_ == 0 && auro_metadata_.block_size != 0u)
-        block_size_ = auro_metadata_.block_size;
+    // The metadata block size is the sync/instruction interval, not the host
+    // processing block size. The native Processor requires the configured host
+    // block to remain a multiple of 32 (JNI uses 832 samples).
     // WAV channel_count is the container/layout width (often includes height slots).
     // carrier_channels is the encoded subset; mismatch is expected for height decode.
     const std::size_t frame_b = static_cast<std::size_t>(block_size_) * sample_frame_b;
@@ -3747,19 +3884,25 @@ DecodeError Decoder::open(const std::string& path) {
     const bool direct_7_1_2h_output =
         auro_metadata_.layout_id == kAuroLayout7_1_5H_1T
         && auro_metadata_.carrier_layout_id == kAuroCarrier7_1;
-    const unsigned direct_output_channels = direct_7_1_2h_output
+    const unsigned native_direct_output_channels = direct_7_1_2h_output
         ? mask_count_27(kAuroDirect7_1_2H)
         : auro_metadata_.output_channels;
+    const unsigned auto_output_channels = kEnableAuroMaticXinNUpmix
+        ? auro_metadata_.output_channels
+        : native_direct_output_channels;
 
     dsp_output_channels_ = dsp_output_channels_req_;
-    if (dsp_output_channels_ != 0 && dsp_output_channels_ != direct_output_channels) {
+    const bool explicit_layout_supported =
+        dsp_output_channels_ == native_direct_output_channels
+        || (kEnableAuroMaticXinNUpmix && dsp_output_channels_ == auto_output_channels);
+    if (dsp_output_channels_ != 0 && !explicit_layout_supported) {
         opened_ = false;
         return DecodeError::NotImplemented;
     }
     if (dsp_output_channels_ == 0
-        && direct_output_channels > 0
-        && direct_output_channels <= kCurrentNativeExportChannelLimit) {
-        dsp_output_channels_ = direct_output_channels;
+        && auto_output_channels > 0
+        && auto_output_channels <= kCurrentNativeExportChannelLimit) {
+        dsp_output_channels_ = auto_output_channels;
     }
     if (dsp_output_channels_ == 0) {
         opened_ = false;
@@ -3868,9 +4011,23 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
     const std::uint32_t req_height = native_config_state_.requested_output_mask & kHeightMask;
     const bool height_satisfied_by_input =
         req_height != 0u && (req_height & ~native_config_state_.input_mask) == 0u;
+    constexpr std::uint32_t kAuroLayout7_1_5H_1T = 0x7FBFu;
+    constexpr std::uint32_t kAuroCarrier7_1 = 0x01BFu;
+    constexpr std::uint32_t kAuroDirect7_1_2H = 0x07BFu;
+    // For 7.1_5H_1T the codec declares the complete frame layout in its
+    // produced mask, but the native export path only emits the direct HL/HR
+    // pair. The remaining height slots belong to the XinN renderer.
+    const bool native_direct_7_1_2h =
+        auro_metadata_.layout_id == kAuroLayout7_1_5H_1T
+        && auro_metadata_.carrier_layout_id == kAuroCarrier7_1;
+    const std::uint32_t native_height_mask = native_direct_7_1_2h
+        ? (kAuroDirect7_1_2H & kHeightMask)
+        : (produced_mask & kHeightMask);
     const std::uint32_t missing_height_mask =
-        req_height & ~(native_config_state_.input_mask | produced_mask) & kCodecV3ChannelMask;
-    if (missing_height_mask != 0u && run_native_asc4he_partial_step(missing_height_mask))
+        req_height & ~(native_config_state_.input_mask | native_height_mask) & kCodecV3ChannelMask;
+    if (missing_height_mask != 0u && run_native_xinn_partial_step(missing_height_mask))
+        produced_mask |= missing_height_mask;
+    else if (missing_height_mask != 0u && run_native_asc4he_partial_step(missing_height_mask))
         produced_mask |= missing_height_mask;
     const std::uint32_t satisfied_mask = produced_mask | input_mask;
     const bool requested_ok = (requested_mask & ~satisfied_mask) == 0u;

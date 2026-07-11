@@ -3,8 +3,11 @@
 #include "auro3deng_strength.hpp"
 #include "wav_writer.hpp"
 
+#include <chrono>
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -21,6 +24,7 @@ struct Options {
     bool raw = false;
     bool verbose = false;
     bool mono_tracks = false;
+    bool channel_diagram = false;
     bool help_only = false;
     bool version_only = false;
     unsigned sample_rate = 0;
@@ -29,6 +33,7 @@ struct Options {
     unsigned dsp_strength = 12;
     unsigned dsp_output_channels = 0;
     unsigned output_bits = 24;
+    std::string output_format;
     float dsp_headroom_db = 6.0f;
     unsigned room_preset = auro3d::kDefaultRoomPreset;
     unsigned hrtf_preset = auro3d::kDefaultHrtfPreset;
@@ -100,12 +105,173 @@ void print_decode_mode_channel_list(
 
 std::filesystem::path mono_channel_output_path(
     const std::string& output,
-    const std::string& channel_name) {
+    const std::string& channel_name,
+    const std::string& extension) {
     std::filesystem::path out_path(output);
     const std::filesystem::path dir = out_path.parent_path();
     const std::string stem = out_path.stem().string();
-    std::filesystem::path mono_name = stem + " (" + channel_name + ").wav";
+    std::filesystem::path mono_name = stem + " (" + channel_name + ")" + extension;
     return dir.empty() ? mono_name : (dir / mono_name);
+}
+
+std::string lowercase(std::string value) {
+    for (char& c : value) {
+        if (c >= 'A' && c <= 'Z')
+            c = static_cast<char>(c - 'A' + 'a');
+    }
+    return value;
+}
+
+std::string selected_output_format(const Options& opt) {
+    if (!opt.output_format.empty())
+        return opt.output_format;
+    return lowercase(std::filesystem::path(opt.output).extension().string()) == ".flac"
+        ? "flac" : "wav";
+}
+
+std::string shell_quote(const std::filesystem::path& path) {
+    std::string value = path.string();
+    std::string quoted = "\"";
+    for (char c : value) {
+        if (c == '\"')
+            quoted += '\\';
+        quoted += c;
+    }
+    return quoted + "\"";
+}
+
+bool write_audio_file(
+    const std::filesystem::path& output,
+    const std::string& format,
+    unsigned bits,
+    unsigned sample_rate,
+    unsigned channels,
+    const std::vector<std::uint8_t>& pcm,
+    std::string& error_out) {
+    if (format == "wav") {
+        return bits == 24
+            ? wav::write_pcm24_le(output.string(), sample_rate, channels, pcm, error_out)
+            : wav::write_pcm16_le(output.string(), sample_rate, channels, pcm, error_out);
+    }
+
+    const auto stamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    std::filesystem::path temp = std::filesystem::temp_directory_path()
+        / ("auro3d-decode-" + std::to_string(stamp) + ".wav");
+    const bool wav_ok = bits == 24
+        ? wav::write_pcm24_le(temp.string(), sample_rate, channels, pcm, error_out)
+        : wav::write_pcm16_le(temp.string(), sample_rate, channels, pcm, error_out);
+    if (!wav_ok)
+        return false;
+
+    const std::string command = "ffmpeg -y -v error -i " + shell_quote(temp)
+        + " -map 0:a:0 -c:a flac " + shell_quote(output);
+    const int status = std::system(command.c_str());
+    std::error_code remove_error;
+    std::filesystem::remove(temp, remove_error);
+    if (status != 0) {
+        error_out = "ffmpeg failed to encode FLAC (is ffmpeg available in PATH?)";
+        return false;
+    }
+    return true;
+}
+
+std::string xml_escape(const std::string& value) {
+    std::string escaped;
+    for (char c : value) {
+        switch (c) {
+        case '&': escaped += "&amp;"; break;
+        case '<': escaped += "&lt;"; break;
+        case '>': escaped += "&gt;"; break;
+        case '\"': escaped += "&quot;"; break;
+        case '\'': escaped += "&apos;"; break;
+        default: escaped += c; break;
+        }
+    }
+    return escaped;
+}
+
+bool write_channel_mapping_xml(
+    const std::filesystem::path& audio_path,
+    unsigned sample_rate,
+    unsigned bits_per_sample,
+    unsigned channel_count,
+    const std::vector<std::uint32_t>& slots,
+    std::string& error_out) {
+    std::filesystem::path xml_path = audio_path;
+    xml_path.replace_extension(".xml");
+    std::ofstream out(xml_path, std::ios::binary | std::ios::trunc);
+    if (!out) {
+        error_out = "cannot open channel mapping XML: " + xml_path.string();
+        return false;
+    }
+
+    out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        << "<channelMapping audioFile=\""
+        << xml_escape(audio_path.filename().string())
+        << "\" sampleRate=\"" << sample_rate
+        << "\" bitsPerSample=\"" << bits_per_sample
+        << "\" channelCount=\"" << channel_count << "\">\n";
+    for (unsigned ch = 0; ch < channel_count; ++ch) {
+        const bool known_slot = ch < slots.size() && slots[ch] < 27u;
+        out << "  <channel index=\"" << ch << "\" number=\"" << (ch + 1u) << "\"";
+        if (known_slot) {
+            out << " slot=\"" << slots[ch] << "\" name=\""
+                << auro_slot_name(slots[ch]) << "\"";
+        } else {
+            out << " name=\"ch" << ch << "\"";
+        }
+        out << "/>\n";
+    }
+    out << "</channelMapping>\n";
+    if (!out) {
+        error_out = "failed to write channel mapping XML: " + xml_path.string();
+        return false;
+    }
+    return true;
+}
+
+void print_channel_diagram(
+    unsigned channels,
+    const std::vector<std::uint32_t>& slots,
+    std::uint32_t input_mask,
+    std::uint32_t native_mask,
+    std::uint32_t auromatic_mask) {
+    std::vector<unsigned> source_channels;
+    std::uint32_t output_mask = 0u;
+    for (unsigned ch = 0; ch < channels && ch < slots.size(); ++ch) {
+        if (slots[ch] < 31u)
+            output_mask |= 1u << slots[ch];
+        if (slots[ch] < 31u && ((input_mask >> slots[ch]) & 1u) != 0u)
+            source_channels.push_back(ch);
+    }
+
+    const char* input_layout = auro3d::auro_channel_layout_to_string(input_mask);
+    const char* output_layout = auro3d::auro_channel_layout_to_string(output_mask);
+    std::cerr << "channel_diagram "
+              << (input_layout[0] ? input_layout : "custom") << " -> "
+              << (output_layout[0] ? output_layout : "custom")
+              << ":\n";
+    for (unsigned ch = 0; ch < channels; ++ch) {
+        const std::uint32_t slot = ch < slots.size() ? slots[ch] : 0xFFFFFFFFu;
+        const char* name = slot < 27u ? auro_slot_name(slot) : "?";
+        if (slot < 31u && ((input_mask >> slot) & 1u) != 0u) {
+            std::cerr << "  carrier " << name << " -> " << name
+                      << " [native bed reconstruction]\n";
+            continue;
+        }
+
+        const char* mode = slot < 31u && ((auromatic_mask >> slot) & 1u) != 0u
+            ? "Auro-Matic" : (slot < 31u && ((native_mask >> slot) & 1u) != 0u ? "native AURO" : "generated");
+        std::cerr << "  ";
+        for (std::size_t i = 0; i < source_channels.size(); ++i) {
+            if (i != 0u)
+                std::cerr << "+";
+            std::cerr << auro_slot_name(slots[source_channels[i]]);
+        }
+        if (source_channels.empty())
+            std::cerr << "carrier";
+        std::cerr << " + codec data -> " << name << " [" << mode << "]\n";
+    }
 }
 
 std::vector<std::uint8_t> extract_mono_channel_pcm(
@@ -133,19 +299,21 @@ void print_usage() {
     std::cerr
         << auro3d_decode::kName << " " << auro3d_decode::kVersion << " — консольный декодер AURO на базе RE libauro.so / libauro3d.so.\n\n"
         << "Использование:\n"
-        << "  " << auro3d_decode::kName << " -i <input.wav|input.flac|input.s24le> -o <output.wav> [опции]\n\n"
+        << "  " << auro3d_decode::kName << " -i <input.wav|input.flac|input.mkv|input.mp4|input.s24le> -o <output.wav|output.flac> [опции]\n\n"
         << "Опции:\n"
         << "  -i, --input FILE\n"
         << "  -o, --output FILE\n"
+        << "  --output-format FMT  output format: wav or flac; default is inferred from .flac extension\n"
         << "  --raw                вход — сырой interleaved s24le (требуются --rate --channels)\n"
         << "  --rate HZ            sample rate для --raw\n"
         << "  --channels N         число каналов для --raw\n"
         << "  --block N            block size в сэмплах; по умолчанию " << auro3d::kDefaultJniBlockSize << "\n"
         << "  --dsp-strength N     сила декодера/рендера (0..15; по умолчанию 12)\n"
-        << "  --dsp-output-channels N  output channels; 0/omitted = auto from Auro metadata; no Auro-Matic/XinN fallback, current native path up to "
+        << "  --dsp-output-channels N  output channels; 0/omitted = auto from Auro metadata; native decode with Auro-Matic/XinN height fallback, up to "
         << auro3d::kCurrentNativeExportChannelLimit << "\n"
-        << "  --output-bits N      WAV PCM depth: 16 or 24; по умолчанию 24\n"
-        << "  --mono-tracks        additionally write mono WAV files named <output stem> (FL).wav, etc.\n"
+        << "  --output-bits N      output PCM depth: 16 or 24; по умолчанию 24\n"
+        << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac, etc.\n"
+        << "  --channel-diagram    print structural input-to-output channel diagram\n"
         << "  --dsp-headroom-db X  headroom в dB (0..24; по умолчанию 6)\n"
         << "  --room-preset N      room preset AURO (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
         << "  --hrtf-preset N      HRTF preset (0=HPV2,1=GENERIC_1,2=GENERIC_2,3=GENERIC_3)\n"
@@ -208,6 +376,10 @@ bool parse_args(int argc, char** argv, Options& opt) {
             opt.mono_tracks = true;
             continue;
         }
+        if (a == "--channel-diagram") {
+            opt.channel_diagram = true;
+            continue;
+        }
         if (a == "--raw") {
             opt.raw = true;
             continue;
@@ -224,6 +396,17 @@ bool parse_args(int argc, char** argv, Options& opt) {
             if (!v)
                 return false;
             opt.output = v;
+            continue;
+        }
+        if (a == "--output-format") {
+            const char* v = need("--output-format");
+            if (!v)
+                return false;
+            opt.output_format = lowercase(v);
+            if (opt.output_format != "wav" && opt.output_format != "flac") {
+                std::cerr << "--output-format: допустимо wav или flac\n";
+                return false;
+            }
             continue;
         }
         if (a == "--rate") {
@@ -398,12 +581,19 @@ int main(int argc, char** argv) {
     const auro3d::NativeA3dengRenderState render_cfg = dec.native_a3deng_render_state();
     const auro3d::AuroMetadataInfo auro_meta = dec.auro_metadata();
     const std::vector<std::uint32_t> output_slots = dec.output_channel_slot_map();
-    const bool auromatic_layout =
-        auro_meta.found
-        && (auro_meta.layout_id & 0x3FE00u) == 0u
-        && auro_meta.carrier_layout_id != 0u
-        && auro_meta.carrier_layout_id != auro_meta.layout_id
-        && auro_meta.output_channels > auro_meta.carrier_channels;
+    constexpr std::uint32_t kLayout7_1_5H_1T = 0x7FBFu;
+    constexpr std::uint32_t kCarrier7_1 = 0x01BFu;
+    constexpr std::uint32_t kDirect7_1_2H = 0x07BFu;
+    std::uint32_t native_mask = native_cfg.requested_output_mask & ~native_cfg.input_mask;
+    std::uint32_t auromatic_mask = 0u;
+    if (auro_meta.found
+        && auro_meta.layout_id == kLayout7_1_5H_1T
+        && auro_meta.carrier_layout_id == kCarrier7_1) {
+        native_mask &= kDirect7_1_2H;
+        auromatic_mask = native_cfg.requested_output_mask
+            & ~native_cfg.input_mask
+            & ~native_mask;
+    }
     const char* native_input_layout = auro3d::auro_channel_layout_to_string(native_cfg.input_mask);
     const char* requested_output_layout = auro3d::auro_channel_layout_to_string(native_cfg.requested_output_mask);
     const char* effective_output_layout = auro3d::auro_channel_layout_to_string(native_cfg.effective_output_mask);
@@ -414,9 +604,9 @@ int main(int argc, char** argv) {
               << " ";
     print_decode_mode_channel_list("carrier_passthrough", output_slots, native_cfg.input_mask, true);
     std::cerr << " ";
-    print_decode_mode_channel_list(auromatic_layout ? "auromatic" : "native", output_slots, native_cfg.input_mask, false);
-    if (!auromatic_layout)
-        std::cerr << " auromatic=none";
+    print_decode_mode_channel_list("native", output_slots, native_mask, true);
+    std::cerr << " ";
+    print_decode_mode_channel_list("auromatic", output_slots, auromatic_mask, true);
     if (auro_meta.found && auro_meta.has_closest_layout_without_mix3) {
         std::cerr << " auromatic_candidate_layout=0x" << std::hex
                   << auro_meta.closest_layout_without_mix3 << std::dec;
@@ -561,12 +751,25 @@ int main(int argc, char** argv) {
     }
 
     std::string err;
-    const bool ok = (cfg.bits_per_sample == 24)
-        ? wav::write_pcm24_le(opt.output, cfg.sample_rate, cfg.channels, pcm_all, err)
-        : wav::write_pcm16_le(opt.output, cfg.sample_rate, cfg.channels, pcm_all, err);
+    const std::string output_format = selected_output_format(opt);
+    const bool ok = write_audio_file(
+        opt.output, output_format, cfg.bits_per_sample, cfg.sample_rate, cfg.channels, pcm_all, err);
     if (!ok) {
-        std::cerr << "WAV: " << err << "\n";
+        std::cerr << (output_format == "flac" ? "FLAC: " : "WAV: ") << err << "\n";
         return 4;
+    }
+    if (!write_channel_mapping_xml(
+            opt.output, cfg.sample_rate, cfg.bits_per_sample, cfg.channels, output_slots, err)) {
+        std::cerr << "XML: " << err << "\n";
+        return 4;
+    }
+    if (opt.channel_diagram) {
+        print_channel_diagram(
+            cfg.channels,
+            output_slots,
+            native_cfg.input_mask,
+            native_mask,
+            auromatic_mask);
     }
     if (opt.mono_tracks) {
         const unsigned bytes_per_sample = cfg.bits_per_sample / 8u;
@@ -578,14 +781,14 @@ int main(int argc, char** argv) {
                     channel_name = slot_name;
             }
             const std::filesystem::path mono_path =
-                mono_channel_output_path(opt.output, channel_name);
+                mono_channel_output_path(opt.output, channel_name, output_format == "flac" ? ".flac" : ".wav");
             const std::vector<std::uint8_t> mono_pcm =
                 extract_mono_channel_pcm(pcm_all, cfg.channels, ch, bytes_per_sample);
-            const bool mono_ok = (cfg.bits_per_sample == 24)
-                ? wav::write_pcm24_le(mono_path.string(), cfg.sample_rate, 1, mono_pcm, err)
-                : wav::write_pcm16_le(mono_path.string(), cfg.sample_rate, 1, mono_pcm, err);
+            const bool mono_ok = write_audio_file(
+                mono_path, output_format, cfg.bits_per_sample, cfg.sample_rate, 1, mono_pcm, err);
             if (!mono_ok) {
-                std::cerr << "WAV mono " << mono_path.string() << ": " << err << "\n";
+                std::cerr << (output_format == "flac" ? "FLAC mono " : "WAV mono ")
+                          << mono_path.string() << ": " << err << "\n";
                 return 4;
             }
         }

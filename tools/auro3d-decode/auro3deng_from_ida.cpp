@@ -29,6 +29,13 @@
 #include <vector>
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
+#ifdef _WIN32
 #include <direct.h>
 #include <sys/stat.h>
 #else
@@ -4515,16 +4522,19 @@ bool auro_matic_Engine1_fl32_partial_clear_5116ec_partial(std::uint8_t* engine1_
     return delay == 0u;
 }
 
-void engine1_copy32_ring_5130cc_partial(float* ring, float* dst, const float* src_32) {
-    if (!ring || !dst || !src_32)
+void engine1_copy32_ring_5130cc_partial(float* ring, std::uint32_t offset, const float* src_32) {
+    if (!ring || !src_32)
         return;
+    offset %= 7616u;
+    float* dst = ring + offset;
     std::memcpy(dst, src_32, 32u * sizeof(float));
-    if (dst >= ring && reinterpret_cast<std::uintptr_t>(dst) - reinterpret_cast<std::uintptr_t>(ring) <= 127u)
+    if (offset < 32u)
         std::memcpy(dst + 7616u, src_32, 32u * sizeof(float));
 }
 
 void engine1_sum_98_taps_to_vec_5117d8_partial(
-    const float* ring_vec_base,
+    const float* ring,
+    std::uint32_t ring_offset,
     const std::uint8_t* entries,
     float* dst_4) {
     if (!dst_4)
@@ -4533,13 +4543,14 @@ void engine1_sum_98_taps_to_vec_5117d8_partial(
     dst_4[1] = 0.0f;
     dst_4[2] = 0.0f;
     dst_4[3] = 0.0f;
-    if (!ring_vec_base || !entries)
+    if (!ring || !entries)
         return;
     for (std::size_t tap = 0; tap < 98u; ++tap) {
         const auto* e = entries + tap * 8u;
         const std::uint32_t sample_index = *reinterpret_cast<const std::uint32_t*>(e);
         const float gain = *reinterpret_cast<const float*>(e + 4u);
-        const float* x = ring_vec_base + sample_index;
+        const std::uint32_t absolute_index = (ring_offset + sample_index) % 7616u;
+        const float* x = ring + absolute_index;
         dst_4[0] += x[0] * gain;
         dst_4[1] += x[1] * gain;
         dst_4[2] += x[2] * gain;
@@ -4615,38 +4626,41 @@ void auro_matic_Engine1_fl32_process_ext_5117d8_partial(
     }
 
     const std::uint32_t write_index = *reinterpret_cast<const std::uint32_t*>(engine1_state + 40u);
-    engine1_copy32_ring_5130cc_partial(ring, ring + 32u * write_index, filtered_a);
     const std::uint32_t ring_a_offset = 32u * write_index;
-    const std::uint32_t ring_b_wrap = ring_a_offset >= 0xEE0u ? 0u : 7616u;
-    engine1_copy32_ring_5130cc_partial(ring, ring + ring_a_offset + ring_b_wrap - 3808u, filtered_b);
+    engine1_copy32_ring_5130cc_partial(ring, ring_a_offset, filtered_a);
+    engine1_copy32_ring_5130cc_partial(ring, ring_a_offset + 3808u, filtered_b);
 
     std::memset(output_0x300, 0, 0x300u);
     const std::uint32_t current_clear = *reinterpret_cast<const std::uint32_t*>(engine1_state + 68u);
     std::uint32_t next_write_index = write_index;
     if (current_clear >= total_clear) {
         const std::uint32_t group_count = *reinterpret_cast<const std::uint32_t*>(engine1_state + 132u);
-        const std::uintptr_t history_base = (write_index == 0u) ? 0u : static_cast<std::uintptr_t>(-30464);
-        const float* ring_history = reinterpret_cast<const float*>(
-            reinterpret_cast<const std::uint8_t*>(ring + 32u * write_index) + history_base);
+        const std::uint32_t history_offset = 32u * write_index;
         for (std::uint32_t group = 0; group < group_count; ++group) {
-            const std::uint64_t coeff_base_u64 = *reinterpret_cast<const std::uint64_t*>(engine1_state + 96u + 8u * group);
-            const std::uint64_t index_base_u64 = *reinterpret_cast<const std::uint64_t*>(engine1_state + 72u + 8u * group);
-            if (coeff_base_u64 == 0u || index_base_u64 == 0u)
+            const std::uint64_t source_table_u64 =
+                *reinterpret_cast<const std::uint64_t*>(engine1_state + 72u + 8u * group);
+            if (source_table_u64 == 0u)
                 continue;
-            const auto* coeff_base = reinterpret_cast<const std::uint8_t*>(static_cast<std::uintptr_t>(coeff_base_u64));
-            const auto* index_base = reinterpret_cast<const std::uint8_t*>(static_cast<std::uintptr_t>(index_base_u64)) + 1568u;
+            const auto* source_table =
+                reinterpret_cast<const std::uint8_t*>(static_cast<std::uintptr_t>(source_table_u64));
             const std::uint32_t output_group = *reinterpret_cast<const std::uint32_t*>(engine1_state + 120u + 4u * group);
             if (output_group >= 3u)
                 continue;
             float* out = output_0x300 + static_cast<std::size_t>(output_group) * 64u;
-            const std::uint32_t idx1 = *reinterpret_cast<const std::uint32_t*>(index_base + 4u * write_index);
-            const std::uint32_t idx2 = *reinterpret_cast<const std::uint32_t*>(index_base + 4u * write_index + 952u);
-            const auto* entries1 = coeff_base + 8ull * idx1;
-            const auto* entries2 = coeff_base + 8ull * idx2 + 1568u;
+            const auto* entries1 = source_table;
+            const auto* entries2 = source_table + 784u;
             for (std::size_t vec = 0; vec < 8u; ++vec)
-                engine1_sum_98_taps_to_vec_5117d8_partial(ring_history + 4u * vec, entries1, out + 4u * vec);
+                engine1_sum_98_taps_to_vec_5117d8_partial(
+                    ring,
+                    history_offset + static_cast<std::uint32_t>(4u * vec),
+                    entries1,
+                    out + 4u * vec);
             for (std::size_t vec = 0; vec < 8u; ++vec)
-                engine1_sum_98_taps_to_vec_5117d8_partial(ring_history + 4u * vec, entries2, out + 32u + 4u * vec);
+                engine1_sum_98_taps_to_vec_5117d8_partial(
+                    ring,
+                    history_offset + static_cast<std::uint32_t>(4u * vec),
+                    entries2,
+                    out + 32u + 4u * vec);
         }
     }
 
@@ -4999,7 +5013,9 @@ void e2_reverb_process_57ee40_partial(
     float pre[32]{};
     float z = e2_read_f32(state, 4ull * index);
     for (std::uint32_t i = 0; i < kEngine2FrameFloats; ++i) {
-        z = z * p[1] + p[0] * coeff[i + 29u] + p[0] * coeff[i + 30u];
+        const float first = p[0] * coeff[i + 29u] + 0.0f;
+        const float pair = p[0] * coeff[i + 30u] + first;
+        z = z * p[1] + pair;
         pre[i] = z;
     }
     e2_write_f32(state, 4ull * index, z);
@@ -5008,18 +5024,18 @@ void e2_reverb_process_57ee40_partial(
     float out_b[32]{};
     float out_c[32]{};
     for (std::uint32_t i = 0; i < kEngine2FrameFloats; ++i) {
-        const float filter =
-            pre[i] * p[2]
-            + coeff[i + 26u] * p[3]
-            + coeff[i + 27u] * p[4]
-            + coeff[i + 28u] * p[5]
-            + coeff[i + 29u] * p[6]
-            + coeff[i + 30u] * p[7]
-            + coeff[i + 31u] * p[8]
-            + coeff[i + 32u] * p[9];
+        float filter = pre[i] * p[2];
+        filter = coeff[i + 26u] * p[3] + filter;
+        filter = coeff[i + 27u] * p[4] + filter;
+        filter = coeff[i + 28u] * p[5] + filter;
+        filter = coeff[i + 29u] * p[6] + filter;
+        filter = coeff[i + 30u] * p[7] + filter;
+        filter = coeff[i + 31u] * p[8] + filter;
+        filter = coeff[i + 32u] * p[9] + filter;
         const float old = ring_in[i];
-        out_32[i] = filter + (p[10] * old) * p[11];
-        out_b[i] = filter + feed[i] + p[10] * old;
+        const float delayed = p[10] * old;
+        out_32[i] = delayed * p[11] + filter;
+        out_b[i] = (feed[i] + filter) + delayed;
         out_c[i] = p[10] * out_b[i] - old;
     }
     e2_write_xar_frames(state, ring, index, out_32, out_b, out_c);
@@ -5069,12 +5085,12 @@ void e2_apply_output_patch_57b0e0(
         float frame[32]{};
         e2_read_ring_frame(ring, current, e2_read_u32(preset, 896ull + 32ull + 4ull * i), frame);
         e2_accumulate_frame(accum_192 + 0u, frame, e2_bus_weight(bus[0], 4u * i + 1u));
-        e2_accumulate_frame(accum_192 + 64u, frame, e2_bus_weight(bus[1], 4u * i + 1u));
-        e2_accumulate_frame(accum_192 + 128u, frame, e2_bus_weight(bus[2], 4u * i + 1u));
+        e2_accumulate_frame(accum_192 + 32u, frame, e2_bus_weight(bus[1], 4u * i + 1u));
+        e2_accumulate_frame(accum_192 + 64u, frame, e2_bus_weight(bus[2], 4u * i + 1u));
 
         e2_read_ring_frame(ring, current, e2_read_u32(preset, 896ull + 4ull * i), frame);
-        e2_accumulate_frame(accum_192 + 32u, frame, e2_bus_weight(bus[0], 4u * i + 2u));
-        e2_accumulate_frame(accum_192 + 96u, frame, e2_bus_weight(bus[1], 4u * i + 2u));
+        e2_accumulate_frame(accum_192 + 96u, frame, e2_bus_weight(bus[0], 4u * i + 2u));
+        e2_accumulate_frame(accum_192 + 128u, frame, e2_bus_weight(bus[1], 4u * i + 2u));
         e2_accumulate_frame(accum_192 + 160u, frame, e2_bus_weight(bus[2], 4u * i + 2u));
     }
 }
@@ -5219,12 +5235,12 @@ void* auro_matic_Engine2_fl32_process_57b0e0_partial(
             float frame[32]{};
             e2_reverb_process_57ee40_partial(state, ring, preset, i, cross, frame);
             e2_accumulate_frame(accum + 0u, frame, e2_bus_weight(bus[0], 4u * i + 0u));
-            e2_accumulate_frame(accum + 64u, frame, e2_bus_weight(bus[1], 4u * i + 0u));
-            e2_accumulate_frame(accum + 128u, frame, e2_bus_weight(bus[2], 4u * i + 0u));
+            e2_accumulate_frame(accum + 32u, frame, e2_bus_weight(bus[1], 4u * i + 0u));
+            e2_accumulate_frame(accum + 64u, frame, e2_bus_weight(bus[2], 4u * i + 0u));
 
             e2_reverb_process_57ee40_partial(state, ring, preset, i | 8u, cross, frame);
-            e2_accumulate_frame(accum + 32u, frame, e2_bus_weight(bus[0], 4u * i + 3u));
-            e2_accumulate_frame(accum + 96u, frame, e2_bus_weight(bus[1], 4u * i + 3u));
+            e2_accumulate_frame(accum + 96u, frame, e2_bus_weight(bus[0], 4u * i + 3u));
+            e2_accumulate_frame(accum + 128u, frame, e2_bus_weight(bus[1], 4u * i + 3u));
             e2_accumulate_frame(accum + 160u, frame, e2_bus_weight(bus[2], 4u * i + 3u));
         }
         e2_apply_output_patch_57b0e0(state, ring, preset, bus, accum);
@@ -5578,6 +5594,10 @@ constexpr std::size_t kXinnEngine2BusPresetSize_34bdd0 = 136u;
 constexpr std::uint64_t kXinnSpreset2in6Base_570460 = 0x73F6B8u;
 constexpr std::uint64_t kXinnSpreset5inNBase_570350 = 0x738078u;
 constexpr std::uint32_t kXinnSpresetStride_35bf40 = 0x1D90u;
+constexpr std::uint32_t kXinnProcessedPresetResourceId = 101u;
+constexpr std::size_t kXinnProcessedPresetBytes = 23856u;
+constexpr std::size_t kXinnProcessedPresetResourceBytes = 8u * kXinnProcessedPresetBytes;
+constexpr std::uint8_t kXinnProcessedPresetMarker = 0xA5u;
 
 #ifndef AURO3DENG_ENABLE_NATIVE_IMAGE_PRESET_POINTERS
 #define AURO3DENG_ENABLE_NATIVE_IMAGE_PRESET_POINTERS 0
@@ -5610,44 +5630,56 @@ const std::uint8_t* xinn_portable_spreset_from_native_va_partial(std::uint64_t s
     return nullptr;
 }
 
+const std::uint8_t* xinn_portable_processed_preset_from_native_va_partial(std::uint64_t spreset_u64) {
+    std::uint32_t family = 0u;
+    std::uint64_t base = kXinnSpreset2in6Base_570460;
+    if (spreset_u64 >= kXinnSpreset5inNBase_570350) {
+        family = 1u;
+        base = kXinnSpreset5inNBase_570350;
+    }
+    if (spreset_u64 < base)
+        return nullptr;
+    const std::uint64_t delta = spreset_u64 - base;
+    if ((delta % kXinnSpresetStride_35bf40) != 0u)
+        return nullptr;
+    const std::uint64_t room = delta / kXinnSpresetStride_35bf40;
+    if (room >= 4u)
+        return nullptr;
+#ifdef _WIN32
+    static const std::uint8_t* presets = []() -> const std::uint8_t* {
+        const HRSRC resource = FindResourceA(
+            nullptr,
+            MAKEINTRESOURCEA(kXinnProcessedPresetResourceId),
+            RT_RCDATA);
+        if (!resource || SizeofResource(nullptr, resource) != kXinnProcessedPresetResourceBytes)
+            return nullptr;
+        const HGLOBAL data = LoadResource(nullptr, resource);
+        return data ? static_cast<const std::uint8_t*>(LockResource(data)) : nullptr;
+    }();
+    return presets ? presets + (family * 4u + room) * kXinnProcessedPresetBytes : nullptr;
+#else
+    return nullptr;
+#endif
+}
+
 bool xinn_initialize_processed_preset_from_portable_spreset_partial(
     std::uint8_t* processed_preset,
     std::uint64_t spreset_u64) {
-    const std::uint8_t* spreset = xinn_portable_spreset_from_native_va_partial(spreset_u64);
-    if (!processed_preset || !spreset)
+    const std::uint8_t* preset = xinn_portable_processed_preset_from_native_va_partial(spreset_u64);
+    if (!processed_preset || !preset)
         return false;
 
+    std::memcpy(processed_preset, preset, kXinnProcessedPresetBytes);
     processed_preset[0] = 1u;
-    std::memset(processed_preset + 8u, 0, kXinnRuntimePresetSize_35bf40);
-    *reinterpret_cast<std::uint64_t*>(processed_preset + 8u) = 0x3F353BEF3F353BEFull;
-
-    auto copy_u32 = [&](std::uint32_t dst_off, std::uint32_t src_off) {
-        *reinterpret_cast<std::uint32_t*>(processed_preset + dst_off) =
-            *reinterpret_cast<const std::uint32_t*>(spreset + src_off);
-    };
-    copy_u32(1072u, 7484u);
-    copy_u32(1076u, 7436u);
-    copy_u32(1080u, 7448u);
-    copy_u32(1084u, 7460u);
-    copy_u32(1088u, 7488u);
-    copy_u32(1092u, 7440u);
-    copy_u32(1096u, 7452u);
-    copy_u32(1100u, 7464u);
-    copy_u32(1104u, 24u);
-    copy_u32(1108u, 20u);
-    copy_u32(1112u, 24u);
-    copy_u32(1116u, 7492u);
-    copy_u32(1120u, 7444u);
-    copy_u32(1124u, 7456u);
-    copy_u32(1128u, 7468u);
-    copy_u32(1132u, 6200u);
-
+    processed_preset[1] = kXinnProcessedPresetMarker;
     return true;
 }
 
 void xinn_engine2_initialize_static_from_spreset_partial(
     std::uint8_t* processed_preset,
     std::uint64_t spreset_u64) {
+    if (processed_preset && processed_preset[1] == kXinnProcessedPresetMarker)
+        return;
     const std::uint8_t* spreset = xinn_portable_spreset_from_native_va_partial(spreset_u64);
     if (!processed_preset || processed_preset[0] == 0u || !spreset)
         return;
@@ -6428,9 +6460,9 @@ void xinn_retarget_processed_runtime_preset_backing_partial(std::uint8_t* proces
     auto* inline_preset = processed_preset + 8u;
     auto* engine1_state = processed_preset + 1136u;
     static constexpr std::uint32_t kEngine1TableOffsets[3] = {
-        2943u * 4u,
-        3811u * 4u,
-        4679u * 4u,
+        2942u * 4u,
+        3810u * 4u,
+        4678u * 4u,
     };
     for (std::uint32_t table = 0; table < 3u; ++table) {
         const std::uint64_t src_u64 = *reinterpret_cast<const std::uint64_t*>(inline_preset + 40u + 8u * table);
@@ -6444,7 +6476,7 @@ void xinn_retarget_processed_runtime_preset_backing_partial(std::uint8_t* proces
         } else {
             std::memset(dst, 0, kXinnEngine1SourceTableSize_35c0b0);
         }
-#else
+#elif !defined(_WIN32)
         std::memset(dst, 0, kXinnEngine1SourceTableSize_35c0b0);
 #endif
         *reinterpret_cast<std::uint64_t*>(inline_preset + 40u + 8u * table) =
@@ -6469,7 +6501,7 @@ void xinn_retarget_processed_runtime_preset_backing_partial(std::uint8_t* proces
         } else {
             std::memset(dst, 0, kXinnEngine2BusPresetSize_34bdd0);
         }
-#else
+#elif !defined(_WIN32)
         std::memset(dst, 0, kXinnEngine2BusPresetSize_34bdd0);
 #endif
         *reinterpret_cast<std::uint64_t*>(inline_preset + 1040u + 8u * bus) =
@@ -6480,6 +6512,8 @@ void xinn_retarget_processed_runtime_preset_backing_partial(std::uint8_t* proces
 bool xinn_engine1_initialize_static_from_spreset_partial(std::uint8_t* processed_preset, std::uint64_t spreset_u64) {
     if (!processed_preset || processed_preset[0] == 0u || spreset_u64 == 0u)
         return false;
+    if (processed_preset[1] == kXinnProcessedPresetMarker)
+        return true;
     struct Beam {
         std::uint32_t gain_index;
         std::uint32_t selector;
@@ -6643,6 +6677,8 @@ void xinn_retune_processed_preset_partial(
     const std::uint8_t* update_blob) {
     if (!processed_preset || !update_blob || processed_preset[0] == 0u)
         return;
+    if (processed_preset[1] == kXinnProcessedPresetMarker)
+        return;
     const bool can_apply_engine1 = xinn_processed_preset_has_engine1_static_rows_partial(processed_preset);
     if (mode == 1u && *reinterpret_cast<const std::uint32_t*>(update_blob + 68u) != 0u) {
         if (can_apply_engine1) {
@@ -6684,7 +6720,7 @@ void xinn_fill_tuning_static_defaults_portable(
 
     std::array<std::uint8_t, 120u> dynamic{};
     auro_matic_v3_XinN_parameter_Dynamic_t_default_4e9fec_partial(dynamic.data());
-    *reinterpret_cast<std::uint32_t*>(tuning_static + 0u) = 0u;
+    *reinterpret_cast<std::uint32_t*>(tuning_static + 0u) = surround_mode ? 1u : 0u;
     *reinterpret_cast<std::uint32_t*>(tuning_static + 4u) = std::min<std::uint32_t>(room_preset, 4u);
     *reinterpret_cast<std::uint64_t*>(tuning_static + 8u) =
         *reinterpret_cast<const std::uint64_t*>(dynamic.data() + 0u);
@@ -10438,18 +10474,26 @@ std::int64_t codec_v3_parser_process_1034e0(
                 const std::uint64_t v32 = v27;
                 std::uint32_t v10 = *reinterpret_cast<const std::uint32_t*>(v6 + 44u);
 
-                if (frame_start_delta32 == 0u && v10 != 0u) {
+                // Native frames already own ParseResult objects when parsing
+                // starts in the middle of a host block. Host-reconstructed
+                // frames can enter here with a negative start delta and null
+                // per-channel ParseResult pointers, so bind only missing slots.
+                if (v10 != 0u) {
                     std::uint64_t v11 = v6 + 56u;
                     std::uint64_t v12 = reinterpret_cast<std::uint64_t>(v30);
                     std::uint64_t v13 = 0;
                     do {
-                        const std::uint64_t v14 = ::auro3deng::parse_result_pool_get_new_107220_partial(a1[6]);
-                        *reinterpret_cast<std::uint64_t*>(v11 + 16u) = v14;
-                        ::auro3deng::channel_parser_construct_104210_partial(
-                            v12,
-                            v14,
-                            v6 + 28u,
-                            v11);
+                        auto* parse_result_slot = reinterpret_cast<std::uint64_t*>(v11 + 16u);
+                        if (*parse_result_slot == 0u) {
+                            const std::uint64_t v14 =
+                                ::auro3deng::parse_result_pool_get_new_107220_partial(a1[6]);
+                            *parse_result_slot = v14;
+                            ::auro3deng::channel_parser_construct_104210_partial(
+                                v12,
+                                v14,
+                                v6 + 28u,
+                                v11);
+                        }
                         ++v13;
                         v10 = *reinterpret_cast<const std::uint32_t*>(v6 + 44u);
                         v11 += 32u;
