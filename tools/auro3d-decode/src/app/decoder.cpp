@@ -411,6 +411,7 @@ struct DecoderStepBridgeCtx {
     std::uint64_t* parser_timeline_cursor_ptr = nullptr;
     std::uint64_t* og_timeline_cursor_ptr = nullptr;
     std::uint64_t output_timeline_delay = 0;
+    bool defer_output_until_timeline_ready = false;
     std::uint32_t* parser_state_ptr = nullptr;
     std::uint32_t* produced_output_mask = nullptr;
 };
@@ -632,10 +633,20 @@ std::int64_t run_output_stage_1024a9_bridge(void* user) {
     auto* step = reinterpret_cast<DecoderStepBridgeCtx*>(user);
     if (!step || !step->output_generator_base || !step->output_table_base || !step->output_channel_ptrs_27)
         return 0;
+    if (step->defer_output_until_timeline_ready
+        && step->parser_timeline_cursor_ptr
+        && *step->parser_timeline_cursor_ptr < step->output_timeline_delay) {
+        return 0;
+    }
     // IDA keeps OG timeline independent of parser (stage1 vs stage0 latency).
     // Seed OG object from host OG cursor; do not overwrite from parser cursor.
     if (step->og_timeline_cursor_ptr) {
-        if (step->parser_timeline_cursor_ptr && step->output_timeline_delay != 0u) {
+        const bool seed_from_parser =
+            !step->defer_output_until_timeline_ready
+            || *step->og_timeline_cursor_ptr == 0u;
+        if (seed_from_parser
+            && step->parser_timeline_cursor_ptr
+            && step->output_timeline_delay != 0u) {
             const std::uint64_t parser_cursor = *step->parser_timeline_cursor_ptr;
             *step->og_timeline_cursor_ptr =
                 parser_cursor > step->output_timeline_delay
@@ -962,6 +973,17 @@ NativeChannelLayoutPlan build_native_input_channel_layout(
     if (metadata.found
         && metadata.carrier_layout_id != 0u
         && metadata.carrier_channels == channel_count) {
+        // FFmpeg writes 7.1 WAV planes in WAVEFORMATEXTENSIBLE order
+        // (BL/BR before SL/SR). Preserve that physical order for the
+        // 1000-sample DTS-HD carrier instead of assuming AURO mask order.
+        if (metadata.block_size == 1000u) {
+            NativeChannelLayoutPlan wav_plan =
+                build_native_channel_layout_from_wav_mask(wav_channel_mask, channel_count);
+            if (wav_plan.slot_count == channel_count
+                && wav_plan.mask == (metadata.carrier_layout_id & 0x7FFFFFFu)) {
+                return wav_plan;
+            }
+        }
         return build_native_channel_layout_from_mask(metadata.carrier_layout_id, channel_count);
     }
     if (metadata.found
@@ -3326,6 +3348,9 @@ void Decoder::run_codec_v3_partial_step() {
     payload_ctx.frame_deque_ptr = codec_v3_fake_frame_deque_storage_.empty()
         ? 0u
         : reinterpret_cast<std::uint64_t>(codec_v3_fake_frame_deque_storage_.data());
+    const bool needs_fractional_frame_scheduler =
+        auro_metadata_.found
+        && auro_metadata_.block_size == 1000u;
     payload_ctx.output_generator_base = codec_v3_output_generator_state_.empty()
         ? 0u
         : reinterpret_cast<std::uint64_t>(codec_v3_output_generator_state_.data());
@@ -3363,14 +3388,20 @@ void Decoder::run_codec_v3_partial_step() {
     step_bridge.block_size = static_cast<std::uint64_t>(block_size_);
     step_bridge.parser_timeline_cursor_ptr = &codec_v3_parser_timeline_cursor_;
     step_bridge.og_timeline_cursor_ptr = &codec_v3_og_timeline_cursor_;
-    const std::uint64_t sync_offset =
-        (auro_metadata_.found && block_size_ != 0u)
-            ? (auro_metadata_.sync_sample % block_size_)
-            : 0u;
-    step_bridge.output_timeline_delay =
-        sync_offset != 0u
-            ? (2u * static_cast<std::uint64_t>(block_size_) - sync_offset)
-            : static_cast<std::uint64_t>(block_size_);
+    if (needs_fractional_frame_scheduler) {
+        step_bridge.output_timeline_delay =
+            2u * static_cast<std::uint64_t>(block_size_);
+        step_bridge.defer_output_until_timeline_ready = true;
+    } else {
+        const std::uint64_t sync_offset =
+            (auro_metadata_.found && block_size_ != 0u)
+                ? (auro_metadata_.sync_sample % block_size_)
+                : 0u;
+        step_bridge.output_timeline_delay =
+            sync_offset != 0u
+                ? (2u * static_cast<std::uint64_t>(block_size_) - sync_offset)
+                : static_cast<std::uint64_t>(block_size_);
+    }
     step_bridge.parser_state_ptr = &codec_v3_parser_state_;
     step_bridge.produced_output_mask = &codec_v3_dispatch_.produced_output_mask;
 
@@ -3739,6 +3770,13 @@ DecodeError Decoder::open(const std::string& path) {
     // По умолчанию (как JNI путь из libauro3d.so) используем stereo.
     // При явном запросе разрешаем multichannel export через native slot layout.
     auro_metadata_ = scan_auro_metadata_pcm24(file_bytes_, pcm_begin_, pcm_length_, channel_count_);
+    if (block_request_ == 0 && auro_metadata_.found) {
+        if (auro_metadata_.block_size == 1000u)
+            block_size_ = 960u;
+        else if (auro_metadata_.block_size != 0u
+            && (auro_metadata_.block_size % 32u) == 0u)
+            block_size_ = auro_metadata_.block_size;
+    }
     if (!auro_metadata_.found) {
         const bool supported_legacy_target =
             (dsp_output_channels_req_ == 6u && channel_count_ >= 2u && channel_count_ <= 3u)
@@ -3750,9 +3788,6 @@ DecodeError Decoder::open(const std::string& path) {
         }
         legacy_auromatic_upmix_ = true;
     }
-    // The metadata block size is the sync/instruction interval, not the host
-    // processing block size. The native Processor requires the configured host
-    // block to remain a multiple of 32 (JNI uses 832 samples).
     // WAV channel_count is the container/layout width (often includes height slots).
     // carrier_channels is the encoded subset; mismatch is expected for height decode.
     const std::size_t frame_b = static_cast<std::size_t>(block_size_) * sample_frame_b;
@@ -4001,6 +4036,8 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
     }
 
     const unsigned bytes_per_sample = (output_bits_ == 24u) ? 3u : 2u;
+    const bool deglitch_fractional_frames =
+        auro_metadata_.found && auro_metadata_.block_size == 1000u;
     std::vector<float> output_channel_gain(out_ch, gain);
     for (unsigned ch = 0; ch < out_ch; ++ch) {
         const std::uint32_t logical_slot = output_channel_slot_map_[ch];
@@ -4014,7 +4051,30 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
             const std::uint32_t logical_slot = output_channel_slot_map_[ch];
             const auto* src_plane = reinterpret_cast<const std::int32_t*>(
                 static_cast<std::uintptr_t>(output_desc_.channel_ptr[logical_slot]));
-            const std::int32_t v = src_plane[s];
+            std::int32_t v = src_plane[s];
+            if (deglitch_fractional_frames
+                && (v <= -8388608 || v >= 8388607)) {
+                std::int64_t sum = 0;
+                unsigned count = 0;
+                for (unsigned distance = 1; distance <= 16u && count < 2u; ++distance) {
+                    if (s >= distance) {
+                        const std::int32_t candidate = src_plane[s - distance];
+                        if (candidate > -8388608 && candidate < 8388607) {
+                            sum += candidate;
+                            ++count;
+                        }
+                    }
+                    if (s + distance < block_size_ && count < 2u) {
+                        const std::int32_t candidate = src_plane[s + distance];
+                        if (candidate > -8388608 && candidate < 8388607) {
+                            sum += candidate;
+                            ++count;
+                        }
+                    }
+                }
+                if (count != 0u)
+                    v = static_cast<std::int32_t>(sum / count);
+            }
             const float channel_gain = output_channel_gain[ch];
             if (output_bits_ == 24u) {
                 const std::int32_t o = i32_sample_to_s24(v, channel_gain, &dsp_clipped_samples_);

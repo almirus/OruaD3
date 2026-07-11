@@ -198,6 +198,10 @@ bool write_channel_mapping_xml(
     unsigned bits_per_sample,
     unsigned channel_count,
     const std::vector<std::uint32_t>& slots,
+    std::uint32_t input_mask,
+    std::uint32_t native_mask,
+    std::uint32_t auromatic_mask,
+    bool binaural,
     std::string& error_out) {
     std::filesystem::path xml_path = audio_path;
     xml_path.replace_extension(".xml");
@@ -215,6 +219,16 @@ bool write_channel_mapping_xml(
         << "\" channelCount=\"" << channel_count << "\">\n";
     for (unsigned ch = 0; ch < channel_count; ++ch) {
         const bool known_slot = ch < slots.size() && slots[ch] < 27u;
+        const std::uint32_t slot_bit = known_slot ? (1u << slots[ch]) : 0u;
+        const char* source = "unknown";
+        if (binaural)
+            source = "binaural_renderer";
+        else if ((input_mask & slot_bit) != 0u)
+            source = "carrier_passthrough";
+        else if ((native_mask & slot_bit) != 0u)
+            source = "native_auro";
+        else if ((auromatic_mask & slot_bit) != 0u)
+            source = "auromatic";
         out << "  <channel index=\"" << ch << "\" number=\"" << (ch + 1u) << "\"";
         if (known_slot) {
             out << " slot=\"" << slots[ch] << "\" name=\""
@@ -222,7 +236,7 @@ bool write_channel_mapping_xml(
         } else {
             out << " name=\"ch" << ch << "\"";
         }
-        out << "/>\n";
+        out << " source=\"" << source << "\"/>\n";
     }
     out << "</channelMapping>\n";
     if (!out) {
@@ -791,7 +805,16 @@ int main(int argc, char** argv) {
         return 4;
     }
     if (!write_channel_mapping_xml(
-            opt.output, cfg.sample_rate, cfg.bits_per_sample, cfg.channels, output_slots, err)) {
+            opt.output,
+            cfg.sample_rate,
+            cfg.bits_per_sample,
+            cfg.channels,
+            output_slots,
+            native_cfg.input_mask,
+            native_mask,
+            auromatic_mask,
+            opt.binaural,
+            err)) {
         std::cerr << "XML: " << err << "\n";
         return 4;
     }

@@ -5,71 +5,71 @@
       "id": "auro_2d",
       "input": "test_files/auro_2d.wav",
       "output": "tmp/regression_outputs/auro_2d.wav",
-      "sha256": "e9d40a235b414481fe259a76fdae8abd8db735aac487f4e9443a6ba4d06e014c",
+      "sha256": "a9bedb53647198237a42cec5327b31fdb0b8813774ef4c871dd33809525a9592",
       "channels": 6,
       "sample_rate": 96000,
       "sample_width": 3,
-      "frames": 483392
+      "frames": 483328
     },
     {
       "id": "auro",
       "input": "test_files/auro.wav",
       "output": "tmp/regression_outputs/auro.wav",
-      "sha256": "3552e2691ab2451eac28f25e8d07dc1579cb431ce018696a4873e555a725de51",
+      "sha256": "2e1c016f609efe3d330d34fe617551c16b5e6e051a2aa6d9eb2e9dff2846061f",
       "channels": 10,
       "sample_rate": 96000,
       "sample_width": 3,
-      "frames": 483392
+      "frames": 483328
     },
     {
       "id": "7_1_5H1_1T",
       "input": "test_files/7.1_5H1_1T.wav",
       "output": "tmp/regression_outputs/7_1_5H1_1T.wav",
-      "sha256": "862652d98a1f72d08d38db4f6c55bf596bb0c9b82a108c80e0c128fd40b90018",
+      "sha256": "bf3ac3cfba8ed9ae1fb922569316345e098ecfc791888d118b07126751db86dd",
       "channels": 14,
       "sample_rate": 48000,
       "sample_width": 3,
-      "frames": 242112
+      "frames": 241664
     },
     {
       "id": "48hHz_6ch_9_1",
       "input": "test_files/48hHz_6ch_auro_9.1(5.1+4H).wav",
       "output": "tmp/regression_outputs/48hHz_6ch_9_1.wav",
-      "sha256": "365988b08884f3532c622d68abcac72211abcec39844c6014f40940ffe0f73fa",
+      "sha256": "735586b8aa670950f46f31e19ed1a376431895caf420a639af4c57750a9fbb5d",
       "channels": 10,
       "sample_rate": 48000,
       "sample_width": 3,
-      "frames": 823680
+      "frames": 823296
     },
     {
       "id": "48hHz_8ch_9_1",
       "input": "test_files/48hHz_8ch_auro_9.1(5.1+2H).flac",
       "output": "tmp/regression_outputs/48hHz_8ch_9_1.wav",
-      "sha256": "c09412432b9bfc51264ca37f0955424e3e7279200ae29e20903cb11c409c0be4",
+      "sha256": "7aeaa8d97e4d76ee3c61d14d536e938eeb030db278169c68d5ded8765f0b5895",
       "channels": 14,
       "sample_rate": 48000,
       "sample_width": 3,
-      "frames": 2257216
+      "frames": 2256896
     },
     {
       "id": "48kHz_4ch_8_0",
       "input": "test_files/48kHz_4ch_auro_8.0(4.0+4H).flac",
       "output": "tmp/regression_outputs/48kHz_4ch_8_0.wav",
-      "sha256": "6c4a18609f88c7b05671b0bf2fad0d90e2c194b608187ac482e9cd9a350b97e2",
+      "sha256": "9edc4533c96b22ba878b39569ee0f812850f2f0a69aab56a7aeb95dc3cdbd2af",
       "channels": 8,
       "sample_rate": 48000,
       "sample_width": 3,
-      "frames": 662272
+      "frames": 661504
     },
     {
       "id": "auro_5_4_4",
       "input": "test_files/auro 5.4.4.flac",
       "output": "tmp/regression_outputs/auro_5_4_4.wav",
-      "sha256": "30221e5068fd533688c1d160c013167667180930c7e6b03a77e70a204fd8e2a6",
+      "sha256": "9f0e7388ef7dab863f7dd4841cc1d68837bba0f17a5c776a8af464e595eded59",
       "channels": 10,
       "sample_rate": 96000,
       "sample_width": 3,
-      "frames": 14145664
+      "frames": 14145536
     }
   ]
 }
