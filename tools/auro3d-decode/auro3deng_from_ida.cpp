@@ -5633,7 +5633,10 @@ const std::uint8_t* xinn_portable_spreset_from_native_va_partial(std::uint64_t s
 const std::uint8_t* xinn_portable_processed_preset_from_native_va_partial(std::uint64_t spreset_u64) {
     std::uint32_t family = 0u;
     std::uint64_t base = kXinnSpreset2in6Base_570460;
-    if (spreset_u64 >= kXinnSpreset5inNBase_570350) {
+    if (spreset_u64 >= kXinnSpreset2in6Base_570460) {
+        family = 0u;
+        base = kXinnSpreset2in6Base_570460;
+    } else if (spreset_u64 >= kXinnSpreset5inNBase_570350) {
         family = 1u;
         base = kXinnSpreset5inNBase_570350;
     }

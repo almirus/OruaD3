@@ -21,8 +21,11 @@ if not exist "..\..\bin\obj\auro3d-decode" mkdir "..\..\bin\obj\auro3d-decode"
 rc /nologo /fo "..\..\bin\obj\auro3d-decode\xinn_presets.res" xinn_presets.rc
 if errorlevel 1 exit /b 1
 
-cl /nologo /std:c++17 /utf-8 /EHsc /O2 /D_CRT_SECURE_NO_WARNINGS ^
-  main.cpp auro3d_decoder.cpp java_auro_decode_pcm.cpp auro3deng_from_ida.cpp auro3deng_strength.cpp wav_writer.cpp ^
+cl /nologo /std:c++17 /utf-8 /EHsc /O2 /D_CRT_SECURE_NO_WARNINGS /I. ^
+  main.cpp auro3d_decoder.cpp binaural_renderer.cpp java_auro_decode_pcm.cpp auro3deng_strength.cpp wav_writer.cpp ^
+  src\auro3deng\codec_dsp.cpp ^
+  src\auro3deng\v4_android.cpp ^
+  src\auro3deng\asc4he.cpp ^
   "..\..\bin\obj\auro3d-decode\xinn_presets.res" ^
   /Fo:"..\..\bin\obj\auro3d-decode\\" ^
   /Fe:"..\..\bin\Release\auro3d-decode.exe"

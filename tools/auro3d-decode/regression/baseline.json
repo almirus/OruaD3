@@ -1,0 +1,75 @@
+{
+  "decoder": "bin/Release/auro3d-decode.exe",
+  "cases": [
+    {
+      "id": "auro_2d",
+      "input": "test_files/auro_2d.wav",
+      "output": "tmp/regression_outputs/auro_2d.wav",
+      "sha256": "e9d40a235b414481fe259a76fdae8abd8db735aac487f4e9443a6ba4d06e014c",
+      "channels": 6,
+      "sample_rate": 96000,
+      "sample_width": 3,
+      "frames": 483392
+    },
+    {
+      "id": "auro",
+      "input": "test_files/auro.wav",
+      "output": "tmp/regression_outputs/auro.wav",
+      "sha256": "3552e2691ab2451eac28f25e8d07dc1579cb431ce018696a4873e555a725de51",
+      "channels": 10,
+      "sample_rate": 96000,
+      "sample_width": 3,
+      "frames": 483392
+    },
+    {
+      "id": "7_1_5H1_1T",
+      "input": "test_files/7.1_5H1_1T.wav",
+      "output": "tmp/regression_outputs/7_1_5H1_1T.wav",
+      "sha256": "862652d98a1f72d08d38db4f6c55bf596bb0c9b82a108c80e0c128fd40b90018",
+      "channels": 14,
+      "sample_rate": 48000,
+      "sample_width": 3,
+      "frames": 242112
+    },
+    {
+      "id": "48hHz_6ch_9_1",
+      "input": "test_files/48hHz_6ch_auro_9.1(5.1+4H).wav",
+      "output": "tmp/regression_outputs/48hHz_6ch_9_1.wav",
+      "sha256": "365988b08884f3532c622d68abcac72211abcec39844c6014f40940ffe0f73fa",
+      "channels": 10,
+      "sample_rate": 48000,
+      "sample_width": 3,
+      "frames": 823680
+    },
+    {
+      "id": "48hHz_8ch_9_1",
+      "input": "test_files/48hHz_8ch_auro_9.1(5.1+2H).flac",
+      "output": "tmp/regression_outputs/48hHz_8ch_9_1.wav",
+      "sha256": "c09412432b9bfc51264ca37f0955424e3e7279200ae29e20903cb11c409c0be4",
+      "channels": 14,
+      "sample_rate": 48000,
+      "sample_width": 3,
+      "frames": 2257216
+    },
+    {
+      "id": "48kHz_4ch_8_0",
+      "input": "test_files/48kHz_4ch_auro_8.0(4.0+4H).flac",
+      "output": "tmp/regression_outputs/48kHz_4ch_8_0.wav",
+      "sha256": "6c4a18609f88c7b05671b0bf2fad0d90e2c194b608187ac482e9cd9a350b97e2",
+      "channels": 8,
+      "sample_rate": 48000,
+      "sample_width": 3,
+      "frames": 662272
+    },
+    {
+      "id": "auro_5_4_4",
+      "input": "test_files/auro 5.4.4.flac",
+      "output": "tmp/regression_outputs/auro_5_4_4.wav",
+      "sha256": "30221e5068fd533688c1d160c013167667180930c7e6b03a77e70a204fd8e2a6",
+      "channels": 10,
+      "sample_rate": 96000,
+      "sample_width": 3,
+      "frames": 14145664
+    }
+  ]
+}

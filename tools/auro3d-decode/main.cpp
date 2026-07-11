@@ -1,6 +1,7 @@
 #include "app_version.hpp"
 #include "auro3d_decoder.hpp"
 #include "auro3deng_strength.hpp"
+#include "binaural_renderer.hpp"
 #include "wav_writer.hpp"
 
 #include <chrono>
@@ -25,6 +26,7 @@ struct Options {
     bool verbose = false;
     bool mono_tracks = false;
     bool channel_diagram = false;
+    bool binaural = false;
     bool help_only = false;
     bool version_only = false;
     unsigned sample_rate = 0;
@@ -270,7 +272,8 @@ void print_channel_diagram(
         }
         if (source_channels.empty())
             std::cerr << "carrier";
-        std::cerr << " + codec data -> " << name << " [" << mode << "]\n";
+        std::cerr << (std::string(mode) == "Auro-Matic" ? " -> " : " + codec data -> ")
+                  << name << " [" << mode << "]\n";
     }
 }
 
@@ -311,9 +314,11 @@ void print_usage() {
         << "  --dsp-strength N     сила декодера/рендера (0..15; по умолчанию 12)\n"
         << "  --dsp-output-channels N  output channels; 0/omitted = auto from Auro metadata; native decode with Auro-Matic/XinN height fallback, up to "
         << auro3d::kCurrentNativeExportChannelLimit << "\n"
+        << "                           legacy PCM without AURO metadata: 6=5.1, 10=5.1.4, 12=7.1.4\n"
         << "  --output-bits N      output PCM depth: 16 or 24; по умолчанию 24\n"
         << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac, etc.\n"
         << "  --channel-diagram    print structural input-to-output channel diagram\n"
+        << "  --binaural           render decoded channels to HRTF stereo (48 kHz)\n"
         << "  --dsp-headroom-db X  headroom в dB (0..24; по умолчанию 6)\n"
         << "  --room-preset N      room preset AURO (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
         << "  --hrtf-preset N      HRTF preset (0=HPV2,1=GENERIC_1,2=GENERIC_2,3=GENERIC_3)\n"
@@ -378,6 +383,10 @@ bool parse_args(int argc, char** argv, Options& opt) {
         }
         if (a == "--channel-diagram") {
             opt.channel_diagram = true;
+            continue;
+        }
+        if (a == "--binaural") {
+            opt.binaural = true;
             continue;
         }
         if (a == "--raw") {
@@ -580,13 +589,16 @@ int main(int argc, char** argv) {
     const auro3d::NativeDynamicParametersState dynamic_cfg = dec.native_dynamic_parameters();
     const auro3d::NativeA3dengRenderState render_cfg = dec.native_a3deng_render_state();
     const auro3d::AuroMetadataInfo auro_meta = dec.auro_metadata();
-    const std::vector<std::uint32_t> output_slots = dec.output_channel_slot_map();
+    std::vector<std::uint32_t> output_slots = dec.output_channel_slot_map();
     constexpr std::uint32_t kLayout7_1_5H_1T = 0x7FBFu;
     constexpr std::uint32_t kCarrier7_1 = 0x01BFu;
     constexpr std::uint32_t kDirect7_1_2H = 0x07BFu;
     std::uint32_t native_mask = native_cfg.requested_output_mask & ~native_cfg.input_mask;
     std::uint32_t auromatic_mask = 0u;
-    if (auro_meta.found
+    if (!auro_meta.found) {
+        auromatic_mask = native_mask;
+        native_mask = 0u;
+    } else if (auro_meta.found
         && auro_meta.layout_id == kLayout7_1_5H_1T
         && auro_meta.carrier_layout_id == kCarrier7_1) {
         native_mask &= kDirect7_1_2H;
@@ -675,6 +687,8 @@ int main(int argc, char** argv) {
             }
         } else {
             std::cerr << "auro_layout_id=0 layout= metadata_channels=0\n";
+            std::cerr << "legacy_auromatic=1 discrete_output=1"
+                      << " virtualizer_bypassed=1 hrtf_bypassed=1\n";
         }
         std::cerr << "dsp_strength=" << opt.dsp_strength
                   << " gain=" << auro3deng::strength_translate(opt.dsp_strength) << "\n";
@@ -741,7 +755,7 @@ int main(int argc, char** argv) {
         pcm_all.insert(pcm_all.end(), chunk.begin(), chunk.end());
     }
 
-    const auro3d::DecoderConfig cfg = dec.config();
+    auro3d::DecoderConfig cfg = dec.config();
     const std::uint64_t dsp_clipped = dec.dsp_clipped_samples();
     dec.close();
 
@@ -751,6 +765,24 @@ int main(int argc, char** argv) {
     }
 
     std::string err;
+    if (opt.binaural) {
+        std::vector<std::uint8_t> stereo;
+        if (!auro3d::render_binaural_from_embedded_ir(
+                pcm_all, cfg.bits_per_sample, cfg.sample_rate, cfg.channels,
+                output_slots, opt.room_preset, opt.hrtf_preset, stereo, err)) {
+            std::cerr << "Binaural: " << err << "\n";
+            return 4;
+        }
+        pcm_all.swap(stereo);
+        cfg.channels = 2;
+        cfg.channel_mask = 3;
+        output_slots = {0u, 1u};
+        if (opt.verbose) {
+            std::cerr << "binaural_renderer=original_auro_ahp_ir"
+                      << " room_preset=" << opt.room_preset
+                      << " hrtf_bank=" << (opt.hrtf_preset == 0 ? "HPv2" : "Generic2") << "\n";
+        }
+    }
     const std::string output_format = selected_output_format(opt);
     const bool ok = write_audio_file(
         opt.output, output_format, cfg.bits_per_sample, cfg.sample_rate, cfg.channels, pcm_all, err);

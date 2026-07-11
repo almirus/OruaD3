@@ -1,0 +1,41 @@
+{
+  "decoder": "bin/Release/auro3d-decode.exe",
+  "output_dir": "tmp/regression_outputs",
+  "cases": [
+    {
+      "id": "auro_2d",
+      "input": "test_files/auro_2d.wav",
+      "args": []
+    },
+    {
+      "id": "auro",
+      "input": "test_files/auro.wav",
+      "args": []
+    },
+    {
+      "id": "7_1_5H1_1T",
+      "input": "test_files/7.1_5H1_1T.wav",
+      "args": []
+    },
+    {
+      "id": "48hHz_6ch_9_1",
+      "input": "test_files/48hHz_6ch_auro_9.1(5.1+4H).wav",
+      "args": []
+    },
+    {
+      "id": "48hHz_8ch_9_1",
+      "input": "test_files/48hHz_8ch_auro_9.1(5.1+2H).flac",
+      "args": []
+    },
+    {
+      "id": "48kHz_4ch_8_0",
+      "input": "test_files/48kHz_4ch_auro_8.0(4.0+4H).flac",
+      "args": []
+    },
+    {
+      "id": "auro_5_4_4",
+      "input": "test_files/auro 5.4.4.flac",
+      "args": []
+    }
+  ]
+}

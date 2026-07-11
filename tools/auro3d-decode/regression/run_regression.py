@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""Regression tests for auro3d-decode: decode test files and compare SHA256 hashes."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import subprocess
+import sys
+import wave
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[3]
+CASES_PATH = Path(__file__).resolve().parent / "cases.json"
+BASELINE_PATH = Path(__file__).resolve().parent / "baseline.json"
+
+
+def load_cases() -> dict:
+    with CASES_PATH.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+def resolve(path_text: str, base: Path) -> Path:
+    path = Path(path_text)
+    if not path.is_absolute():
+        path = (base / path).resolve()
+    return path
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def wav_stats(path: Path) -> dict:
+    with wave.open(str(path), "rb") as wav:
+        frames = wav.getnframes()
+        channels = wav.getnchannels()
+        rate = wav.getframerate()
+        width = wav.getsampwidth()
+    return {
+        "channels": channels,
+        "sample_rate": rate,
+        "sample_width": width,
+        "frames": frames,
+    }
+
+
+def run_case(decoder: Path, case: dict, output_dir: Path) -> dict:
+    case_id = case["id"]
+    input_path = resolve(case["input"], ROOT)
+    output_path = output_dir / f"{case_id}.wav"
+
+    if not input_path.is_file():
+        raise FileNotFoundError(f"input not found: {input_path}")
+
+    cmd = [str(decoder), "-i", str(input_path), "-o", str(output_path), *case.get("args", [])]
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"decode failed for {case_id} (exit {proc.returncode})\n"
+            f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+        )
+    if not output_path.is_file():
+        raise RuntimeError(f"decoder did not produce output: {output_path}")
+
+    stats = wav_stats(output_path)
+    return {
+        "id": case_id,
+        "input": str(input_path.relative_to(ROOT)).replace("\\", "/"),
+        "output": str(output_path.relative_to(ROOT)).replace("\\", "/"),
+        "sha256": sha256_file(output_path),
+        **stats,
+    }
+
+
+def run_all(cases_cfg: dict, output_dir: Path) -> dict:
+    decoder = resolve(cases_cfg["decoder"], ROOT)
+    if not decoder.is_file():
+        raise FileNotFoundError(f"decoder not found: {decoder}")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results = []
+    for case in cases_cfg["cases"]:
+        print(f"  {case['id']}...", flush=True)
+        results.append(run_case(decoder, case, output_dir))
+    return {"decoder": str(decoder.relative_to(ROOT)).replace("\\", "/"), "cases": results}
+
+
+def write_baseline(data: dict) -> None:
+    with BASELINE_PATH.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    print(f"Baseline saved: {BASELINE_PATH}")
+
+
+def compare_with_baseline(current: dict, baseline: dict) -> list[str]:
+    errors: list[str] = []
+    baseline_by_id = {c["id"]: c for c in baseline.get("cases", [])}
+    for case in current["cases"]:
+        case_id = case["id"]
+        ref = baseline_by_id.get(case_id)
+        if ref is None:
+            errors.append(f"{case_id}: missing in baseline")
+            continue
+        if case["sha256"] != ref["sha256"]:
+            errors.append(f"{case_id}: sha256 mismatch\n  expected: {ref['sha256']}\n  got:      {case['sha256']}")
+        for key in ("channels", "sample_rate", "sample_width", "frames"):
+            if case.get(key) != ref.get(key):
+                errors.append(
+                    f"{case_id}: {key} mismatch (expected {ref.get(key)}, got {case.get(key)})"
+                )
+    missing = set(baseline_by_id) - {c["id"] for c in current["cases"]}
+    for case_id in sorted(missing):
+        errors.append(f"{case_id}: present in baseline but not run")
+    return errors
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="auro3d-decode regression tests")
+    parser.add_argument(
+        "mode",
+        choices=("baseline", "check"),
+        help="baseline: capture golden hashes; check: compare against baseline",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="override output directory from cases.json",
+    )
+    args = parser.parse_args()
+
+    cases_cfg = load_cases()
+    output_dir = args.output_dir or resolve(cases_cfg["output_dir"], ROOT)
+
+    print(f"Running {len(cases_cfg['cases'])} cases...")
+    current = run_all(cases_cfg, output_dir)
+
+    if args.mode == "baseline":
+        write_baseline(current)
+        print("OK: baseline captured")
+        return 0
+
+    if not BASELINE_PATH.is_file():
+        print(f"Baseline not found: {BASELINE_PATH}", file=sys.stderr)
+        print("Run: python tools/auro3d-decode/regression/run_regression.py baseline", file=sys.stderr)
+        return 2
+
+    with BASELINE_PATH.open(encoding="utf-8") as f:
+        baseline = json.load(f)
+
+    errors = compare_with_baseline(current, baseline)
+    if errors:
+        print("REGRESSION FAIL:", file=sys.stderr)
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
+        return 1
+
+    print(f"OK: all {len(current['cases'])} cases match baseline")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -2371,7 +2371,7 @@ const char* decode_error_message(DecodeError e) {
     case DecodeError::BadInput: return "invalid or unsupported input";
     case DecodeError::IoError: return "I/O error";
     case DecodeError::NotImplemented:
-        return "Auro metadata/carrier decode is required; Auro-Matic/XinN upmix is disabled";
+        return "unsupported AURO layout or legacy input needs --dsp-output-channels 6, 8, 10, or 12";
     default: return "unknown error";
     }
 }
@@ -2940,12 +2940,19 @@ void Decoder::rebuild_native_xinn_partial_state() {
         return;
     if ((block_size_ % 32u) != 0u)
         return;
-    if (!native_config_state_.requested_output_has_height_layer)
+    if (!legacy_auromatic_upmix_ && !native_config_state_.requested_output_has_height_layer)
         return;
 
     const std::uint32_t input_mask = native_config_state_.input_mask & 0x7FFFFFFu;
-    const std::uint32_t output_mask = native_config_state_.effective_output_mask & 0x7FFFFFFu;
     std::uint32_t mode = auro3deng::xinn_prepare_mode_from_input_mask_portable(input_mask);
+    const std::uint32_t requested_output_mask =
+        native_config_state_.effective_output_mask & 0x7FFFFFFu;
+    const std::uint32_t xinn_supported_additions = mode == 1u
+        ? 0x6630u
+        : (mode == 2u ? 0x7E00u : 0u);
+    const std::uint32_t output_mask = legacy_auromatic_upmix_
+        ? (input_mask | (requested_output_mask & xinn_supported_additions))
+        : requested_output_mask;
 
     native_xinn_step_state_.assign(kNativeXinnStepStateBytes, 0u);
     native_xinn_sample_rate_words_.assign(4u, 0u);
@@ -2968,8 +2975,7 @@ void Decoder::rebuild_native_xinn_partial_state() {
         reinterpret_cast<std::uint64_t>(native_xinn_process_scratch_storage_.data()),
     };
     if (auro3deng::auro_a3deng_v4_pipeline_step_upmix_XinN_initialize_35b2c0_partial(
-            reinterpret_cast<std::uint64_t>(step),
-            memory_args) != 0) {
+            reinterpret_cast<std::uint64_t>(step), memory_args) != 0) {
         return;
     }
     const std::uint64_t block_info = *reinterpret_cast<const std::uint64_t*>(
@@ -2997,7 +3003,7 @@ void Decoder::rebuild_native_xinn_partial_state() {
         return;
 
     native_xinn_partial_input_mask_ = input_mask;
-    native_xinn_partial_output_mask_ = output_mask;
+    native_xinn_partial_output_mask_ = requested_output_mask;
     native_xinn_partial_mode_ = mode;
     native_xinn_partial_ready_ = true;
 }
@@ -3239,7 +3245,7 @@ bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
         return false;
     if (block_size_ == 0)
         return false;
-    if (!native_config_state_.requested_output_has_height_layer)
+    if (!legacy_auromatic_upmix_ && !native_config_state_.requested_output_has_height_layer)
         return false;
     if (!native_xinn_partial_ready_
         || native_xinn_partial_input_mask_ != (native_config_state_.input_mask & 0x7FFFFFFu)
@@ -3804,6 +3810,7 @@ DecodeError Decoder::open(const std::string& path) {
     dsp_clipped_samples_ = 0;
     input_wav_channel_mask_ = 0;
     auro_metadata_ = {};
+    legacy_auromatic_upmix_ = false;
 
     std::string input_err;
     std::vector<std::uint8_t> prefix;
@@ -3860,8 +3867,15 @@ DecodeError Decoder::open(const std::string& path) {
     // При явном запросе разрешаем multichannel export через native slot layout.
     auro_metadata_ = scan_auro_metadata_pcm24(file_bytes_, pcm_begin_, pcm_length_, channel_count_);
     if (!auro_metadata_.found) {
-        opened_ = false;
-        return DecodeError::NotImplemented;
+        const bool supported_legacy_target =
+            (dsp_output_channels_req_ == 6u && channel_count_ >= 2u && channel_count_ <= 3u)
+            || (dsp_output_channels_req_ == 10u && channel_count_ >= 2u && channel_count_ <= 6u)
+            || (dsp_output_channels_req_ == 12u && channel_count_ == 8u);
+        if (!supported_legacy_target || dsp_output_channels_req_ <= channel_count_) {
+            opened_ = false;
+            return DecodeError::NotImplemented;
+        }
+        legacy_auromatic_upmix_ = true;
     }
     // The metadata block size is the sync/instruction interval, not the host
     // processing block size. The native Processor requires the configured host
@@ -3882,14 +3896,20 @@ DecodeError Decoder::open(const std::string& path) {
     constexpr std::uint32_t kAuroCarrier7_1 = 0x01BFu;
     constexpr std::uint32_t kAuroDirect7_1_2H = 0x07BFu;
     const bool direct_7_1_2h_output =
+        auro_metadata_.found
+        &&
         auro_metadata_.layout_id == kAuroLayout7_1_5H_1T
         && auro_metadata_.carrier_layout_id == kAuroCarrier7_1;
-    const unsigned native_direct_output_channels = direct_7_1_2h_output
-        ? mask_count_27(kAuroDirect7_1_2H)
-        : auro_metadata_.output_channels;
-    const unsigned auto_output_channels = kEnableAuroMaticXinNUpmix
-        ? auro_metadata_.output_channels
-        : native_direct_output_channels;
+    const unsigned native_direct_output_channels = legacy_auromatic_upmix_
+        ? dsp_output_channels_req_
+        : (direct_7_1_2h_output
+            ? mask_count_27(kAuroDirect7_1_2H)
+            : auro_metadata_.output_channels);
+    const unsigned auto_output_channels = legacy_auromatic_upmix_
+        ? dsp_output_channels_req_
+        : (kEnableAuroMaticXinNUpmix
+            ? auro_metadata_.output_channels
+            : native_direct_output_channels);
 
     dsp_output_channels_ = dsp_output_channels_req_;
     const bool explicit_layout_supported =
@@ -3935,7 +3955,8 @@ DecodeError Decoder::open(const std::string& path) {
     native_a3deng_static_configuration_ = {};
     native_dynamic_parameters_ = {};
     (void)apply_native_dynamic_parameters_update();
-    rebuild_codec_v3_partial_state();
+    if (!legacy_auromatic_upmix_)
+        rebuild_codec_v3_partial_state();
     if (!validate_native_processor_io_model()) {
         opened_ = false;
         return DecodeError::BadInput;
@@ -3995,7 +4016,18 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
             std::memset(dst_plane, 0, plane_bytes);
     }
     // AuroDecoderImpl::Decode → Processor_process → codec-v3 partial step.
-    if (auro_decoder_impl_blob_.size() == auro_codec_v3_ida::kAuroDecoderImplObjectBytes) {
+    if (legacy_auromatic_upmix_) {
+        for (std::uint32_t slot = 0; slot < auro_codec_v3_ida::kAuroProcessorIoChannelPtrCount; ++slot) {
+            if ((native_config_state_.input_mask & (1u << slot)) == 0u)
+                continue;
+            if (input_desc_.channel_ptr[slot] == 0u || output_desc_.channel_ptr[slot] == 0u)
+                continue;
+            std::memcpy(
+                reinterpret_cast<void*>(static_cast<std::uintptr_t>(output_desc_.channel_ptr[slot])),
+                reinterpret_cast<const void*>(static_cast<std::uintptr_t>(input_desc_.channel_ptr[slot])),
+                plane_bytes);
+        }
+    } else if (auro_decoder_impl_blob_.size() == auro_codec_v3_ida::kAuroDecoderImplObjectBytes) {
         const std::int32_t decode_rc = auro3deng::auro_decoder_impl_decode_partial(
             auro_decoder_impl_blob_.data(),
             &Decoder::codec_v3_processor_process_bridge);
@@ -4004,7 +4036,9 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
     } else {
         run_codec_v3_partial_step();
     }
-    std::uint32_t produced_mask = codec_v3_dispatch_.produced_output_mask & kCodecV3ChannelMask;
+    std::uint32_t produced_mask = legacy_auromatic_upmix_
+        ? (native_config_state_.input_mask & kCodecV3ChannelMask)
+        : (codec_v3_dispatch_.produced_output_mask & kCodecV3ChannelMask);
     const std::uint32_t requested_mask = native_config_state_.requested_output_mask & kCodecV3ChannelMask;
     const std::uint32_t input_mask = native_config_state_.input_mask & kCodecV3ChannelMask;
     constexpr std::uint32_t kHeightMask = auro_codec_v3_ida::kAuroChannelMaskHeightLayer;
@@ -4025,10 +4059,40 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
         : (produced_mask & kHeightMask);
     const std::uint32_t missing_height_mask =
         req_height & ~(native_config_state_.input_mask | native_height_mask) & kCodecV3ChannelMask;
-    if (missing_height_mask != 0u && run_native_xinn_partial_step(missing_height_mask))
-        produced_mask |= missing_height_mask;
+    const std::uint32_t missing_requested_mask =
+        requested_mask & ~(native_config_state_.input_mask | produced_mask) & kCodecV3ChannelMask;
+    const std::uint32_t xinn_request_mask = legacy_auromatic_upmix_
+        ? missing_requested_mask
+        : missing_height_mask;
+    if (xinn_request_mask != 0u && run_native_xinn_partial_step(xinn_request_mask))
+        produced_mask |= xinn_request_mask;
     else if (missing_height_mask != 0u && run_native_asc4he_partial_step(missing_height_mask))
         produced_mask |= missing_height_mask;
+    if (legacy_auromatic_upmix_) {
+        constexpr std::uint32_t kFrontLeft = auro_codec_v3_ida::kAuroChMapSlotFrontLeft;
+        constexpr std::uint32_t kFrontRight = auro_codec_v3_ida::kAuroChMapSlotFrontRight;
+        constexpr std::uint32_t kFrontCenter = auro_codec_v3_ida::kAuroChMapSlotFrontCenter;
+        constexpr std::uint32_t kLfe = auro_codec_v3_ida::kAuroChMapSlotLfe;
+        if ((missing_requested_mask & (1u << kFrontCenter)) != 0u
+            && output_desc_.channel_ptr[kFrontCenter] != 0u
+            && output_desc_.channel_ptr[kFrontLeft] != 0u
+            && output_desc_.channel_ptr[kFrontRight] != 0u) {
+            auto* center = reinterpret_cast<std::int32_t*>(
+                static_cast<std::uintptr_t>(output_desc_.channel_ptr[kFrontCenter]));
+            const auto* left = reinterpret_cast<const std::int32_t*>(
+                static_cast<std::uintptr_t>(output_desc_.channel_ptr[kFrontLeft]));
+            const auto* right = reinterpret_cast<const std::int32_t*>(
+                static_cast<std::uintptr_t>(output_desc_.channel_ptr[kFrontRight]));
+            for (unsigned s = 0; s < block_size_; ++s)
+                center[s] = static_cast<std::int32_t>(
+                    (static_cast<std::int64_t>(left[s]) + static_cast<std::int64_t>(right[s])) / 2);
+            produced_mask |= 1u << kFrontCenter;
+        }
+        // Auro-Matic does not synthesize an LFE feed; bass management is a
+        // separate downstream stage in the original engine. Keep it silent.
+        if ((missing_requested_mask & (1u << kLfe)) != 0u)
+            produced_mask |= 1u << kLfe;
+    }
     const std::uint32_t satisfied_mask = produced_mask | input_mask;
     const bool requested_ok = (requested_mask & ~satisfied_mask) == 0u;
     const std::uint32_t codec_v3_or_fallback_height = produced_mask & kHeightMask;
@@ -4045,7 +4109,9 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
     const std::uint64_t warmup_samples =
         static_cast<std::uint64_t>(block_size_)
         * static_cast<std::uint64_t>(std::max<std::uint32_t>(2u, native_config_state_.stage1_count + 1u));
-    const bool past_warmup = codec_v3_delay_line_.absolute_cursor >= warmup_samples;
+    const bool past_warmup = legacy_auromatic_upmix_
+        ? read_pos_ > pcm_begin_ + warmup_samples * sample_frame_b
+        : codec_v3_delay_line_.absolute_cursor >= warmup_samples;
     if (past_warmup && !codec_v3_requested_layout_ever_satisfied_)
         return DecodeError::NotImplemented;
     // По умолчанию stereo, но при явном запросе рендерим все выходные слоты.
@@ -4149,6 +4215,7 @@ void Decoder::close() {
     requested_output_channel_mask_ = 0;
     output_channel_mask_ = 0;
     auro_metadata_ = {};
+    legacy_auromatic_upmix_ = false;
     native_config_state_ = {};
     native_runtime_configuration_ = {};
     native_a3deng_static_configuration_ = {};

@@ -342,6 +342,7 @@ private:
     std::uint32_t input_wav_channel_mask_ = 0;
     bool opened_ = false;
     bool raw_forced_ = false;
+    bool legacy_auromatic_upmix_ = false;
     unsigned dsp_strength_ = 12;
     unsigned room_preset_ = kDefaultRoomPreset;
     unsigned hrtf_preset_ = kDefaultHrtfPreset;
