@@ -1,7 +1,7 @@
 #pragma once
 
-#include "auro3deng_from_ida.hpp"
-#include "auro3deng_processor_io.hpp"
+#include "../auro3deng/detail/runtime_api.hpp"
+#include "../auro3deng/detail/processor_io.hpp"
 
 #include <cstddef>
 #include <cstdint>

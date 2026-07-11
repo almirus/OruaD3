@@ -1,8 +1,8 @@
 #include "app_version.hpp"
-#include "auro3d_decoder.hpp"
-#include "auro3deng_strength.hpp"
-#include "binaural_renderer.hpp"
-#include "wav_writer.hpp"
+#include "decoder.hpp"
+#include "../io/wav_writer.hpp"
+#include "../render/binaural_renderer.hpp"
+#include "../util/auro3deng_strength.hpp"
 
 #include <chrono>
 #include <cstdlib>
@@ -606,25 +606,25 @@ int main(int argc, char** argv) {
             & ~native_cfg.input_mask
             & ~native_mask;
     }
-    const char* native_input_layout = auro3d::auro_channel_layout_to_string(native_cfg.input_mask);
-    const char* requested_output_layout = auro3d::auro_channel_layout_to_string(native_cfg.requested_output_mask);
-    const char* effective_output_layout = auro3d::auro_channel_layout_to_string(native_cfg.effective_output_mask);
-    std::cerr << "decode_channel_modes ";
-    std::cerr << "input_layout=" << (native_input_layout[0] ? native_input_layout : "unknown")
-              << " requested_layout=" << (requested_output_layout[0] ? requested_output_layout : "unknown")
-              << " effective_layout=" << (effective_output_layout[0] ? effective_output_layout : "unknown")
-              << " ";
-    print_decode_mode_channel_list("carrier_passthrough", output_slots, native_cfg.input_mask, true);
-    std::cerr << " ";
-    print_decode_mode_channel_list("native", output_slots, native_mask, true);
-    std::cerr << " ";
-    print_decode_mode_channel_list("auromatic", output_slots, auromatic_mask, true);
-    if (auro_meta.found && auro_meta.has_closest_layout_without_mix3) {
-        std::cerr << " auromatic_candidate_layout=0x" << std::hex
-                  << auro_meta.closest_layout_without_mix3 << std::dec;
-    }
-    std::cerr << "\n";
     if (opt.verbose) {
+        const char* native_input_layout = auro3d::auro_channel_layout_to_string(native_cfg.input_mask);
+        const char* requested_output_layout = auro3d::auro_channel_layout_to_string(native_cfg.requested_output_mask);
+        const char* effective_output_layout = auro3d::auro_channel_layout_to_string(native_cfg.effective_output_mask);
+        std::cerr << "decode_channel_modes ";
+        std::cerr << "input_layout=" << (native_input_layout[0] ? native_input_layout : "unknown")
+                  << " requested_layout=" << (requested_output_layout[0] ? requested_output_layout : "unknown")
+                  << " effective_layout=" << (effective_output_layout[0] ? effective_output_layout : "unknown")
+                  << " ";
+        print_decode_mode_channel_list("carrier_passthrough", output_slots, native_cfg.input_mask, true);
+        std::cerr << " ";
+        print_decode_mode_channel_list("native", output_slots, native_mask, true);
+        std::cerr << " ";
+        print_decode_mode_channel_list("auromatic", output_slots, auromatic_mask, true);
+        if (auro_meta.found && auro_meta.has_closest_layout_without_mix3) {
+            std::cerr << " auromatic_candidate_layout=0x" << std::hex
+                      << auro_meta.closest_layout_without_mix3 << std::dec;
+        }
+        std::cerr << "\n";
         std::cerr << "sample_rate=" << cfg_open.sample_rate
                   << " channels=" << cfg_open.channels
                   << " block=" << cfg_open.block_size << "\n";

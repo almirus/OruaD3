@@ -1,4 +1,4 @@
-#include "auro3deng_internal_preamble.hpp"
+#include "../detail/preamble.hpp"
 
 namespace auro3deng {
 

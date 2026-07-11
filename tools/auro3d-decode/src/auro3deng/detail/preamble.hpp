@@ -1,10 +1,10 @@
 #pragma once
 
-#include "auro3deng_from_ida.hpp"
-#include "auro3deng_processor_io.hpp"
-#include "auro3deng_processor_offsets.hpp"
-#include "auro_codec_v3_ida.hpp"
-#include "auro3deng_internal_constants.hpp"
+#include "runtime_api.hpp"
+#include "processor_io.hpp"
+#include "processor_offsets.hpp"
+#include "codec_v3_ida.hpp"
+#include "constants.hpp"
 
 #ifdef round
 #undef round

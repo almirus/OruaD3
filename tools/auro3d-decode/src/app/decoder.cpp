@@ -1,9 +1,9 @@
-#include "auro3d_decoder.hpp"
+#include "decoder.hpp"
 
-#include "auro_codec_v3_ida.hpp"
-#include "auro3deng_from_ida.hpp"
-#include "auro3deng_strength.hpp"
-#include "java_auro_decode_pcm.hpp"
+#include "../auro3deng/detail/codec_v3_ida.hpp"
+#include "../auro3deng/detail/runtime_api.hpp"
+#include "../render/java_auro_decode_pcm.hpp"
+#include "../util/auro3deng_strength.hpp"
 
 #include <algorithm>
 #include <array>
@@ -454,7 +454,6 @@ struct SyncDetectorNotifyBridgeCtx {
     auro3deng::FormatDetectorState1056c0* format_detector = nullptr;
     auro3deng::SyncDetectorState105ee0* sync_detector = nullptr;
     std::uint64_t frame_deque_ptr = 0;
-    std::uint32_t input_mask = 0;
 };
 
 void sync_detector_notify_frame_builder_105530_bridge(
@@ -465,18 +464,6 @@ void sync_detector_notify_frame_builder_105530_bridge(
     auto* ctx = reinterpret_cast<SyncDetectorNotifyBridgeCtx*>(raw_ctx);
     if (!ctx || !ctx->dispatch)
         return;
-    if (std::getenv("AURO3D_DEBUG_FRAMES") != nullptr) {
-        std::fprintf(
-            stderr,
-            "sync_notify kind=%lld a=%lld b=%llu processed=%llu state=%u active=%u layout=0x%x\n",
-            static_cast<long long>(kind),
-            static_cast<long long>(static_cast<std::int32_t>(a)),
-            static_cast<unsigned long long>(b),
-            static_cast<unsigned long long>(ctx->format_detector ? ctx->format_detector->processed_samples : 0u),
-            ctx->sync_detector ? ctx->sync_detector->state : 0u,
-            ctx->sync_detector ? ctx->sync_detector->active_channel_count : 0u,
-            ctx->sync_detector ? ctx->sync_detector->layout : 0u);
-    }
 
     if (kind == 2 && ctx->format_detector && ctx->frame_deque_ptr != 0u) {
         (void)auro3deng::frame_deque_pop_back_5303f0_partial(
@@ -551,21 +538,6 @@ void sync_detector_notify_frame_builder_105530_bridge(
         const bool notify_sync = ctx->format_detector->sync_state == 0u;
         if (notify_sync)
             ctx->format_detector->sync_state = 1u;
-        if (std::getenv("AURO3D_DEBUG_FRAMES") != nullptr) {
-            const auto* dq = reinterpret_cast<const std::uint8_t*>(
-                static_cast<std::uintptr_t>(ctx->frame_deque_ptr));
-            const std::uint64_t dq_head = dq ? *reinterpret_cast<const std::uint64_t*>(dq + 0u) : 0u;
-            const std::uint64_t dq_count = dq ? *reinterpret_cast<const std::uint64_t*>(dq + 8u) : 0u;
-            std::fprintf(
-                stderr,
-                "sync_frame_push rc=%lld start=%llu span=%u mask=0x%x count=%llu head=%llu\n",
-                static_cast<long long>(push_rc),
-                static_cast<unsigned long long>(frame_start),
-                span,
-                ctx->input_mask & 0x7FFFFFFu,
-                static_cast<unsigned long long>(dq_count),
-                static_cast<unsigned long long>(dq_head));
-        }
         if (notify_sync)
             auro3deng::codec_v3_sync_callback_eb840(ctx->dispatch, 1);
         return;
@@ -1402,42 +1374,6 @@ bool auro_adol_channel_input_config_get_carrier_layout(unsigned cfg_id, std::uin
     }
 }
 
-[[maybe_unused]] bool auro_adol_channel_input_config_find(std::uint32_t layout, std::uint32_t& out_cfg_id) {
-    switch (layout) {
-    case 3u: out_cfg_id = 64u; return true;
-    case 4u: out_cfg_id = 128u; return true;
-    case 7u: out_cfg_id = 66u; return true;
-    case 51u: out_cfg_id = 12u; return true;
-    case 55u: out_cfg_id = 1u; return true;
-    case 63u: out_cfg_id = 2u; return true;
-    case 71u: out_cfg_id = 8u; return true;
-    case 119u: out_cfg_id = 67u; return true;
-    case 127u: out_cfg_id = 68u; return true;
-    case 439u: out_cfg_id = 69u; return true;
-    case 447u: out_cfg_id = 70u; return true;
-    case 1587u: out_cfg_id = 11u; return true;
-    case 1599u: out_cfg_id = 15u; return true;
-    case 1983u: out_cfg_id = 75u; return true;
-    case 2052u: out_cfg_id = 129u; return true;
-    case 6148u: out_cfg_id = 130u; return true;
-    case 26163u: out_cfg_id = 20u; return true;
-    case 26167u: out_cfg_id = 71u; return true;
-    case 26175u: out_cfg_id = 30u; return true;
-    case 26551u: out_cfg_id = 74u; return true;
-    case 26559u: out_cfg_id = 54u; return true;
-    case 30263u: out_cfg_id = 72u; return true;
-    case 30271u: out_cfg_id = 40u; return true;
-    case 30647u: out_cfg_id = 76u; return true;
-    case 30655u: out_cfg_id = 77u; return true;
-    case 32311u: out_cfg_id = 73u; return true;
-    case 32319u: out_cfg_id = 50u; return true;
-    case 32695u: out_cfg_id = 78u; return true;
-    case 32703u: out_cfg_id = 62u; return true;
-    default:
-        return false;
-    }
-}
-
 bool auro_codec_v3_is_sample_rate_supported(std::uint32_t sample_rate) {
     return sample_rate == 44100u || sample_rate == 48000u
         || sample_rate == 88200u || sample_rate == 96000u;
@@ -1506,53 +1442,6 @@ bool auro_codec_v3_get_carrier_layout(std::uint32_t original_layout, std::uint32
     }
 }
 
-[[maybe_unused]] bool auro_codec_v3_get_max_original_layout(std::uint32_t carrier_layout, std::uint32_t& out) {
-    switch (carrier_layout) {
-    case 4u:
-        out = 6151u;
-        return true;
-    case 3u:
-        out = 1655u;
-        return true;
-    case 11u:
-        out = 63u;
-        return true;
-    case 51u:
-        out = 26163u;
-        return true;
-    case 55u:
-        out = 32759u;
-        return true;
-    case 63u:
-        out = 0x7FFFu;
-        return true;
-    case 439u:
-        out = 32695u;
-        return true;
-    case 447u:
-        out = 32703u;
-        return true;
-    default:
-        return false;
-    }
-}
-
-[[maybe_unused]] bool auro_codec_v3_is_carrier_layout(std::uint32_t layout) {
-    switch (layout) {
-    case 3u:
-    case 4u:
-    case 11u:
-    case 51u:
-    case 55u:
-    case 63u:
-    case 439u:
-    case 447u:
-        return true;
-    default:
-        return false;
-    }
-}
-
 bool auro_codec_v3_uses_mix3(std::uint32_t layout) {
     switch (layout) {
     case 55u:
@@ -1606,21 +1495,6 @@ bool auro_codec_v3_get_closest_layout_without_mix3(std::uint32_t layout, std::ui
         out = layout;
         return true;
     }
-}
-
-[[maybe_unused]] bool auro_codec_v3_disable_mix3(std::uint32_t sample_rate, std::uint32_t layout, std::uint32_t quality) {
-    if (sample_rate < 48001u)
-        return quality == 5u || quality == 4u;
-    unsigned count = 0;
-    for (std::uint32_t v = layout; v != 0u; v >>= 1u)
-        count += static_cast<unsigned>(v & 1u);
-    if (quality != 5u && count <= 3u)
-        return quality == 4u;
-    return true;
-}
-
-[[maybe_unused]] std::uint32_t auro_codec_v3_calculate_latency(std::uint32_t a, std::uint32_t b) {
-    return a * b;
 }
 
 const char* auro_channel_layout_to_string(std::uint32_t layout) {
@@ -3437,7 +3311,6 @@ void Decoder::run_codec_v3_partial_step() {
     sync_notify_ctx.frame_deque_ptr = codec_v3_fake_frame_deque_storage_.empty()
         ? 0u
         : reinterpret_cast<std::uint64_t>(codec_v3_fake_frame_deque_storage_.data());
-    sync_notify_ctx.input_mask = live_input_mask;
     codec_v3_sync_detector_.notify_ctx = &sync_notify_ctx;
     codec_v3_sync_detector_.notify = sync_detector_notify_frame_builder_105530_bridge;
     codec_v3_dispatch_.produced_output_mask = 0u;

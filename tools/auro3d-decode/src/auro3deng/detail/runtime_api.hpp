@@ -3,7 +3,7 @@
 /// Источники RE: весь DSP декодера — только libauro3d.so, разбор через ida-pro-mcp (RPC к IDA).
 /// Использование в APK (JNI, ExoPlayer extension, нативные вызовы) — через JADX/app analysis.
 
-#include "auro3deng_processor_io.hpp"
+#include "processor_io.hpp"
 
 #include <cstdint>
 #include <cstddef>
@@ -30,11 +30,6 @@ constexpr std::uintptr_t kProcessorPerf_ratio_sum_float = 0x25E960;      // += b
 constexpr std::uintptr_t kProcessorPerf_best_ratio_float = 0x25E964;     // if (best > cur) best = cur
 constexpr std::uintptr_t kProcessorPerf_best_elapsed_qword = 0x25E968;   // elapsed for best ratio
 constexpr std::uintptr_t kProcessorPerf_best_ratio_input_float = 0x25E970; // input ratio for best ratio
-
-/// Текстовая сводка цепочки Processor→Analyser→Controller и якорь для RE.
-/// Якорь: в .so найти `auro_codec_v3_decoder_CRC_t_init` → xrefs (кто вызывает) — обычно рядом
-/// с конструктором/инициализацией AURO codec v3 и контекста CRC перед разбором потока.
-const char* ida_callchain_ru();
 
 // IDA 0x106F00 — глобальная инициализация CRC-таблицы (512 байт @ unk_41ACF0, флаг byte_41ACE0).
 void decoder_crc_t_init_106f00();
