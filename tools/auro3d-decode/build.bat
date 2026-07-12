@@ -22,7 +22,7 @@ rc /nologo /fo "..\..\bin\obj\auro3d-decode\xinn_presets.res" xinn_presets.rc
 if errorlevel 1 exit /b 1
 
 cl /nologo /std:c++17 /utf-8 /EHsc /O2 /D_CRT_SECURE_NO_WARNINGS /I. /Isrc ^
-  src\app\main.cpp src\app\decoder.cpp ^
+  src\app\main.cpp src\app\decoder.cpp src\app\cx_probe.cpp ^
   src\io\wav_writer.cpp ^
   src\render\binaural_renderer.cpp src\render\java_auro_decode_pcm.cpp ^
   src\util\auro3deng_strength.cpp ^

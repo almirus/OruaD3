@@ -1,4 +1,5 @@
 #include "app_version.hpp"
+#include "cx_probe.hpp"
 #include "decoder.hpp"
 #include "../io/wav_writer.hpp"
 #include "../render/binaural_renderer.hpp"
@@ -29,6 +30,7 @@ struct Options {
     bool binaural = false;
     bool help_only = false;
     bool version_only = false;
+    bool probe_cx = false;
     unsigned sample_rate = 0;
     unsigned channels = 0;
     unsigned block_size = 0;
@@ -332,6 +334,7 @@ void print_usage() {
         << "  --output-bits N      output PCM depth: 16 or 24; по умолчанию 24\n"
         << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac, etc.\n"
         << "  --channel-diagram    print structural input-to-output channel diagram\n"
+        << "  --probe-cx           detect AuroCX in MP4 and print container/schema diagnostics; -o is not required\n"
         << "  --binaural           render decoded channels to HRTF stereo (48 kHz)\n"
         << "  --dsp-headroom-db X  headroom в dB (0..24; по умолчанию 6)\n"
         << "  --room-preset N      room preset AURO (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
@@ -386,6 +389,10 @@ bool parse_args(int argc, char** argv, Options& opt) {
         if (a == "--version") {
             opt.version_only = true;
             return true;
+        }
+        if (a == "--probe-cx") {
+            opt.probe_cx = true;
+            continue;
         }
         if (a == "-v" || a == "--verbose") {
             opt.verbose = true;
@@ -545,7 +552,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
         return false;
     }
 
-    if (opt.input.empty() || opt.output.empty()) {
+    if (opt.input.empty() || (!opt.probe_cx && opt.output.empty())) {
         std::cerr << "Нужны --input и --output\n";
         return false;
     }
@@ -573,6 +580,12 @@ int main(int argc, char** argv) {
     if (opt.version_only) {
         std::cout << auro3d_decode::kVersion << '\n';
         return 0;
+    }
+    if (opt.probe_cx) {
+        auro3d::AuroCxProbeInfo info{};
+        const bool ok = auro3d::probe_auro_cx_mp4(opt.input, info);
+        auro3d::print_auro_cx_probe(info);
+        return ok ? 0 : 2;
     }
 
     auro3d::Decoder dec;
