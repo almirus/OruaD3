@@ -36,6 +36,60 @@
       "id": "auro_5_4_4",
       "input": "test_files/auro 5.4.4.flac",
       "args": []
+    },
+    {
+      "id": "cx_lori_9_1_nearlossless",
+      "input": "test_files/aurocx/1730822477318-LoriLieberman_PieceOfMe_Auro9_1_48k_nearlossless_1280kbps (LoriLieberman-PieceOfMe-Auro9_1-48k-nearlossless-1280kbps).mp4",
+      "comparison": "cx-consume",
+      "pcm": {"channels": 10, "sample_rate": 48000, "sample_width": 3}
+    },
+    {
+      "id": "cx_markus_13_1_lossless",
+      "input": "test_files/aurocx/Markus_Schulz_YouBelong_AUROCX.mp4",
+      "comparison": "cx-consume",
+      "pcm": {"channels": 14, "sample_rate": 48000, "sample_width": 3}
+    },
+    {
+      "id": "cx_ola_9_1_lossless",
+      "input": "test_files/aurocx/Ola_Onabule_Its_Never_Over_AUROCX.mp4",
+      "comparison": "cx-consume",
+      "pcm": {"channels": 10, "sample_rate": 48000, "sample_width": 3}
+    },
+    {
+      "id": "cx_alessandro_7_1_nearlossless",
+      "input": "test_files/aurocx/PA_Alessandro_Quarta_-_Oblivion_AUROCX.mp4",
+      "comparison": "cx-consume",
+      "pcm": {"channels": 8, "sample_rate": 48000, "sample_width": 3}
+    },
+    {
+      "id": "cx_yamamoto_13_1_lossless",
+      "input": "test_files/aurocx/YamamotoTsuyoshiTrio_LastTangoInParis_excerpt_Auro13_1_48k_lossless (Auro CX).mp4",
+      "comparison": "cx-consume",
+      "pcm": {"channels": 14, "sample_rate": 48000, "sample_width": 3}
+    },
+    {
+      "id": "cx_yamamoto_13_1_nearlossless_1664",
+      "input": "test_files/aurocx/YamamotoTsuyoshiTrio_LastTangoInParis_excerpt_Auro13_1_48k_nearlossless_1664kbps (Auro CX).mp4",
+      "comparison": "cx-consume",
+      "pcm": {"channels": 14, "sample_rate": 48000, "sample_width": 3}
+    },
+    {
+      "id": "cx_yamamoto_13_1_nearlossless_3328",
+      "input": "test_files/aurocx/YamamotoTsuyoshiTrio_LastTangoInParis_excerpt_Auro13_1_48k_nearlossless_3328kbps(Auro CX).mp4",
+      "comparison": "cx-consume",
+      "pcm": {"channels": 14, "sample_rate": 48000, "sample_width": 3}
+    },
+    {
+      "id": "cx_auro_cx_11_1_nearlossless",
+      "input": "test_files/aurocx/auro_cx.mp4",
+      "comparison": "cx-consume",
+      "pcm": {"channels": 12, "sample_rate": 48000, "sample_width": 3},
+      "max_abs_correlations": [
+        {"a": 0, "b": 8, "max": 0.1},
+        {"a": 1, "b": 9, "max": 0.1},
+        {"a": 6, "b": 10, "max": 0.1},
+        {"a": 7, "b": 11, "max": 0.1}
+      ]
     }
   ]
 }

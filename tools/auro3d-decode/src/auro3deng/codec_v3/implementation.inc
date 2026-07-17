@@ -27,50 +27,50 @@ bool is_frame_finished_at_cursor_1024a9(std::uint64_t frame_ptr, std::uint64_t t
     return frame_end == static_cast<std::int32_t>(timeline_cursor);
 }
 
-void channel_parse_result_mark_usage_106d07_partial(std::uint64_t parse_result_ptr, std::uint32_t in_use) {
+void channel_parse_result_mark_usage(std::uint64_t parse_result_ptr, std::uint32_t in_use) {
     // IDA ParseResult_mark_usage @ 0x52F2D0: store usage dword at +3664.
     *reinterpret_cast<std::uint32_t*>(parse_result_ptr + kParseResultOff_usage_dword) = in_use;
 }
 
-void channel_parse_result_prepare_new_107220_partial(std::uint64_t parse_result_ptr) {
+void channel_parse_result_prepare_new(std::uint64_t parse_result_ptr) {
     // current IDA ParseResultPool_get_new pre-increments cursor, constructs the slot, then marks it in use.
     // IDA 0x107220 tail: construct(parse_result); mark_usage(parse_result, 1).
-    channel_parse_result_construct_103810_partial(parse_result_ptr);
-    channel_parse_result_mark_usage_106d07_partial(parse_result_ptr, 1u);
+    channel_parse_result_construct(parse_result_ptr);
+    channel_parse_result_mark_usage(parse_result_ptr, 1u);
 }
 
-std::uint64_t parse_result_pool_required_additional_memory_107190_partial(std::uint32_t pool_count) {
+std::uint64_t parse_result_pool_required_additional_memory(std::uint32_t pool_count) {
     // current IDA ParseResultPool_t_required_additional_memory: align=8, size=3672 * count.
     return static_cast<std::uint64_t>(kParseResultStrideBytes) * static_cast<std::uint64_t>(pool_count);
 }
 
-std::uint32_t memory_parse_result_pool_count_106d20_partial(
+std::uint32_t memory_parse_result_pool_count(
     std::uint32_t block_samples,
     std::uint32_t channel_count) {
     // IDA 0x106D20: ParseResultPool_t_required_additional_memory(..., 9 * ((a2[0]*a2[7]+255)>>8) + 9)
     return 9u * (((block_samples * channel_count + 255u) >> 8) + 1u);
 }
 
-std::uint64_t memory_block_info_required_additional_memory_13d750_partial(std::uint32_t n) {
+std::uint64_t memory_block_info_required_additional_memory(std::uint32_t n) {
     return 24ull * static_cast<std::uint64_t>(n) + 4ull * static_cast<std::uint64_t>(n)
         + 8ull * static_cast<std::uint64_t>(n);
 }
 
-std::uint32_t memory_block_info_slot_count_106d20_partial(std::uint32_t block_samples) {
+std::uint32_t memory_block_info_slot_count(std::uint32_t block_samples) {
     return ((block_samples + 255u) >> 7) | 1u;
 }
 
-std::uint64_t memory_accumulator_tail_payload_106d20_partial(std::uint64_t qword_at_a2) {
+std::uint64_t memory_accumulator_tail_payload(std::uint64_t qword_at_a2) {
     const std::uint64_t a = 8ull * (qword_at_a2 & 0x7FFFFFFFULL);
     const std::uint64_t b = (12ull * qword_at_a2) & 0x3FFFFFFFCLL;
     return a + b;
 }
 
-std::uint64_t memory_frame_deque_required_additional_memory_13d570_partial(std::uint32_t deque_capacity) {
+std::uint64_t memory_frame_deque_required_additional_memory(std::uint32_t deque_capacity) {
     return 336ull * static_cast<std::uint64_t>(deque_capacity);
 }
 
-std::uint64_t memory_delay_line_payload_sum_1068f0_partial(
+std::uint64_t memory_delay_line_payload_sum(
     std::uint64_t a2_qword0,
     std::uint64_t a2_qword16,
     std::uint32_t a2_dword44) {
@@ -97,18 +97,18 @@ constexpr std::uint32_t kDword2732C0[33] = {
 
 } // namespace
 
-void channel_bit_reader_set_data_105440_partial(std::uint64_t br, std::uint64_t words_ptr, std::int32_t word_count) {
+void channel_bit_reader_set_data(std::uint64_t br, std::uint64_t words_ptr, std::int32_t word_count) {
     *reinterpret_cast<std::uint64_t*>(br + 0u) = words_ptr;
     *reinterpret_cast<std::int32_t*>(br + 8u) = word_count;
     *reinterpret_cast<std::uint32_t*>(br + 12u) = 0u;
 }
 
-void channel_bit_reader_set_bitlines_1054b0_partial(std::uint64_t br, std::int32_t bitlines) {
+void channel_bit_reader_set_bitlines(std::uint64_t br, std::int32_t bitlines) {
     *reinterpret_cast<std::int32_t*>(br + 36u) = bitlines;
     *reinterpret_cast<std::int32_t*>(br + 32u) = bitlines;
 }
 
-std::uint32_t channel_bit_reader_get_unsigned_bits_105330_partial(std::uint64_t a1, std::int32_t a2) {
+std::uint32_t channel_bit_reader_get_unsigned_bits(std::uint64_t a1, std::int32_t a2) {
     auto apply_label17 = [a1]() {
         *reinterpret_cast<std::uint32_t*>(a1 + 28u) = 1u;
         *reinterpret_cast<std::uint64_t*>(a1 + 20u) = 0u;
@@ -139,7 +139,7 @@ std::uint32_t channel_bit_reader_get_unsigned_bits_105330_partial(std::uint64_t 
         apply_label16(result, v3);
         return result;
     }
-    bool exit_partial = false;
+    bool exit = false;
     while (true) {
         std::int32_t v8 = *reinterpret_cast<std::int32_t*>(a1 + 32u) - v5;
         if (v3 <= v8)
@@ -165,11 +165,11 @@ std::uint32_t channel_bit_reader_get_unsigned_bits_105330_partial(std::uint64_t 
         if (v3 <= 0)
             break;
         if (v7 >= v6) {
-            exit_partial = true;
+            exit = true;
             break;
         }
     }
-    if (exit_partial) {
+    if (exit) {
         apply_label16(result, v3);
         return result;
     }
@@ -180,28 +180,28 @@ std::uint32_t channel_bit_reader_get_unsigned_bits_105330_partial(std::uint64_t 
     return result;
 }
 
-std::uint32_t channel_bit_reader_get_remaining_nr_bits_105450_partial(std::uint64_t br) {
+std::uint32_t channel_bit_reader_get_remaining_nr_bits(std::uint64_t br) {
     return *reinterpret_cast<std::uint32_t*>(br + 20u);
 }
 
-std::int64_t channel_bit_reader_get_signed_bits_105460_partial(std::uint64_t br, std::int32_t bit_count) {
+std::int64_t channel_bit_reader_get_signed_bits(std::uint64_t br, std::int32_t bit_count) {
     if (bit_count <= 0)
         return 0;
     const std::int64_t result =
-        static_cast<std::int64_t>(channel_bit_reader_get_unsigned_bits_105330_partial(br, bit_count));
+        static_cast<std::int64_t>(channel_bit_reader_get_unsigned_bits(br, bit_count));
     const std::uint32_t v3 = (bit_count == 32) ? 0x80000000u : (1u << static_cast<std::uint32_t>(bit_count - 1));
     if (bit_count != 32 && (v3 & static_cast<std::uint32_t>(result)) != 0u)
         return -static_cast<std::int64_t>((~v3) & static_cast<std::uint32_t>(result));
     return result;
 }
 
-void channel_bit_reader_reset_105490_partial(std::uint64_t br) {
+void channel_bit_reader_reset(std::uint64_t br) {
     std::memset(reinterpret_cast<void*>(br + 16u), 0, 16u);
     std::memset(reinterpret_cast<void*>(br), 0, 16u);
     *reinterpret_cast<std::uint64_t*>(br + 32u) = 0u;
 }
 
-void channel_crc_reset_1070d0_partial(std::uint64_t crc_state) {
+void channel_crc_reset(std::uint64_t crc_state) {
     *reinterpret_cast<std::uint64_t*>(crc_state) = 0u;
 }
 
@@ -329,11 +329,11 @@ void crc_table_ensure_once() {
 
 } // namespace
 
-void channel_crc_table_init_106f00_partial() {
+void channel_crc_table_init() {
     crc_table_ensure_once();
 }
 
-std::uint64_t channel_crc_process_1070e0_partial(
+std::uint64_t channel_crc_process(
     std::uint64_t crc_state,
     std::uint64_t words_ptr,
     std::int32_t word_count) {
@@ -370,7 +370,7 @@ std::uint64_t channel_crc_process_1070e0_partial(
     return result;
 }
 
-std::int64_t channel_crc_check_107170_partial(
+std::int64_t channel_crc_check(
     std::uint64_t crc_state,
     std::int32_t dword_at_plus4_compare,
     std::int16_t expected_crc_word) {
@@ -386,7 +386,7 @@ std::int64_t channel_crc_check_107170_partial(
     return 0;
 }
 
-std::int64_t channel_metadata_combine_info_105d50_partial(std::uint64_t frame_channel_ptr) {
+std::int64_t channel_metadata_combine_info(std::uint64_t frame_channel_ptr) {
     const std::uint16_t v1 = *reinterpret_cast<const std::uint16_t*>(frame_channel_ptr + 76u);
     if (!(v1 <= 0x1FFu && (v1 < 0x100u || static_cast<std::uint8_t>(v1) <= 0x0Au)))
         return 0;
@@ -424,7 +424,8 @@ std::int64_t channel_metadata_combine_info_105d50_partial(std::uint64_t frame_ch
     return 1;
 }
 
-std::int64_t channel_get_carrier_layout_530db0_partial(std::uint32_t* out_layout, std::uint32_t original_layout) {
+std::int64_t /* Decompiled name: channel_get_carrier_layout */
+channel_get_carrier_layout(std::uint32_t* out_layout, std::uint32_t original_layout) {
     if (!out_layout)
         return 0;
     switch (original_layout) {
@@ -451,14 +452,14 @@ std::int64_t channel_get_carrier_layout_530db0_partial(std::uint32_t* out_layout
     }
 }
 
-std::int64_t channel_parser_construct_104210_partial(
+std::int64_t channel_parser_construct(
     std::uint64_t parser_base,
     std::uint64_t frame_channel_ptr,
     std::uint64_t frame_meta_16b_ptr,
     std::uint64_t frame_slot_ptr) {
     std::memset(reinterpret_cast<void*>(parser_base), 0, 64u);
-    channel_bit_reader_reset_105490_partial(parser_base + 24u);
-    channel_crc_reset_1070d0_partial(parser_base + 12u);
+    channel_bit_reader_reset(parser_base + 24u);
+    channel_crc_reset(parser_base + 12u);
     *reinterpret_cast<std::uint32_t*>(parser_base + 8u) = 1u;
     *reinterpret_cast<std::uint16_t*>(frame_channel_ptr + 52u) =
         *reinterpret_cast<const std::uint16_t*>(frame_slot_ptr + 0u);
@@ -551,14 +552,14 @@ std::int64_t channel_parser_process_103840(
             || *reinterpret_cast<const std::uint32_t*>(frame_channel_ptr + 60u) != 0u) {
             return 0;
         }
-        channel_bit_reader_set_bitlines_1054b0_partial(
+        channel_bit_reader_set_bitlines(
             br,
             static_cast<std::int32_t>(
                 24u - *reinterpret_cast<const std::uint32_t*>(frame_channel_ptr + 72u)));
         a1[2] = 2u;
     }
 
-    channel_bit_reader_set_data_105440_partial(br, channel_ptr, static_cast<std::int32_t>(word_count));
+    channel_bit_reader_set_data(br, channel_ptr, static_cast<std::int32_t>(word_count));
     // a1[10] == BitReader+16 (words-consumed counter). IDA does not overwrite it with a4.
     if (a1[2] == 2u)
         a1[2] = 3u;
@@ -569,7 +570,7 @@ std::int64_t channel_parser_process_103840(
             switch (state) {
             case 3u: {
                 const std::uint16_t u = static_cast<std::uint16_t>(
-                    channel_bit_reader_get_unsigned_bits_105330_partial(br, 16));
+                    channel_bit_reader_get_unsigned_bits(br, 16));
                 if (*br_ok == 0u)
                     break;
                 *reinterpret_cast<std::uint16_t*>(frame_channel_ptr + 76u) = u;
@@ -579,7 +580,7 @@ std::int64_t channel_parser_process_103840(
                 continue;
             }
             case 4u: {
-                const std::uint32_t v = channel_bit_reader_get_unsigned_bits_105330_partial(br, 32);
+                const std::uint32_t v = channel_bit_reader_get_unsigned_bits(br, 32);
                 if (*br_ok == 0u)
                     break;
                 *reinterpret_cast<std::uint32_t*>(frame_channel_ptr + 80u + 4u * static_cast<std::uint64_t>(a1[0])) = v;
@@ -589,7 +590,7 @@ std::int64_t channel_parser_process_103840(
                 continue;
             }
             case 5u: {
-                if (channel_metadata_combine_info_105d50_partial(frame_channel_ptr) == 0)
+                if (channel_metadata_combine_info(frame_channel_ptr) == 0)
                     return 0;
                 a1[0] = 0u;
                 const std::uint32_t mode = *reinterpret_cast<const std::uint32_t*>(frame_channel_ptr + 104u);
@@ -600,7 +601,7 @@ std::int64_t channel_parser_process_103840(
             case 6u: {
                 if (a1[0] != a1[1]) {
                     const std::int32_t sv = static_cast<std::int32_t>(
-                        channel_bit_reader_get_signed_bits_105460_partial(br, 32));
+                        channel_bit_reader_get_signed_bits(br, 32));
                     if (*br_ok == 0u)
                         break;
                     *reinterpret_cast<std::int32_t*>(
@@ -623,7 +624,7 @@ std::int64_t channel_parser_process_103840(
                 continue;
             }
             case 7u: {
-                const std::uint32_t v = channel_bit_reader_get_unsigned_bits_105330_partial(br, 8);
+                const std::uint32_t v = channel_bit_reader_get_unsigned_bits(br, 8);
                 if (*br_ok == 0u)
                     break;
                 a1[0] = 0u;
@@ -639,7 +640,7 @@ std::int64_t channel_parser_process_103840(
             }
             case 8u: {
                 // IDA reads signed char opcode; 128..145 == native -128..-112.
-                const std::uint32_t op = channel_bit_reader_get_unsigned_bits_105330_partial(br, 8);
+                const std::uint32_t op = channel_bit_reader_get_unsigned_bits(br, 8);
                 if (*br_ok == 0u)
                     break;
                 a1[0] = 0u;
@@ -691,14 +692,14 @@ std::int64_t channel_parser_process_103840(
             case 9u: {
                 // IDA: store then check br_ok; on fail exit CRC with state still 9.
                 *reinterpret_cast<std::uint32_t*>(frame_channel_ptr + 100u) =
-                    channel_bit_reader_get_unsigned_bits_105330_partial(br, 8) & 0xFFu;
+                    channel_bit_reader_get_unsigned_bits(br, 8) & 0xFFu;
                 if (*br_ok == 0u)
                     break;
                 a1[2] = 10u;
                 continue;
             }
             case 10u: {
-                const std::uint32_t v = channel_bit_reader_get_unsigned_bits_105330_partial(br, 8) & 0xFFu;
+                const std::uint32_t v = channel_bit_reader_get_unsigned_bits(br, 8) & 0xFFu;
                 if (*br_ok == 0u)
                     break;
                 const std::uint32_t key = *reinterpret_cast<const std::uint32_t*>(frame_channel_ptr + 100u);
@@ -716,16 +717,17 @@ std::int64_t channel_parser_process_103840(
             case 11u: {
                 // IDA: store then check br_ok; on fail exit CRC with state still 11.
                 *reinterpret_cast<std::uint32_t*>(frame_channel_ptr + 48u) =
-                    channel_bit_reader_get_unsigned_bits_105330_partial(br, 8) & 0xFFu;
+                    channel_bit_reader_get_unsigned_bits(br, 8) & 0xFFu;
                 if (*br_ok == 0u)
                     break;
                 a1[2] = 8u;
                 continue;
             }
             case 12u: {
-                const std::uint32_t v = channel_bit_reader_get_unsigned_bits_105330_partial(br, 32);
+                const std::uint32_t v = channel_bit_reader_get_unsigned_bits(br, 32);
                 std::uint32_t carrier_layout = 0u;
-                if (channel_get_carrier_layout_530db0_partial(
+                if (/* Decompiled name: channel_get_carrier_layout */
+channel_get_carrier_layout(
                         &carrier_layout,
                         *reinterpret_cast<const std::uint32_t*>(frame_channel_ptr + 92u)) == 0) {
                     return 0;
@@ -785,31 +787,31 @@ std::int64_t channel_parser_process_103840(
                 continue;
             }
             case 13u:
-                (void)channel_bit_reader_get_unsigned_bits_105330_partial(br, 8);
+                (void)channel_bit_reader_get_unsigned_bits(br, 8);
                 if (*br_ok == 0u)
                     break;
                 a1[2] = 8u;
                 continue;
             case 14u:
-                (void)channel_bit_reader_get_unsigned_bits_105330_partial(br, 16);
+                (void)channel_bit_reader_get_unsigned_bits(br, 16);
                 if (*br_ok == 0u)
                     break;
                 a1[2] = 8u;
                 continue;
             case 15u:
-                (void)channel_bit_reader_get_unsigned_bits_105330_partial(br, 24);
+                (void)channel_bit_reader_get_unsigned_bits(br, 24);
                 if (*br_ok == 0u)
                     break;
                 a1[2] = 8u;
                 continue;
             case 16u:
-                (void)channel_bit_reader_get_unsigned_bits_105330_partial(br, 32);
+                (void)channel_bit_reader_get_unsigned_bits(br, 32);
                 if (*br_ok == 0u)
                     break;
                 a1[2] = 8u;
                 continue;
             case 17u: {
-                const std::uint32_t op = channel_bit_reader_get_unsigned_bits_105330_partial(br, 8) & 0xFFu;
+                const std::uint32_t op = channel_bit_reader_get_unsigned_bits(br, 8) & 0xFFu;
                 if (*br_ok == 0u)
                     break;
                 std::uint32_t layout = 0u;
@@ -820,7 +822,7 @@ std::int64_t channel_parser_process_103840(
                 continue;
             }
             case 18u: {
-                const std::uint32_t v = channel_bit_reader_get_unsigned_bits_105330_partial(br, 24);
+                const std::uint32_t v = channel_bit_reader_get_unsigned_bits(br, 24);
                 if (*br_ok == 0u)
                     break;
                 a1[0] = 0u;
@@ -833,7 +835,7 @@ std::int64_t channel_parser_process_103840(
                 continue;
             }
             case 19u:
-                (void)channel_bit_reader_get_unsigned_bits_105330_partial(br, 32);
+                (void)channel_bit_reader_get_unsigned_bits(br, 32);
                 if (*br_ok == 0u)
                     break;
                 a1[0] += 1u;
@@ -853,7 +855,7 @@ std::int64_t channel_parser_process_103840(
             case 21u: {
                 const std::uint32_t rem = a1[1] - a1[0];
                 const std::uint32_t bits = (rem <= 32u) ? rem : 32u;
-                const std::uint32_t vv = channel_bit_reader_get_unsigned_bits_105330_partial(br, static_cast<std::int32_t>(bits));
+                const std::uint32_t vv = channel_bit_reader_get_unsigned_bits(br, static_cast<std::int32_t>(bits));
                 if (*br_ok == 0u)
                     break;
                 std::uint64_t& n = *reinterpret_cast<std::uint64_t*>(
@@ -876,7 +878,7 @@ std::int64_t channel_parser_process_103840(
                 continue;
             }
             case 22u: {
-                const std::uint32_t vv = channel_bit_reader_get_unsigned_bits_105330_partial(br, 32);
+                const std::uint32_t vv = channel_bit_reader_get_unsigned_bits(br, 32);
                 if (*br_ok != 0u) {
                     std::uint64_t& n = *reinterpret_cast<std::uint64_t*>(
                         frame_channel_ptr + kFrameChannelOff_stream_count_qword);
@@ -889,8 +891,8 @@ std::int64_t channel_parser_process_103840(
                 // (BitReader+16 words-consumed). Tail then LABEL_38 → state 23 → CRC.
                 if (*reinterpret_cast<const std::uint32_t*>(frame_channel_ptr + 56u) > a1[10])
                     break;
-                const std::uint32_t rb = channel_bit_reader_get_remaining_nr_bits_105450_partial(br);
-                const std::uint32_t tail = channel_bit_reader_get_unsigned_bits_105330_partial(
+                const std::uint32_t rb = channel_bit_reader_get_remaining_nr_bits(br);
+                const std::uint32_t tail = channel_bit_reader_get_unsigned_bits(
                     br,
                     static_cast<std::int32_t>(rb));
                 std::uint64_t& n = *reinterpret_cast<std::uint64_t*>(
@@ -914,11 +916,11 @@ std::int64_t channel_parser_process_103840(
         }
     }
 
-    channel_crc_process_1070e0_partial(
+    channel_crc_process(
         parser_base + 12u,
         channel_ptr,
         static_cast<std::int32_t>(word_count));
-    const std::int64_t crc_ck = channel_crc_check_107170_partial(
+    const std::int64_t crc_ck = channel_crc_check(
         parser_base + 12u,
         *reinterpret_cast<const std::int32_t*>(frame_channel_ptr + 56u),
         *reinterpret_cast<const std::int16_t*>(frame_channel_ptr + 52u));
@@ -927,7 +929,7 @@ std::int64_t channel_parser_process_103840(
     return (crc_ck != 0) ? 1 : 0;
 }
 
-bool parse_result_pool_construct_1071b0_partial(
+bool parse_result_pool_construct(
     std::uint64_t pool_base_ptr,
     std::uint64_t storage_base_ptr,
     std::uint32_t pool_count) {
@@ -941,13 +943,13 @@ bool parse_result_pool_construct_1071b0_partial(
     std::uint64_t offset = 0u;
     for (std::uint32_t i = 0; i < pool_count; ++i) {
         const std::uint64_t parse_result_ptr = storage_base_ptr + offset;
-        channel_parse_result_construct_103810_partial(parse_result_ptr);
+        channel_parse_result_construct(parse_result_ptr);
         offset += kParseResultStrideBytes;
     }
     return storage_base_ptr != 0u || pool_count == 0u;
 }
 
-std::uint64_t parse_result_pool_get_new_107220_partial(std::uint64_t pool_base_ptr) {
+std::uint64_t parse_result_pool_get_new(std::uint64_t pool_base_ptr) {
     if (pool_base_ptr == 0u)
         return 0u;
     const std::uint64_t storage_base = *reinterpret_cast<const std::uint64_t*>(pool_base_ptr + 0u);
@@ -959,11 +961,11 @@ std::uint64_t parse_result_pool_get_new_107220_partial(std::uint64_t pool_base_p
     *reinterpret_cast<std::uint32_t*>(pool_base_ptr + 8u) = cursor;
     const std::uint64_t parse_result_ptr =
         storage_base + static_cast<std::uint64_t>(kParseResultStrideBytes) * static_cast<std::uint64_t>(cursor);
-    channel_parse_result_prepare_new_107220_partial(parse_result_ptr);
+    channel_parse_result_prepare_new(parse_result_ptr);
     return parse_result_ptr;
 }
 
-void downmix_coefficients_initialize_105d30_partial(std::uint64_t coeff_ptr) {
+void downmix_coefficients_initialize(std::uint64_t coeff_ptr) {
     if (coeff_ptr == 0u)
         return;
     // IDA 0x105D30: two xmmword constants copied to coeff block (+0, +16).
@@ -978,13 +980,13 @@ void downmix_coefficients_initialize_105d30_partial(std::uint64_t coeff_ptr) {
     dst[7] = 0x3F800000u;
 }
 
-void channel_parse_result_construct_103810_partial(std::uint64_t parse_result_ptr) {
+void channel_parse_result_construct(std::uint64_t parse_result_ptr) {
     // current IDA ParseResult_t_construct: zero header 0..191 and tail 3648..3667.
     std::memset(reinterpret_cast<void*>(parse_result_ptr), 0, 192u);
     std::memset(reinterpret_cast<void*>(parse_result_ptr + 3648u), 0, 20u);
 }
 
-void frame_construct_parse_results_106cd0_partial(
+void frame_construct_parse_results(
     std::uint64_t frame_ptr,
     void (*construct_parse_result)(std::uint64_t parse_result_ptr)) {
     if (frame_ptr == 0u || construct_parse_result == nullptr)
@@ -1000,7 +1002,7 @@ void frame_construct_parse_results_106cd0_partial(
     }
 }
 
-void frame_construct_106ba0_partial(
+void frame_construct(
     std::uint64_t frame_ptr,
     std::uint64_t start,
     std::uint32_t span,
@@ -1042,7 +1044,7 @@ void frame_construct_106ba0_partial(
     }
 }
 
-void frame_assign_window_partial(
+void frame_assign_window(
     std::uint64_t* io_next_frame_start,
     std::uint64_t frame_span,
     std::uint64_t frame_ptr) {
@@ -1057,7 +1059,7 @@ void frame_assign_window_partial(
     *io_next_frame_start = end;
 }
 
-void frame_mark_usage_106cd0_partial(
+void frame_mark_usage(
     std::uint64_t frame_ptr,
     std::uint32_t in_use,
     void (*mark_usage)(std::uint64_t parse_result_ptr, std::uint32_t in_use)) {
@@ -1073,7 +1075,7 @@ void frame_mark_usage_106cd0_partial(
     }
 }
 
-void frame_mark_as_unused_106cd0_partial(
+void frame_mark_as_unused(
     std::uint64_t frame_ptr,
     void (*mark_usage)(std::uint64_t parse_result_ptr, std::uint32_t in_use)) {
     if (frame_ptr == 0u || mark_usage == nullptr)
@@ -1090,12 +1092,12 @@ void frame_mark_as_unused_106cd0_partial(
     }
 }
 
-void frame_mark_as_unused_106cd0_default_partial(std::uint64_t frame_ptr) {
-    frame_mark_as_unused_106cd0_partial(frame_ptr, channel_parse_result_mark_usage_106d07_partial);
+void frame_mark_as_unused_106cd0_default(std::uint64_t frame_ptr) {
+    frame_mark_as_unused(frame_ptr, channel_parse_result_mark_usage);
 }
 
-std::int64_t parser_frame_mark_as_unused_cb_partial(std::uint64_t frame_ptr) {
-    frame_mark_as_unused_106cd0_default_partial(frame_ptr);
+std::int64_t parser_frame_mark_as_unused_cb(std::uint64_t frame_ptr) {
+    frame_mark_as_unused_106cd0_default(frame_ptr);
     return 0;
 }
 
@@ -1140,7 +1142,7 @@ std::uint64_t native_frame_deque_frame_ptr_530240(const NativeFrameDequeView5302
     return view.storage + 336ull * slot_index;
 }
 
-std::uint64_t frame_deque_find_first_with_end_after_13d570_partial(
+std::uint64_t frame_deque_find_first_with_end_after(
     std::uint64_t frame_deque_ptr,
     std::uint64_t sample_pos) {
     NativeFrameDequeView530240 native{};
@@ -1170,7 +1172,7 @@ std::uint64_t frame_deque_find_first_with_end_after_13d570_partial(
     return 0u;
 }
 
-std::int64_t frame_deque_push_back_13d5d0_partial(
+std::int64_t frame_deque_push_back(
     std::uint64_t frame_deque_ptr,
     std::uint64_t frame_ptr,
     std::uint64_t copy_bytes) {
@@ -1205,7 +1207,7 @@ std::int64_t frame_deque_push_back_13d5d0_partial(
     return 1;
 }
 
-std::uint64_t frame_deque_pop_front_13d670_partial(
+std::uint64_t frame_deque_pop_front(
     std::uint64_t frame_deque_ptr,
     void (*frame_mark_as_unused)(std::uint64_t frame_ptr)) {
     NativeFrameDequeView530240 native{};
@@ -1238,7 +1240,7 @@ std::uint64_t frame_deque_pop_front_13d670_partial(
     return next_head / dq->capacity;
 }
 
-std::uint64_t frame_deque_pop_front_keep_frame_partial(std::uint64_t frame_deque_ptr) {
+std::uint64_t frame_deque_pop_front_keep_frame(std::uint64_t frame_deque_ptr) {
     NativeFrameDequeView530240 native{};
     if (read_native_frame_deque_530240(frame_deque_ptr, native)) {
         if (native.count == 0u)
@@ -1261,7 +1263,7 @@ std::uint64_t frame_deque_pop_front_keep_frame_partial(std::uint64_t frame_deque
     return next_head / dq->capacity;
 }
 
-std::uint64_t frame_deque_pop_back_5303f0_partial(
+std::uint64_t frame_deque_pop_back(
     std::uint64_t frame_deque_ptr,
     void (*frame_mark_as_unused)(std::uint64_t frame_ptr)) {
     NativeFrameDequeView530240 native{};
@@ -1288,7 +1290,8 @@ std::uint64_t frame_deque_pop_back_5303f0_partial(
     return 0u;
 }
 
-std::uint64_t frame_deque_count_530240_partial(std::uint64_t frame_deque_ptr) {
+std::uint64_t /* Decompiled name: frame_deque_count */
+frame_deque_count(std::uint64_t frame_deque_ptr) {
     NativeFrameDequeView530240 native{};
     if (read_native_frame_deque_530240(frame_deque_ptr, native))
         return native.count;
@@ -1298,7 +1301,8 @@ std::uint64_t frame_deque_count_530240_partial(std::uint64_t frame_deque_ptr) {
     return dq->count;
 }
 
-std::uint64_t frame_deque_frame_at_530240_partial(std::uint64_t frame_deque_ptr, std::uint64_t logical_index) {
+std::uint64_t /* Decompiled name: frame_deque_frame_at */
+frame_deque_frame_at(std::uint64_t frame_deque_ptr, std::uint64_t logical_index) {
     NativeFrameDequeView530240 native{};
     if (read_native_frame_deque_530240(frame_deque_ptr, native)) {
         if (logical_index >= native.count)
@@ -1314,7 +1318,8 @@ std::uint64_t frame_deque_frame_at_530240_partial(std::uint64_t frame_deque_ptr,
     return dq->frame_ptrs[idx];
 }
 
-std::uint64_t frame_deque_back_530240_partial(std::uint64_t frame_deque_ptr, std::uint64_t* storage_index_out) {
+std::uint64_t /* Decompiled name: frame_deque_back */
+frame_deque_back(std::uint64_t frame_deque_ptr, std::uint64_t* storage_index_out) {
     if (storage_index_out)
         *storage_index_out = 0u;
     NativeFrameDequeView530240 native{};
@@ -1336,7 +1341,7 @@ std::uint64_t frame_deque_back_530240_partial(std::uint64_t frame_deque_ptr, std
     return dq->frame_ptrs[static_cast<std::uint32_t>(idx)];
 }
 
-void parser_rebind_frame_parse_results_103610_partial(
+void parser_rebind_frame_parse_results(
     std::uint64_t frame_ptr,
     const ParserRebindContext103610* ctx) {
     if (frame_ptr == 0u || ctx == nullptr || ctx->parse_result_pool_base == 0u)
@@ -1344,7 +1349,7 @@ void parser_rebind_frame_parse_results_103610_partial(
     const std::uint32_t channel_count =
         *reinterpret_cast<const std::uint32_t*>(frame_ptr + 44u);
     for (std::uint32_t slot = 0; slot < channel_count; ++slot) {
-        const std::uint64_t parse_result_ptr = parse_result_pool_get_new_107220_partial(ctx->parse_result_pool_base);
+        const std::uint64_t parse_result_ptr = parse_result_pool_get_new(ctx->parse_result_pool_base);
         const std::uint64_t frame_slot_ptr =
             frame_ptr + 48u + static_cast<std::uint64_t>(slot) * 32u;
         *reinterpret_cast<std::uint64_t*>(frame_slot_ptr + 24u) = parse_result_ptr;
@@ -1353,7 +1358,7 @@ void parser_rebind_frame_parse_results_103610_partial(
             continue;
         const std::uint64_t parser_base = reinterpret_cast<std::uint64_t>(
             ctx->channel_parser_base + static_cast<std::size_t>(slot) * 64u);
-        (void)channel_parser_construct_104210_partial(
+        (void)channel_parser_construct(
             parser_base,
             parse_result_ptr,
             frame_ptr + 28u,
@@ -1361,14 +1366,16 @@ void parser_rebind_frame_parse_results_103610_partial(
     }
 }
 
-void parser_refresh_payload_partial(
+void parser_refresh_payload(
     const CodecV3IoBufferDescEb5a0* input_desc,
     const ParserPayloadRefreshContext* ctx) {
     if (input_desc == nullptr || ctx == nullptr || ctx->frame_deque_ptr == 0u || ctx->block_size == 0u)
         return;
-    if (frame_deque_count_530240_partial(ctx->frame_deque_ptr) == 0u)
+    if (/* Decompiled name: frame_deque_count */
+frame_deque_count(ctx->frame_deque_ptr) == 0u)
         return;
-    const std::uint64_t active_frame_ptr = frame_deque_frame_at_530240_partial(ctx->frame_deque_ptr, 0u);
+    const std::uint64_t active_frame_ptr = /* Decompiled name: frame_deque_frame_at */
+frame_deque_frame_at(ctx->frame_deque_ptr, 0u);
     if (active_frame_ptr == 0u)
         return;
 
@@ -1410,12 +1417,12 @@ void parser_refresh_payload_partial(
     }
 }
 
-std::int64_t parser_ready_frame_push_copy_partial(
+std::int64_t parser_ready_frame_push_copy(
     std::uint64_t frame_deque_ptr,
     std::uint64_t frame_ptr,
     std::uint64_t copy_bytes,
     const ParserReadyFrameCopyContext* copy_ctx) {
-    if (frame_deque_push_back_13d5d0_partial(frame_deque_ptr, frame_ptr, copy_bytes) == 0)
+    if (frame_deque_push_back(frame_deque_ptr, frame_ptr, copy_bytes) == 0)
         return 0;
     if (copy_ctx == nullptr || copy_ctx->ready_parse_result_base == nullptr
         || copy_ctx->ready_parse_result_size == 0u || copy_ctx->copied_slot_capacity == 0u
@@ -1424,7 +1431,8 @@ std::int64_t parser_ready_frame_push_copy_partial(
     }
 
     std::uint64_t ready_tail = 0u;
-    const std::uint64_t ready_frame_ptr = frame_deque_back_530240_partial(frame_deque_ptr, &ready_tail);
+    const std::uint64_t ready_frame_ptr = /* Decompiled name: frame_deque_back */
+frame_deque_back(frame_deque_ptr, &ready_tail);
     if (ready_frame_ptr == 0u)
         return 1;
     const std::uint32_t ch_count_raw =
@@ -1465,17 +1473,17 @@ std::int64_t parser_frame_deque_push_back_with_optional_copy_530290(
         && g_parser_ready_frame_copy_ctx.ready_parse_result_size != 0u
         && g_parser_ready_frame_copy_ctx.copied_slot_capacity != 0u
         && g_parser_ready_frame_copy_ctx.parse_result_bytes != 0u) {
-        return parser_ready_frame_push_copy_partial(
+        return parser_ready_frame_push_copy(
             frame_deque_ptr,
             frame_ptr,
             kCodecV3FrameDequeSlotCopyBytes,
             &g_parser_ready_frame_copy_ctx);
     }
-    return frame_deque_push_back_13d5d0_partial(
+    return frame_deque_push_back(
         frame_deque_ptr, frame_ptr, kCodecV3FrameDequeSlotCopyBytes);
 }
 
-void parser_state_sink_notify_partial(ParserStateSinkContext* sink, std::uint32_t state) {
+void parser_state_sink_notify(ParserStateSinkContext* sink, std::uint32_t state) {
     if (!sink)
         return;
     if (sink->state_ptr)
@@ -1484,7 +1492,7 @@ void parser_state_sink_notify_partial(ParserStateSinkContext* sink, std::uint32_
         codec_v3_content_callback_eb870(sink->dispatch, state != 0u ? 1 : 0);
 }
 
-std::int64_t decoder_run_parser_1034e0_partial(DecoderParserRunContext1034e0* ctx) {
+std::int64_t decoder_run_parser(DecoderParserRunContext1034e0* ctx) {
     const std::size_t parser_slots_bytes = ctx->parser_slots_size;
     const std::size_t parser_blob_size = std::max<std::size_t>(56u + parser_slots_bytes, 652u);
     std::vector<std::uint8_t> parser_blob(parser_blob_size, 0u);
@@ -1510,7 +1518,7 @@ std::int64_t decoder_run_parser_1034e0_partial(DecoderParserRunContext1034e0* ct
     return rc;
 }
 
-std::int64_t decoder_run_parser_stage_1034e0_partial(DecoderParserStageContext1034e0* ctx) {
+std::int64_t decoder_run_parser_stage(DecoderParserStageContext1034e0* ctx) {
     auto update_parser_state = [ctx](std::uint32_t next_state) {
         if (ctx == nullptr || ctx->parser_state_ptr == nullptr)
             return;
@@ -1562,7 +1570,7 @@ std::int64_t decoder_run_parser_stage_1034e0_partial(DecoderParserStageContext10
         pfn.frame_mark_as_unused = ctx->runtime_fns.frame_mark_as_unused;
     pfn.content_state_callback = [](std::uint64_t sink_ctx, std::uint32_t state) {
         auto* sink = reinterpret_cast<ParserStateSinkContext*>(sink_ctx);
-        ::auro3deng::parser_state_sink_notify_partial(sink, state);
+        ::auro3deng::parser_state_sink_notify(sink, state);
     };
     pfn.content_state_ctx = reinterpret_cast<std::uint64_t>(&state_sink);
 
@@ -1578,7 +1586,7 @@ std::int64_t decoder_run_parser_stage_1034e0_partial(DecoderParserStageContext10
     parser_ctx.parser_state_inout = ctx->parser_state_ptr;
     parser_ctx.runtime_fns = pfn;
 
-    const std::int64_t rc = ::auro3deng::decoder_run_parser_1034e0_partial(&parser_ctx);
+    const std::int64_t rc = ::auro3deng::decoder_run_parser(&parser_ctx);
     g_parser_ready_frame_copy_active = false;
     if (ctx->timeline_cursor_ptr)
         *ctx->timeline_cursor_ptr = parser_ctx.timeline_cursor;
@@ -1586,7 +1594,7 @@ std::int64_t decoder_run_parser_stage_1034e0_partial(DecoderParserStageContext10
     return rc;
 }
 
-std::int64_t decoder_run_output_stage_1024a9_partial(
+std::int64_t decoder_run_output_stage(
     const DecoderOutputStageContext1024a9* ctx,
     const void* runtime_fns) {
     if (ctx->ready_frame_deque_base == nullptr)
@@ -1628,10 +1636,10 @@ std::int64_t decoder_run_output_stage_1024a9_partial(
         if (ext.frame_mark_as_unused) run_ctx.runtime_fns.frame_mark_as_unused = ext.frame_mark_as_unused;
         if (ext.frame_deque_pop_front) run_ctx.runtime_fns.frame_deque_pop_front = ext.frame_deque_pop_front;
     }
-    return decoder_run_output_generator_1024a9_partial(&run_ctx);
+    return decoder_run_output_generator(&run_ctx);
 }
 
-void decoder_init_fake_frame_channels_106ba0_partial(
+void decoder_init_fake_frame_channels(
     const DecoderInitFakeFrameChannelsContext106ba0* ctx) {
     if (!ctx || !ctx->fake_frame || !ctx->fake_frame_next || !ctx->fake_frame_channels_base
         || !ctx->fake_frame_channel_words_base || !ctx->fake_frame_channel_ctx_base)
@@ -1639,13 +1647,13 @@ void decoder_init_fake_frame_channels_106ba0_partial(
 
     std::uint32_t slot = 0;
     const std::uint32_t input_mask = ctx->input_mask & kCodecV3ChannelMask;
-    frame_construct_106ba0_partial(
+    frame_construct(
         reinterpret_cast<std::uint64_t>(ctx->fake_frame),
         0u,
         ctx->block_size,
         input_mask,
         input_mask);
-    frame_construct_106ba0_partial(
+    frame_construct(
         reinterpret_cast<std::uint64_t>(ctx->fake_frame_next),
         0u,
         ctx->block_size,
@@ -1661,7 +1669,7 @@ void decoder_init_fake_frame_channels_106ba0_partial(
         auto* frame_channel = ctx->fake_frame_channels_base
             + static_cast<std::size_t>(slot) * ctx->fake_frame_channel_bytes;
         if (ctx->parse_result_pool_base != 0u) {
-            const std::uint64_t from_pool = parse_result_pool_get_new_107220_partial(ctx->parse_result_pool_base);
+            const std::uint64_t from_pool = parse_result_pool_get_new(ctx->parse_result_pool_base);
             if (from_pool != 0u)
                 frame_channel = reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(from_pool));
         }
@@ -1691,7 +1699,7 @@ void decoder_init_fake_frame_channels_106ba0_partial(
     std::memcpy(ctx->fake_frame_next, ctx->fake_frame, 0x150u);
 }
 
-void decoder_init_frame_deques_13d5d0_partial(DecoderInitFrameDequesContext13d5d0* ctx) {
+void decoder_init_frame_deques(DecoderInitFrameDequesContext13d5d0* ctx) {
     if (!ctx || !ctx->frame_deque || !ctx->ready_frame_deque || !ctx->fake_frame || !ctx->ready_frame)
         return;
 
@@ -1723,7 +1731,7 @@ void decoder_init_frame_deques_13d5d0_partial(DecoderInitFrameDequesContext13d5d
     (void)ctx;
 }
 
-std::int64_t decoder_run_dispatch_eb5a0_partial(DecoderDispatchRunContextEb5a0* ctx) {
+std::int64_t decoder_run_dispatch(DecoderDispatchRunContextEb5a0* ctx) {
     CodecV3IoBufferDescEb5a0 input_desc{};
     CodecV3IoBufferDescEb5a0 output_desc{};
     input_desc.total_samples = ctx->block_size;
@@ -1753,7 +1761,7 @@ std::int64_t decoder_run_dispatch_eb5a0_partial(DecoderDispatchRunContextEb5a0* 
     runtime.sync_user = ctx->sync_user;
 
     std::uint32_t io_status = 0;
-    return codec_v3_dispatch_eb5a0_partial(
+    return codec_v3_dispatch(
         ctx->dispatch,
         &input_desc,
         &output_desc,
@@ -1762,13 +1770,13 @@ std::int64_t decoder_run_dispatch_eb5a0_partial(DecoderDispatchRunContextEb5a0* 
         &runtime);
 }
 
-std::int64_t decoder_run_step_101800_partial(DecoderStepRunContext101800* ctx) {
-    const std::int64_t rc_dispatch = ::auro3deng::decoder_run_dispatch_eb5a0_partial(ctx->dispatch_ctx);
+std::int64_t decoder_run_step(DecoderStepRunContext101800* ctx) {
+    const std::int64_t rc_dispatch = ::auro3deng::decoder_run_dispatch(ctx->dispatch_ctx);
     if (rc_dispatch != 0)
         return rc_dispatch;
 
     if (ctx->parser_input_desc && ctx->payload_ctx)
-        ::auro3deng::parser_refresh_payload_partial(ctx->parser_input_desc, ctx->payload_ctx);
+        ::auro3deng::parser_refresh_payload(ctx->parser_input_desc, ctx->payload_ctx);
     if (ctx->run_parser_stage)
         ctx->run_parser_stage(ctx->parser_user);
     if (ctx->dispatch_ctx && ctx->dispatch_ctx->output_channel_ptrs_27) {

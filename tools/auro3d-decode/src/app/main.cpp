@@ -1,5 +1,6 @@
 #include "app_version.hpp"
 #include "cx_probe.hpp"
+#include "cx_decode.hpp"
 #include "decoder.hpp"
 #include "../io/wav_writer.hpp"
 #include "../render/binaural_renderer.hpp"
@@ -30,7 +31,7 @@ struct Options {
     bool binaural = false;
     bool help_only = false;
     bool version_only = false;
-    bool probe_cx = false;
+    bool probe = false;
     unsigned sample_rate = 0;
     unsigned channels = 0;
     unsigned block_size = 0;
@@ -318,7 +319,10 @@ void print_usage() {
     std::cerr
         << auro3d_decode::kName << " " << auro3d_decode::kVersion << " — консольный декодер AURO на базе RE libauro.so / libauro3d.so.\n\n"
         << "Использование:\n"
-        << "  " << auro3d_decode::kName << " -i <input.wav|input.flac|input.mkv|input.mp4|input.s24le> -o <output.wav|output.flac> [опции]\n\n"
+        << "  " << auro3d_decode::kName << " -i <input.wav|input.flac|input.mkv|input.mp4|input.s24le> -o <output.wav|output.flac> [опции]\n"
+        << "  " << auro3d_decode::kName << " --probe -i <input>   # диагностика без -o\n"
+        << "  Путь декодирования/probe выбирается автоматически: MP4 с a3ds (AuroCX) → CX;\n"
+        << "  иначе → classic auro_native (WAV/codec-v3 и т.п.).\n\n"
         << "Опции:\n"
         << "  -i, --input FILE\n"
         << "  -o, --output FILE\n"
@@ -334,7 +338,8 @@ void print_usage() {
         << "  --output-bits N      output PCM depth: 16 or 24; по умолчанию 24\n"
         << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac, etc.\n"
         << "  --channel-diagram    print structural input-to-output channel diagram\n"
-        << "  --probe-cx           detect AuroCX in MP4 and print container/schema diagnostics; -o is not required\n"
+        << "  --probe              print format diagnostics without decoding to a file; -o is not required\n"
+        << "                       MP4 a3ds (AuroCX) → schema/container probe; else → classic/native open info\n"
         << "  --binaural           render decoded channels to HRTF stereo (48 kHz)\n"
         << "  --dsp-headroom-db X  headroom в dB (0..24; по умолчанию 6)\n"
         << "  --room-preset N      room preset AURO (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
@@ -390,8 +395,8 @@ bool parse_args(int argc, char** argv, Options& opt) {
             opt.version_only = true;
             return true;
         }
-        if (a == "--probe-cx") {
-            opt.probe_cx = true;
+        if (a == "--probe") {
+            opt.probe = true;
             continue;
         }
         if (a == "-v" || a == "--verbose") {
@@ -552,7 +557,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
         return false;
     }
 
-    if (opt.input.empty() || (!opt.probe_cx && opt.output.empty())) {
+    if (opt.input.empty() || (!opt.probe && opt.output.empty())) {
         std::cerr << "Нужны --input и --output\n";
         return false;
     }
@@ -581,11 +586,27 @@ int main(int argc, char** argv) {
         std::cout << auro3d_decode::kVersion << '\n';
         return 0;
     }
-    if (opt.probe_cx) {
+    if (opt.probe && !opt.raw && auro3d::mp4_has_auro_cx_a3ds(opt.input)) {
         auro3d::AuroCxProbeInfo info{};
         const bool ok = auro3d::probe_auro_cx_mp4(opt.input, info);
         auro3d::print_auro_cx_probe(info);
         return ok ? 0 : 2;
+    }
+    if (opt.probe)
+        opt.verbose = true;
+
+    // Auto path: MP4 a3ds (AuroCX) wins over classic/native. Do not fall through
+    // to auro_native if CX was selected but decode fails.
+    if (!opt.probe && !opt.raw && auro3d::mp4_has_auro_cx_a3ds(opt.input)) {
+        std::string err;
+        const bool ok = auro3d::decode_auro_cx_mp4(opt.input, opt.output, err);
+        if (!ok) {
+            std::cerr << "AuroCX decode: " << err << '\n';
+            return 2;
+        }
+        if (opt.verbose)
+            std::cerr << "Готово (AuroCX): " << opt.output << '\n';
+        return 0;
     }
 
     auro3d::Decoder dec;
@@ -768,6 +789,11 @@ int main(int argc, char** argv) {
                   << " listening_mode=" << dynamic_cfg.listening_mode
                   << " room_preset=" << dynamic_cfg.room_preset
                   << " hrtf_preset=" << dynamic_cfg.hrtf_preset << "\n";
+    }
+
+    if (opt.probe) {
+        dec.close();
+        return 0;
     }
 
     std::vector<std::uint8_t> pcm_all;

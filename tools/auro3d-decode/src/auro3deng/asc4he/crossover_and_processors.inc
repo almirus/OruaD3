@@ -1,4 +1,4 @@
-std::int64_t auro_asc4he_v1_Crossover_initialize_541f60_partial(
+std::int64_t auro_asc4he_v1_Crossover_initialize(
     std::uint8_t* a1,
     std::uint32_t a2,
     std::int32_t a3,
@@ -6,30 +6,36 @@ std::int64_t auro_asc4he_v1_Crossover_initialize_541f60_partial(
     if (!a1)
         return 1;
     std::memset(a1, 0, kAsc4heCrossoverStateBytes);
-    auto* const lr500 = auro_iir_w32_LinkwitzRiley_4th_t_construct_partial(a1, a2, 2, a4, 500.0f);
-    auto* const lr6000 = auro_iir_w32_LinkwitzRiley_4th_t_construct_partial(a1 + 239u, a2, 2, a4, 6000.0f);
+    auto* const lr500 = /* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_t_construct */
+auro_iir_w32_LinkwitzRiley_4th_t_construct(a1, a2, 2, a4, 500.0f);
+    auto* const lr6000 = /* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_t_construct */
+auro_iir_w32_LinkwitzRiley_4th_t_construct(a1 + 239u, a2, 2, a4, 6000.0f);
     if (!lr500 || !lr6000)
         return 1;
     *reinterpret_cast<std::uint64_t*>(a1 + 480u) = reinterpret_cast<std::uint64_t>(lr500);
     *reinterpret_cast<std::uint64_t*>(a1 + 488u) = reinterpret_cast<std::uint64_t>(lr6000);
     *reinterpret_cast<std::uint64_t*>(a1 + 496u) = a3 ? 0x542020u : 0x5423B0u;
-    (void)auro_iir_w32_LinkwitzRiley_4th_reset_audio_state_partial(lr500);
-    (void)auro_iir_w32_LinkwitzRiley_4th_reset_audio_state_partial(lr6000);
+    (void)/* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_reset_audio_state */
+auro_iir_w32_LinkwitzRiley_4th_reset_audio_state(lr500);
+    (void)/* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_reset_audio_state */
+auro_iir_w32_LinkwitzRiley_4th_reset_audio_state(lr6000);
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_Crossover_reset_audio_state_5428e0_partial(std::uint8_t* a1) {
+std::int64_t auro_asc4he_v1_Crossover_reset_audio_state(std::uint8_t* a1) {
     if (!a1)
         return 0;
     auto* const lr500 = reinterpret_cast<std::uint8_t*>(
         static_cast<std::uintptr_t>(*reinterpret_cast<const std::uint64_t*>(a1 + 480u)));
     auto* const lr6000 = reinterpret_cast<std::uint8_t*>(
         static_cast<std::uintptr_t>(*reinterpret_cast<const std::uint64_t*>(a1 + 488u)));
-    (void)auro_iir_w32_LinkwitzRiley_4th_reset_audio_state_partial(lr500);
-    return auro_iir_w32_LinkwitzRiley_4th_reset_audio_state_partial(lr6000);
+    (void)/* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_reset_audio_state */
+auro_iir_w32_LinkwitzRiley_4th_reset_audio_state(lr500);
+    return /* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_reset_audio_state */
+auro_iir_w32_LinkwitzRiley_4th_reset_audio_state(lr6000);
 }
 
-std::int64_t auro_asc4he_v1_Crossover_process_542910_partial(
+std::int64_t auro_asc4he_v1_Crossover_process(
     std::uint8_t* a1,
     std::uint64_t* a2,
     std::uint64_t* a3,
@@ -61,7 +67,8 @@ std::int64_t auro_asc4he_v1_Crossover_process_542910_partial(
     float* const top0 = (a5 && a5[0]) ? reinterpret_cast<float*>(static_cast<std::uintptr_t>(a5[0])) : tmp_top0;
     float* const top1 = (a5 && a5[1]) ? reinterpret_cast<float*>(static_cast<std::uintptr_t>(a5[1])) : tmp_top1;
     std::uint64_t high_pair[2]{asc4he_u64_ptr(high0), asc4he_u64_ptr(high1)};
-    if (!auro_iir_w32_LinkwitzRiley_4th_process_partial(lr500, a2, low_pair, high_pair))
+    if (!/* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_process */
+auro_iir_w32_LinkwitzRiley_4th_process(lr500, a2, low_pair, high_pair))
         return 0;
     const bool split_high_band = *reinterpret_cast<const std::uint64_t*>(a1 + 496u) == 0x542020u;
     if (!split_high_band) {
@@ -71,12 +78,13 @@ std::int64_t auro_asc4he_v1_Crossover_process_542910_partial(
     }
     std::uint64_t high_in_pair[2]{asc4he_u64_ptr(high0), asc4he_u64_ptr(high1)};
     std::uint64_t top_pair[2]{asc4he_u64_ptr(top0), asc4he_u64_ptr(top1)};
-    if (!auro_iir_w32_LinkwitzRiley_4th_process_partial(lr6000, high_in_pair, high_pair, top_pair))
+    if (!/* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_process */
+auro_iir_w32_LinkwitzRiley_4th_process(lr6000, high_in_pair, high_pair, top_pair))
         return 0;
     return static_cast<std::int64_t>(a2[0]);
 }
 
-std::int64_t auro_asc4he_v1_SideUpCrossover_initialize_5419a0_partial(
+std::int64_t auro_asc4he_v1_SideUpCrossover_initialize(
     std::uint8_t* a1,
     std::int32_t a2,
     std::uint32_t a3,
@@ -98,7 +106,7 @@ std::int64_t auro_asc4he_v1_SideUpCrossover_initialize_5419a0_partial(
     return 1;
 }
 
-std::int64_t auro_asc4he_v1_SideUpCrossover_reset_audio_state_541a30_partial(std::uint8_t* a1) {
+std::int64_t auro_asc4he_v1_SideUpCrossover_reset_audio_state(std::uint8_t* a1) {
     if (!a1)
         return 0;
     if (*reinterpret_cast<const std::uint32_t*>(a1 + 0u) != 0u) {
@@ -108,7 +116,7 @@ std::int64_t auro_asc4he_v1_SideUpCrossover_reset_audio_state_541a30_partial(std
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_SideUpCrossover_process_541a60_partial(
+std::int64_t auro_asc4he_v1_SideUpCrossover_process(
     std::uint8_t* a1,
     std::uint64_t* a2,
     std::uint64_t* a3,
@@ -142,14 +150,14 @@ std::int64_t auro_asc4he_v1_SideUpCrossover_process_541a60_partial(
     return 1;
 }
 
-std::int64_t auro_asc4he_v1_sb_SurroundSatellites_reset_audio_state_542920_partial(std::uint8_t* a1) {
+std::int64_t auro_asc4he_v1_sb_SurroundSatellites_reset_audio_state(std::uint8_t* a1) {
     if (!a1)
         return 0;
-    auro_asc4he_v1_ElevationEQ_reset_audio_state_108fc0_partial(a1 + 8u);
+    auro_asc4he_v1_ElevationEQ_reset_audio_state(a1 + 8u);
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_sb_SurroundSatellites_initialize_542930_partial(
+std::int64_t auro_asc4he_v1_sb_SurroundSatellites_initialize(
     std::uint8_t* a1,
     const std::uint8_t* a2,
     std::uint32_t a3) {
@@ -157,10 +165,10 @@ std::int64_t auro_asc4he_v1_sb_SurroundSatellites_initialize_542930_partial(
         return 1;
     *reinterpret_cast<float*>(a1 + 4u) = asc4he_db_gain(*reinterpret_cast<const float*>(a2 + 56u));
     *reinterpret_cast<std::uint32_t*>(a1 + 0u) = 1065353216u;
-    return auro_asc4he_v1_ElevationEQ_initialize_108fc0_partial(a1 + 8u, a3);
+    return auro_asc4he_v1_ElevationEQ_initialize(a1 + 8u, a3);
 }
 
-std::int64_t auro_asc4he_v1_sb_SurroundSatellites_process_2_2_542980_partial(
+std::int64_t auro_asc4he_v1_sb_SurroundSatellites_process_2_2(
     float* a1,
     std::uint64_t* a2) {
     if (!a1 || !a2)
@@ -177,42 +185,42 @@ std::int64_t auro_asc4he_v1_sb_SurroundSatellites_process_2_2_542980_partial(
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(v11)),
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(v12)),
     };
-    return auro_asc4he_v1_ElevationEQ_process_1090c0_partial(a1 + 2, pair);
+    return auro_asc4he_v1_ElevationEQ_process(a1 + 2, pair);
 }
 
-void auro_asc4he_v1_sb_SurroundSatellites_process_2_0_543190_partial(float* a1, std::uint64_t* a2) {
+void auro_asc4he_v1_sb_SurroundSatellites_process_2_0(float* a1, std::uint64_t* a2) {
     if (!a1 || !a2)
         return;
     asc4he_scale_existing_pair_32(a2[6], a2[7], a1[0]);
 }
 
-std::int64_t auro_asc4he_v1_sb_HeightSatellites_reset_audio_state_5431b0_partial(std::uint8_t* a1) {
+std::int64_t auro_asc4he_v1_sb_HeightSatellites_reset_audio_state(std::uint8_t* a1) {
     if (!a1)
         return 0;
-    auro_asc4he_v1_Crossover_reset_audio_state_5428e0_partial(a1 + 3368u);
-    auro_asc4he_v1_Delay7ms_reset_audio_state_545350_partial(a1);
-    auro_asc4he_v1_CrossTalkCompensation_reset_audio_state_546690_partial(a1 + 3876u);
-    auro_asc4he_v1_CrossTalk_reset_audio_state_547520_partial(a1 + 3988u);
+    auro_asc4he_v1_Crossover_reset_audio_state(a1 + 3368u);
+    auro_asc4he_v1_Delay7ms_reset_audio_state(a1);
+    auro_asc4he_v1_CrossTalkCompensation_reset_audio_state(a1 + 3876u);
+    auro_asc4he_v1_CrossTalk_reset_audio_state(a1 + 3988u);
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_sb_HeightSatellites_initialize_5431f0_partial(
+std::int64_t auro_asc4he_v1_sb_HeightSatellites_initialize(
     std::uint8_t* a1,
     const std::uint8_t* a2,
     std::uint32_t a3,
     std::uint32_t a4) {
     if (!a1 || !a2)
         return 1;
-    std::int64_t result = auro_asc4he_v1_Delay7ms_initialize_545310_partial(a1, a3);
+    std::int64_t result = auro_asc4he_v1_Delay7ms_initialize(a1, a3);
     if (result)
         return result;
-    result = auro_asc4he_v1_Crossover_initialize_541f60_partial(a1 + 3368u, a3, static_cast<std::int32_t>(a4), 1);
+    result = auro_asc4he_v1_Crossover_initialize(a1 + 3368u, a3, static_cast<std::int32_t>(a4), 1);
     if (result)
         return result;
-    result = auro_asc4he_v1_CrossTalkCompensation_initialize_5465e0_partial(a1 + 3876u, a2 + 80u, a3);
+    result = auro_asc4he_v1_CrossTalkCompensation_initialize(a1 + 3876u, a2 + 80u, a3);
     if (result)
         return result;
-    result = auro_asc4he_v1_CrossTalk_initialize_5474a0_partial(
+    result = auro_asc4he_v1_CrossTalk_initialize(
         a1 + 3988u,
         reinterpret_cast<const float*>(a2 + 132u));
     if (result)
@@ -222,7 +230,7 @@ std::int64_t auro_asc4he_v1_sb_HeightSatellites_initialize_5431f0_partial(
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_sb_HeightSatellites_process_2_0_5432b0_partial(
+std::int64_t auro_asc4he_v1_sb_HeightSatellites_process_2_0(
     std::uint8_t* a1,
     std::uint64_t* a2,
     std::uint8_t*,
@@ -246,18 +254,18 @@ std::int64_t auro_asc4he_v1_sb_HeightSatellites_process_2_0_5432b0_partial(
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(hi0)),
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(hi1)),
     };
-    (void)auro_asc4he_v1_Crossover_process_542910_partial(a1 + 3368u, lo_pair, lo_pair, hi_pair);
-    (void)auro_asc4he_v1_CrossTalkCompensation_process_5466a0_partial(
+    (void)auro_asc4he_v1_Crossover_process(a1 + 3368u, lo_pair, lo_pair, hi_pair);
+    (void)auro_asc4he_v1_CrossTalkCompensation_process(
         reinterpret_cast<float*>(a1 + 3876u),
         reinterpret_cast<float**>(hi_pair));
-    (void)auro_asc4he_v1_CrossTalk_process_547540_partial(a1 + 3988u, hi_pair);
+    (void)auro_asc4he_v1_CrossTalk_process(a1 + 3988u, hi_pair);
     asc4he_add_pair_32(lo0, lo1, hi0, hi1);
-    (void)auro_asc4he_v1_Delay7ms_process_545360_partial(a1, reinterpret_cast<std::uint8_t*>(lo_pair));
+    (void)auro_asc4he_v1_Delay7ms_process(a1, reinterpret_cast<std::uint8_t*>(lo_pair));
     asc4he_add_pair_32(v4, v5, lo0, lo1);
     return static_cast<std::int64_t>(lo_pair[1]);
 }
 
-std::int64_t auro_asc4he_v1_sb_HeightSatellites_process_2_2_543b30_partial(
+std::int64_t auro_asc4he_v1_sb_HeightSatellites_process_2_2(
     std::uint8_t* a1,
     std::uint8_t* a2,
     std::uint8_t* a3,
@@ -284,21 +292,21 @@ std::int64_t auro_asc4he_v1_sb_HeightSatellites_process_2_2_543b30_partial(
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(hi0)),
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(hi1)),
     };
-    (void)auro_asc4he_v1_Crossover_process_542910_partial(a1 + 3368u, lo_pair, lo_pair, hi_pair);
+    (void)auro_asc4he_v1_Crossover_process(a1 + 3368u, lo_pair, lo_pair, hi_pair);
     const float g = *reinterpret_cast<const float*>(a1 + 3872u);
     asc4he_scale_pair_32(ext0, ext1, g);
     asc4he_add_pair_32(ext0, ext1, hi0, hi1);
-    (void)auro_asc4he_v1_CrossTalkCompensation_process_5466a0_partial(
+    (void)auro_asc4he_v1_CrossTalkCompensation_process(
         reinterpret_cast<float*>(a1 + 3876u),
         reinterpret_cast<float**>(hi_pair));
-    (void)auro_asc4he_v1_CrossTalk_process_547540_partial(a1 + 3988u, hi_pair);
+    (void)auro_asc4he_v1_CrossTalk_process(a1 + 3988u, hi_pair);
     asc4he_add_pair_32(lo0, lo1, hi0, hi1);
-    (void)auro_asc4he_v1_Delay7ms_process_545360_partial(a1, reinterpret_cast<std::uint8_t*>(lo_pair));
+    (void)auro_asc4he_v1_Delay7ms_process(a1, reinterpret_cast<std::uint8_t*>(lo_pair));
     asc4he_add_pair_32(v4, v5, lo0, lo1);
     return static_cast<std::int64_t>(lo_pair[1]);
 }
 
-std::int64_t auro_asc4he_v1_CGenXOverBlock_initialize_547cb0_partial(
+std::int64_t auro_asc4he_v1_CGenXOverBlock_initialize(
     std::uint8_t* a1,
     std::uint32_t a2,
     std::uint32_t a3,
@@ -309,41 +317,41 @@ std::int64_t auro_asc4he_v1_CGenXOverBlock_initialize_547cb0_partial(
     *reinterpret_cast<std::uint32_t*>(a1 + 0u) = 0u;
     std::memset(a1 + 1636u, 0, 16u);
     *reinterpret_cast<std::uint32_t*>(a1 + 1652u) = 0u;
-    std::int64_t result = auro_asc4he_v1_CenterGen_initialize_547a40_partial(a1 + 512u, a2, a4, a5);
+    std::int64_t result = auro_asc4he_v1_CenterGen_initialize(a1 + 512u, a2, a4, a5);
     if (result)
         return result;
-    result = auro_asc4he_v1_Crossover_initialize_541f60_partial(a1 + 8u, a2, static_cast<std::int32_t>(a3), 1);
+    result = auro_asc4he_v1_Crossover_initialize(a1 + 8u, a2, static_cast<std::int32_t>(a3), 1);
     if (result)
         return result;
-    return auro_asc4he_v1_CenterCrossOver_initialize_547af0_partial(a1 + 1576u, a2, static_cast<std::int32_t>(a3));
+    return auro_asc4he_v1_CenterCrossOver_initialize(a1 + 1576u, a2, static_cast<std::int32_t>(a3));
 }
 
-std::int64_t auro_asc4he_v1_CGenXOverBlock_get_cgen_dynamic_parameters_547d40_partial(
+std::int64_t auro_asc4he_v1_CGenXOverBlock_get_cgen_dynamic_parameters(
     const std::uint8_t* a1,
     std::uint8_t* out56) {
     if (!a1)
         return 0;
-    return auro_asc4he_v1_CenterGen_get_dynamic_parameters_5479a0_partial(a1 + 512u, out56);
+    return auro_asc4he_v1_CenterGen_get_dynamic_parameters(a1 + 512u, out56);
 }
 
-std::int64_t auro_asc4he_v1_CGenXOverBlock_set_cgen_dynamic_parameters_547d50_partial(
+std::int64_t auro_asc4he_v1_CGenXOverBlock_set_cgen_dynamic_parameters(
     std::uint8_t* a1,
     const std::uint8_t* dyn56) {
     if (!a1)
         return 0;
-    return auro_asc4he_v1_CenterGen_set_dynamic_parameters_5479d0_partial(a1 + 512u, dyn56);
+    return auro_asc4he_v1_CenterGen_set_dynamic_parameters(a1 + 512u, dyn56);
 }
 
-std::int64_t auro_asc4he_v1_CGenXOverBlock_reset_audio_state_547d60_partial(std::uint8_t* a1) {
+std::int64_t auro_asc4he_v1_CGenXOverBlock_reset_audio_state(std::uint8_t* a1) {
     if (!a1)
         return 0;
-    auro_asc4he_v1_Crossover_reset_audio_state_5428e0_partial(a1 + 8u);
-    (void)auro_asc4he_v1_CenterGen_reset_audio_state_6427f0_partial(a1 + 512u);
-    auro_asc4he_v1_CenterCrossOver_reset_audio_state_547bb0_partial(a1 + 1576u);
+    auro_asc4he_v1_Crossover_reset_audio_state(a1 + 8u);
+    (void)auro_asc4he_v1_CenterGen_reset_audio_state(a1 + 512u);
+    auro_asc4he_v1_CenterCrossOver_reset_audio_state(a1 + 1576u);
     return 0;
 }
 
-float* auro_asc4he_v1_CGenXOverBlock_process_with_external_center_547da0_partial(
+float* auro_asc4he_v1_CGenXOverBlock_process_with_external_center(
     std::uint8_t* a1,
     float** a2,
     float* a3,
@@ -362,7 +370,7 @@ float* auro_asc4he_v1_CGenXOverBlock_process_with_external_center_547da0_partial
         asc4he_u64_ptr(a2[0]),
         asc4he_u64_ptr(a2[1]),
     };
-    (void)auro_asc4he_v1_CenterGen_process_547ad0_partial(a1 + 512u, io_pair, reinterpret_cast<std::uint8_t*>(center));
+    (void)auro_asc4he_v1_CenterGen_process(a1 + 512u, io_pair, reinterpret_cast<std::uint8_t*>(center));
     float* low_pair[2]{
         a4 ? a4[0] : nullptr,
         a4 ? a4[1] : nullptr,
@@ -379,10 +387,10 @@ float* auro_asc4he_v1_CGenXOverBlock_process_with_external_center_547da0_partial
         asc4he_u64_ptr(decor0),
         asc4he_u64_ptr(decor1),
     };
-    (void)auro_asc4he_v1_Crossover_process_542910_partial(a1 + 8u, io_pair, low_u64, mix_u64, decor_pair);
+    (void)auro_asc4he_v1_Crossover_process(a1 + 8u, io_pair, low_u64, mix_u64, decor_pair);
     for (std::uint32_t i = 0; i != 32u; ++i)
         center[i] += a3[i];
-    (void)auro_asc4he_v1_CenterCrossOver_process_547bd0_partial(
+    (void)auro_asc4he_v1_CenterCrossOver_process(
         a1 + 1576u,
         asc4he_u64_ptr(center),
         asc4he_u64_ptr(center));
@@ -402,7 +410,7 @@ float* auro_asc4he_v1_CGenXOverBlock_process_with_external_center_547da0_partial
     return a2[1];
 }
 
-float* auro_asc4he_v1_CGenXOverBlock_process_without_external_center_548b00_partial(
+float* auro_asc4he_v1_CGenXOverBlock_process_without_external_center(
     std::uint8_t* a1,
     float** a2,
     float** a3,
@@ -419,7 +427,7 @@ float* auro_asc4he_v1_CGenXOverBlock_process_without_external_center_548b00_part
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(a2[0])),
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(a2[1])),
     };
-    (void)auro_asc4he_v1_CenterGen_process_547ad0_partial(a1 + 512u, io_pair, reinterpret_cast<std::uint8_t*>(center));
+    (void)auro_asc4he_v1_CenterGen_process(a1 + 512u, io_pair, reinterpret_cast<std::uint8_t*>(center));
     std::uint64_t low_pair[2]{
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(a3 ? a3[0] : nullptr)),
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(a3 ? a3[1] : nullptr)),
@@ -432,8 +440,8 @@ float* auro_asc4he_v1_CGenXOverBlock_process_without_external_center_548b00_part
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(decor0)),
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(decor1)),
     };
-    (void)auro_asc4he_v1_Crossover_process_542910_partial(a1 + 8u, io_pair, low_pair, mix_pair, decor_pair);
-    (void)auro_asc4he_v1_CenterCrossOver_process_547bd0_partial(
+    (void)auro_asc4he_v1_Crossover_process(a1 + 8u, io_pair, low_pair, mix_pair, decor_pair);
+    (void)auro_asc4he_v1_CenterCrossOver_process(
         a1 + 1576u,
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(center)),
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(center)));
@@ -449,7 +457,7 @@ float* auro_asc4he_v1_CGenXOverBlock_process_without_external_center_548b00_part
     return a2[1];
 }
 
-bool is_median_symmetric_5a6590_partial(std::uint32_t a1) {
+bool is_median_symmetric(std::uint32_t a1) {
     const std::uint32_t v0 =
         ((a1 ^ (a1 >> 1u)) | ((a1 >> 4u) ^ (a1 >> 5u)) | ((a1 >> 7u) ^ (a1 >> 8u))
          | ((a1 >> 9u) ^ (a1 >> 10u)) | ((a1 >> 13u) ^ (a1 >> 14u)) | ((a1 >> 16u) ^ (a1 >> 17u))
@@ -458,7 +466,7 @@ bool is_median_symmetric_5a6590_partial(std::uint32_t a1) {
     return v0 == 0u && ((((a1 >> 22u) ^ (a1 >> 21u)) & 1u) == 0u);
 }
 
-std::int64_t auro_asc4he_v1_base_Processor_t_construct_53e630_partial(
+std::int64_t auro_asc4he_v1_base_Processor_t_construct(
     std::uint8_t* a1,
     const std::uint8_t* a2,
     const std::uint8_t* a3) {
@@ -481,12 +489,12 @@ std::int64_t auro_asc4he_v1_base_Processor_t_construct_53e630_partial(
     const std::uint32_t up1 = *reinterpret_cast<const std::uint32_t*>(a3 + 40u);
     const std::uint32_t sr0 = *reinterpret_cast<const std::uint32_t*>(a3 + 36u);
     const std::uint32_t sr1 = *reinterpret_cast<const std::uint32_t*>(a3 + 44u);
-    if (auro_asc4he_v1_SideUpCrossover_initialize_5419a0_partial(
+    if (auro_asc4he_v1_SideUpCrossover_initialize(
             a1 + 13792u,
             static_cast<std::int32_t>(up0),
             sr0,
             *reinterpret_cast<const std::uint32_t*>(a2 + 12u)))
-        return auro_asc4he_v1_SideUpCrossover_initialize_5419a0_partial(
+        return auro_asc4he_v1_SideUpCrossover_initialize(
                    a1 + 13916u,
                    static_cast<std::int32_t>(up1),
                    sr1,
@@ -495,7 +503,7 @@ std::int64_t auro_asc4he_v1_base_Processor_t_construct_53e630_partial(
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_base_Processor_default_process_53e730_partial(
+std::int64_t auro_asc4he_v1_base_Processor_default_process(
     std::uint8_t* a1,
     std::uint64_t a2,
     std::uint64_t a3,
@@ -520,7 +528,7 @@ std::int64_t auro_asc4he_v1_base_Processor_default_process_53e730_partial(
     float* side_hi[2]{work + 384, work + 416};
     float* const cgen_work = work + 512;
 
-    (void)auro_asc4he_v1_CGenXOverBlock_process_with_external_center_547da0_partial(
+    (void)auro_asc4he_v1_CGenXOverBlock_process_with_external_center(
         a1 + 12136u,
         front_pair,
         center,
@@ -531,7 +539,7 @@ std::int64_t auro_asc4he_v1_base_Processor_default_process_53e730_partial(
         work + 128);
 
     asc4he_copy_pair_32(side_pair[0], side_pair[1], asc4he_float_ptr(table[6]), asc4he_float_ptr(table[7]));
-    (void)auro_asc4he_v1_CGenXOverBlock_process_without_external_center_548b00_partial(
+    (void)auro_asc4he_v1_CGenXOverBlock_process_without_external_center(
         a1 + 2704u,
         side_pair,
         side_hi,
@@ -543,7 +551,7 @@ std::int64_t auro_asc4he_v1_base_Processor_default_process_53e730_partial(
             asc4he_u64_ptr(main_surround[0]),
             asc4he_u64_ptr(main_surround[1]),
         };
-        (void)auro_asc4he_v1_Decorrelator_process_546110_partial(
+        (void)auro_asc4he_v1_Decorrelator_process(
             reinterpret_cast<float*>(a1 + 4364u),
             main_surround_u64);
     }
@@ -566,7 +574,7 @@ std::int64_t auro_asc4he_v1_base_Processor_default_process_53e730_partial(
         std::uint64_t sideup_low_u64[2]{asc4he_u64_ptr(sideup_low[0]), asc4he_u64_ptr(sideup_low[1])};
         std::uint64_t sideup_high_u64[2]{asc4he_u64_ptr(sideup_high[0]), asc4he_u64_ptr(sideup_high[1])};
         std::uint64_t sideup_add_u64[2]{asc4he_u64_ptr(main_low[0]), asc4he_u64_ptr(main_low[1])};
-        if (!auro_asc4he_v1_SideUpCrossover_process_541a60_partial(
+        if (!auro_asc4he_v1_SideUpCrossover_process(
                 a1 + 13792u,
                 side_pair_u64,
                 sideup_low_u64,
@@ -578,8 +586,8 @@ std::int64_t auro_asc4he_v1_base_Processor_default_process_53e730_partial(
     asc4he_copy_pair_32(side_pair[0], side_pair[1], asc4he_float_ptr(table[11]), asc4he_float_ptr(table[12]));
     side_pair_u64[0] = asc4he_u64_ptr(side_pair[0]);
     side_pair_u64[1] = asc4he_u64_ptr(side_pair[1]);
-    (void)auro_asc4he_v1_ElevationEQ_process_1090c0_partial(reinterpret_cast<float*>(a1 + 1664u), side_pair_u64);
-    (void)auro_asc4he_v1_CGenXOverBlock_process_without_external_center_548b00_partial(
+    (void)auro_asc4he_v1_ElevationEQ_process(reinterpret_cast<float*>(a1 + 1664u), side_pair_u64);
+    (void)auro_asc4he_v1_CGenXOverBlock_process_without_external_center(
         a1 + 8u,
         side_pair,
         side_hi,
@@ -588,7 +596,7 @@ std::int64_t auro_asc4he_v1_base_Processor_default_process_53e730_partial(
         cgen_work);
     if (*reinterpret_cast<const std::uint32_t*>(a1 + 1808u) == 0u) {
         void* vh_pair[2]{height_mix[0], height_mix[1]};
-        (void)auro_asc4he_v1_VirtualHeight_process_10cdc0_partial(a1 + 1816u, vh_pair);
+        (void)auro_asc4he_v1_VirtualHeight_process(a1 + 1816u, vh_pair);
     }
 
     const std::uint32_t height_mode = *reinterpret_cast<const std::uint32_t*>(a1 + 2696u);
@@ -601,7 +609,7 @@ std::int64_t auro_asc4he_v1_base_Processor_default_process_53e730_partial(
         std::uint64_t sideup_hi_u64[2]{asc4he_u64_ptr(sideup_hi[0]), asc4he_u64_ptr(sideup_hi[1])};
         std::uint64_t sideup_low_u64[2]{asc4he_u64_ptr(sideup_in[0]), asc4he_u64_ptr(sideup_in[1])};
         std::uint64_t sideup_add_u64[2]{asc4he_u64_ptr(main_low[0]), asc4he_u64_ptr(main_low[1])};
-        if (!auro_asc4he_v1_SideUpCrossover_process_541a60_partial(
+        if (!auro_asc4he_v1_SideUpCrossover_process(
                 a1 + 13916u,
                 side_pair_u64,
                 sideup_hi_u64,
@@ -632,17 +640,17 @@ std::int64_t auro_asc4he_v1_base_Processor_default_process_53e730_partial(
         height_mix[1],
         *reinterpret_cast<const float*>(a1 + 14060u));
     std::uint64_t tail_pair_u64[2]{asc4he_u64_ptr(side_pair[0]), asc4he_u64_ptr(side_pair[1])};
-    (void)auro_asc4he_v1_Delay7ms_process_545360_partial(a1 + 4648u, reinterpret_cast<std::uint8_t*>(tail_pair_u64));
+    (void)auro_asc4he_v1_Delay7ms_process(a1 + 4648u, reinterpret_cast<std::uint8_t*>(tail_pair_u64));
     asc4he_add_scaled_pair_32(
         side_pair[0],
         side_pair[1],
         front_work[0],
         front_work[1],
         *reinterpret_cast<const float*>(a1 + 14052u));
-    (void)auro_asc4he_v1_CrossTalkCompensation_process_5466a0_partial(
+    (void)auro_asc4he_v1_CrossTalkCompensation_process(
         reinterpret_cast<float*>(a1 + 11964u),
         side_pair);
-    (void)auro_asc4he_v1_CrossTalk_process_547540_partial(a1 + 11880u, tail_pair_u64);
+    (void)auro_asc4he_v1_CrossTalk_process(a1 + 11880u, tail_pair_u64);
     asc4he_add_scaled_pair_32(
         front_pair[0],
         front_pair[1],
@@ -651,7 +659,7 @@ std::int64_t auro_asc4he_v1_base_Processor_default_process_53e730_partial(
         *reinterpret_cast<const float*>(a1 + 14048u));
 
     std::uint64_t delayed_u64[2]{asc4he_u64_ptr(delayed_height[0]), asc4he_u64_ptr(delayed_height[1])};
-    (void)auro_asc4he_v1_Delay7ms_process_545360_partial(a1 + 8008u, reinterpret_cast<std::uint8_t*>(delayed_u64));
+    (void)auro_asc4he_v1_Delay7ms_process(a1 + 8008u, reinterpret_cast<std::uint8_t*>(delayed_u64));
     asc4he_add_pair_32(delayed_height[0], delayed_height[1], main_low[0], main_low[1]);
     asc4he_add_pair_32(front_pair[0], front_pair[1], delayed_height[0], delayed_height[1]);
     if (*reinterpret_cast<const std::uint32_t*>(a1 + 11368u) != 0u)
@@ -663,28 +671,28 @@ std::int64_t auro_asc4he_v1_base_Processor_default_process_53e730_partial(
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_base_Processor_default_reset_audio_state_540fc0_partial(std::uint8_t* a1) {
+std::int64_t auro_asc4he_v1_base_Processor_default_reset_audio_state(std::uint8_t* a1) {
     if (!a1)
         return 0;
-    auro_asc4he_v1_CGenXOverBlock_reset_audio_state_547d60_partial(a1 + 2704u);
+    auro_asc4he_v1_CGenXOverBlock_reset_audio_state(a1 + 2704u);
     if (*reinterpret_cast<const std::uint32_t*>(a1 + 4360u) == 0u)
-        auro_asc4he_v1_Decorrelator_reset_audio_state_545a0_partial(a1 + 4364u);
-    auro_asc4he_v1_CGenXOverBlock_reset_audio_state_547d60_partial(a1 + 12136u);
-    auro_asc4he_v1_CGenXOverBlock_reset_audio_state_547d60_partial(a1 + 8u);
-    auro_asc4he_v1_ElevationEQ_reset_audio_state_108fc0_partial(a1 + 1664u);
+        auro_asc4he_v1_Decorrelator_reset_audio_state(a1 + 4364u);
+    auro_asc4he_v1_CGenXOverBlock_reset_audio_state(a1 + 12136u);
+    auro_asc4he_v1_CGenXOverBlock_reset_audio_state(a1 + 8u);
+    auro_asc4he_v1_ElevationEQ_reset_audio_state(a1 + 1664u);
     if (*reinterpret_cast<const std::uint32_t*>(a1 + 1808u) == 0u)
-        auro_asc4he_v1_VirtualHeight_reset_audio_state_10ccf0_partial(a1 + 1816u);
-    auro_asc4he_v1_Delay7ms_reset_audio_state_545350_partial(a1 + 4648u);
-    auro_asc4he_v1_Delay7ms_reset_audio_state_545350_partial(a1 + 8008u);
-    auro_asc4he_v1_Crossover_reset_audio_state_5428e0_partial(a1 + 11376u);
-    auro_asc4he_v1_CenterCrossOver_reset_audio_state_547bb0_partial(a1 + 12076u);
-    auro_asc4he_v1_CrossTalkCompensation_reset_audio_state_546690_partial(a1 + 11964u);
-    auro_asc4he_v1_CrossTalk_reset_audio_state_547520_partial(a1 + 11880u);
-    auro_asc4he_v1_SideUpCrossover_reset_audio_state_541a30_partial(a1 + 13792u);
-    return auro_asc4he_v1_SideUpCrossover_reset_audio_state_541a30_partial(a1 + 13916u);
+        auro_asc4he_v1_VirtualHeight_reset_audio_state(a1 + 1816u);
+    auro_asc4he_v1_Delay7ms_reset_audio_state(a1 + 4648u);
+    auro_asc4he_v1_Delay7ms_reset_audio_state(a1 + 8008u);
+    auro_asc4he_v1_Crossover_reset_audio_state(a1 + 11376u);
+    auro_asc4he_v1_CenterCrossOver_reset_audio_state(a1 + 12076u);
+    auro_asc4he_v1_CrossTalkCompensation_reset_audio_state(a1 + 11964u);
+    auro_asc4he_v1_CrossTalk_reset_audio_state(a1 + 11880u);
+    auro_asc4he_v1_SideUpCrossover_reset_audio_state(a1 + 13792u);
+    return auro_asc4he_v1_SideUpCrossover_reset_audio_state(a1 + 13916u);
 }
 
-std::int64_t auro_asc4he_v1_base_Processor_default_initialize_541090_partial(
+std::int64_t auro_asc4he_v1_base_Processor_default_initialize(
     std::uint8_t* a1,
     const std::uint8_t* a2,
     std::uint32_t a3) {
@@ -693,9 +701,9 @@ std::int64_t auro_asc4he_v1_base_Processor_default_initialize_541090_partial(
     *reinterpret_cast<std::uint32_t*>(a1 + 14072u) = a3;
     std::uint8_t v38[kAsc4heCenterGenDynamicDefaultsBytes]{};
     std::uint8_t v39[kAsc4heCenterGenFixedDefaultsBytes]{};
-    auro_asc4he_v1_CenterGen_get_default_fixed_parameters_5479f0_partial(v39);
-    auro_asc4he_v1_CenterGen_get_default_dynamic_parameters_547a10_partial(v38);
-    std::int64_t result = auro_asc4he_v1_CGenXOverBlock_initialize_547cb0_partial(
+    auro_asc4he_v1_CenterGen_get_default_fixed_parameters(v39);
+    auro_asc4he_v1_CenterGen_get_default_dynamic_parameters(v38);
+    std::int64_t result = auro_asc4he_v1_CGenXOverBlock_initialize(
         a1 + 2704u,
         a3,
         *reinterpret_cast<const std::uint32_t*>(a1 + 2700u),
@@ -703,7 +711,7 @@ std::int64_t auro_asc4he_v1_base_Processor_default_initialize_541090_partial(
         v38);
     if (result)
         return result;
-    result = auro_asc4he_v1_CGenXOverBlock_initialize_547cb0_partial(
+    result = auro_asc4he_v1_CGenXOverBlock_initialize(
         a1 + 8u,
         a3,
         *reinterpret_cast<const std::uint32_t*>(a1 + 0u),
@@ -711,21 +719,21 @@ std::int64_t auro_asc4he_v1_base_Processor_default_initialize_541090_partial(
         v38);
     if (result)
         return result;
-    result = auro_asc4he_v1_Crossover_initialize_541f60_partial(a1 + 11376u, a3, 1, 1);
+    result = auro_asc4he_v1_Crossover_initialize(a1 + 11376u, a3, 1, 1);
     if (result)
         return result;
-    result = auro_asc4he_v1_CrossTalkCompensation_initialize_5465e0_partial(a1 + 11964u, a2 + 80u, a3);
+    result = auro_asc4he_v1_CrossTalkCompensation_initialize(a1 + 11964u, a2 + 80u, a3);
     if (result)
         return result;
-    result = auro_asc4he_v1_CrossTalk_initialize_5474a0_partial(
+    result = auro_asc4he_v1_CrossTalk_initialize(
         a1 + 11880u,
         reinterpret_cast<const float*>(a2 + 132u));
     if (result)
         return result;
-    result = auro_asc4he_v1_CenterCrossOver_initialize_547af0_partial(a1 + 12076u, a3, 1);
+    result = auro_asc4he_v1_CenterCrossOver_initialize(a1 + 12076u, a3, 1);
     if (result)
         return result;
-    result = auro_asc4he_v1_CGenXOverBlock_initialize_547cb0_partial(
+    result = auro_asc4he_v1_CGenXOverBlock_initialize(
         a1 + 12136u,
         a3,
         1u,
@@ -739,23 +747,23 @@ std::int64_t auro_asc4he_v1_base_Processor_default_initialize_541090_partial(
     *reinterpret_cast<float*>(a1 + 13780u) = asc4he_db_gain(*reinterpret_cast<const float*>(a2 + 72u));
     *reinterpret_cast<float*>(a1 + 13784u) = asc4he_db_gain(*reinterpret_cast<const float*>(a2 + 76u));
     *reinterpret_cast<std::uint32_t*>(a1 + 13788u) = 1u;
-    result = auro_asc4he_v1_ElevationEQ_initialize_108fc0_partial(a1 + 1664u, a3);
+    result = auro_asc4he_v1_ElevationEQ_initialize(a1 + 1664u, a3);
     if (result)
         return result;
     if (*reinterpret_cast<const std::uint32_t*>(a1 + 1808u) == 0u) {
-        result = auro_asc4he_v1_VirtualHeight_initialize_10ccf0_partial(a1 + 1816u, a3);
+        result = auro_asc4he_v1_VirtualHeight_initialize(a1 + 1816u, a3);
         if (result)
             return result;
     }
     if (*reinterpret_cast<const std::uint32_t*>(a1 + 4360u) == 0u) {
-        result = auro_asc4he_v1_Decorrelator_initialize_545f10_partial(a1 + 4364u, a3);
+        result = auro_asc4he_v1_Decorrelator_initialize(a1 + 4364u, a3);
         if (result)
             return result;
     }
-    result = auro_asc4he_v1_Delay7ms_initialize_545310_partial(a1 + 4648u, a3);
+    result = auro_asc4he_v1_Delay7ms_initialize(a1 + 4648u, a3);
     if (result)
         return result;
-    result = auro_asc4he_v1_Delay7ms_initialize_545310_partial(a1 + 8008u, a3);
+    result = auro_asc4he_v1_Delay7ms_initialize(a1 + 8008u, a3);
     if (result)
         return result;
     *reinterpret_cast<float*>(a1 + 2704u) = asc4he_db_gain(*reinterpret_cast<const float*>(a2 + 28u));
@@ -781,9 +789,9 @@ std::int64_t auro_asc4he_v1_base_Processor_default_initialize_541090_partial(
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_sb_Processor_t_is_supported_53e0e0_partial(std::uint32_t a1) {
+std::int64_t auro_asc4he_v1_sb_Processor_t_is_supported(std::uint32_t a1) {
     std::uint32_t v1 = 0u;
-    if ((a1 & 0xFF80F840u) == 0u && is_median_symmetric_5a6590_partial(a1)) {
+    if ((a1 & 0xFF80F840u) == 0u && is_median_symmetric(a1)) {
         const std::uint32_t v3 = a1 & 0x600u;
         if (v3 != 1536u || (a1 & 0x600030u) == 0u) {
             const std::uint32_t v4 = a1 & 0x30u;
@@ -799,12 +807,12 @@ std::int64_t auro_asc4he_v1_sb_Processor_t_is_supported_53e0e0_partial(std::uint
     return v1;
 }
 
-std::int64_t auro_asc4he_v1_sb_Processor_t_get_required_input_layout_53e1a0_partial(
+std::int64_t auro_asc4he_v1_sb_Processor_t_get_required_input_layout(
     std::uint32_t a1,
     std::uint32_t* a2) {
     if (!a2)
         return 277;
-    if ((a1 & 0xFF80F840u) == 0u && is_median_symmetric_5a6590_partial(a1)) {
+    if ((a1 & 0xFF80F840u) == 0u && is_median_symmetric(a1)) {
         const std::uint32_t v6 = a1 & 0x600u;
         const std::uint32_t v8 = a1 & 0x30u;
         if (v6 != 1536u || (a1 & 0x600030u) == 0u) {
@@ -822,7 +830,7 @@ std::int64_t auro_asc4he_v1_sb_Processor_t_get_required_input_layout_53e1a0_part
     return 277;
 }
 
-std::int64_t auro_asc4he_v1_sb_Processor_t_construct_53e2a0_partial(
+std::int64_t auro_asc4he_v1_sb_Processor_t_construct(
     std::uint8_t* a1,
     const std::uint8_t* a2) {
     if (!a1 || !a2)
@@ -834,7 +842,7 @@ std::int64_t auro_asc4he_v1_sb_Processor_t_construct_53e2a0_partial(
     *reinterpret_cast<std::uint32_t*>(v9 + 8u) = 2u * (((v2 & 0x180u) != 0x180u) ? 1u : 0u);
     *reinterpret_cast<std::uint32_t*>(v9 + 12u) = ((v2 & 0xC0000u) != 0xC0000u) ? 1u : 0u;
     *reinterpret_cast<std::uint32_t*>(v9 + 16u) = (v2 & 4u) == 0u;
-    if (!auro_asc4he_v1_base_Processor_t_construct_53e630_partial(a1, v9, a2))
+    if (!auro_asc4he_v1_base_Processor_t_construct(a1, v9, a2))
         return 0;
     *reinterpret_cast<std::uint32_t*>(a1 + 18192u) = (~v2 & 0x30000u) == 0u;
     *reinterpret_cast<std::uint64_t*>(a1 + 18176u) = 0u;
@@ -855,83 +863,83 @@ std::int64_t auro_asc4he_v1_sb_Processor_t_construct_53e2a0_partial(
     return 1;
 }
 
-std::int64_t auro_asc4he_v1_sb_Processor_surround_reset_53e410_partial(std::uint8_t* a1) {
-    auro_asc4he_v1_base_Processor_default_reset_audio_state_540fc0_partial(a1);
+std::int64_t auro_asc4he_v1_sb_Processor_surround_reset(std::uint8_t* a1) {
+    auro_asc4he_v1_base_Processor_default_reset_audio_state(a1);
     if (!a1)
         return 0;
-    return auro_asc4he_v1_sb_SurroundSatellites_reset_audio_state_542920_partial(
+    return auro_asc4he_v1_sb_SurroundSatellites_reset_audio_state(
         reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(*reinterpret_cast<std::uint64_t*>(a1 + 18176u))));
 }
 
-std::int64_t auro_asc4he_v1_sb_Processor_surround_initialize_53e430_partial(
+std::int64_t auro_asc4he_v1_sb_Processor_surround_initialize(
     std::uint8_t* a1,
     const std::uint8_t* a2,
     std::uint32_t a3) {
-    const std::int64_t result = auro_asc4he_v1_base_Processor_default_initialize_541090_partial(a1, a2, a3);
+    const std::int64_t result = auro_asc4he_v1_base_Processor_default_initialize(a1, a2, a3);
     if (result || !a1)
         return result;
-    return auro_asc4he_v1_sb_SurroundSatellites_initialize_542930_partial(
+    return auro_asc4he_v1_sb_SurroundSatellites_initialize(
         reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(*reinterpret_cast<std::uint64_t*>(a1 + 18176u))),
         a2,
         a3);
 }
 
-std::int64_t auro_asc4he_v1_sb_Processor_surround_process_2_2_53e480_partial(
+std::int64_t auro_asc4he_v1_sb_Processor_surround_process_2_2(
     std::uint8_t* a1,
     std::uint64_t a2,
     std::uint64_t a3,
     std::uint64_t a4) {
-    const std::int64_t result = auro_asc4he_v1_base_Processor_default_process_53e730_partial(a1, a2, a3, a4);
+    const std::int64_t result = auro_asc4he_v1_base_Processor_default_process(a1, a2, a3, a4);
     if (!result && a1)
-        (void)auro_asc4he_v1_sb_SurroundSatellites_process_2_2_542980_partial(
+        (void)auro_asc4he_v1_sb_SurroundSatellites_process_2_2(
             reinterpret_cast<float*>(static_cast<std::uintptr_t>(*reinterpret_cast<std::uint64_t*>(a1 + 18176u))),
             reinterpret_cast<std::uint64_t*>(static_cast<std::uintptr_t>(a2)));
     return result;
 }
 
-std::int64_t auro_asc4he_v1_sb_Processor_surround_process_2_0_53e4d0_partial(
+std::int64_t auro_asc4he_v1_sb_Processor_surround_process_2_0(
     std::uint8_t* a1,
     std::uint64_t a2,
     std::uint64_t a3,
     std::uint64_t a4) {
-    const std::int64_t result = auro_asc4he_v1_base_Processor_default_process_53e730_partial(a1, a2, a3, a4);
+    const std::int64_t result = auro_asc4he_v1_base_Processor_default_process(a1, a2, a3, a4);
     if (!result && a1)
-        auro_asc4he_v1_sb_SurroundSatellites_process_2_0_543190_partial(
+        auro_asc4he_v1_sb_SurroundSatellites_process_2_0(
             reinterpret_cast<float*>(static_cast<std::uintptr_t>(*reinterpret_cast<std::uint64_t*>(a1 + 18176u))),
             reinterpret_cast<std::uint64_t*>(static_cast<std::uintptr_t>(a2)));
     return result;
 }
 
-std::int64_t auro_asc4he_v1_sb_Processor_height_reset_53e520_partial(std::uint8_t* a1) {
-    auro_asc4he_v1_base_Processor_default_reset_audio_state_540fc0_partial(a1);
+std::int64_t auro_asc4he_v1_sb_Processor_height_reset(std::uint8_t* a1) {
+    auro_asc4he_v1_base_Processor_default_reset_audio_state(a1);
     if (!a1)
         return 0;
-    return auro_asc4he_v1_sb_HeightSatellites_reset_audio_state_5431b0_partial(
+    return auro_asc4he_v1_sb_HeightSatellites_reset_audio_state(
         reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(*reinterpret_cast<std::uint64_t*>(a1 + 18184u))));
 }
 
-std::int64_t auro_asc4he_v1_sb_Processor_height_initialize_53e540_partial(
+std::int64_t auro_asc4he_v1_sb_Processor_height_initialize(
     std::uint8_t* a1,
     const std::uint8_t* a2,
     std::uint32_t a3) {
-    const std::int64_t result = auro_asc4he_v1_base_Processor_default_initialize_541090_partial(a1, a2, a3);
+    const std::int64_t result = auro_asc4he_v1_base_Processor_default_initialize(a1, a2, a3);
     if (result || !a1)
         return result;
-    return auro_asc4he_v1_sb_HeightSatellites_initialize_5431f0_partial(
+    return auro_asc4he_v1_sb_HeightSatellites_initialize(
         reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(*reinterpret_cast<std::uint64_t*>(a1 + 18184u))),
         a2,
         a3,
         *reinterpret_cast<const std::uint32_t*>(a1 + 18192u));
 }
 
-std::int64_t auro_asc4he_v1_sb_Processor_height_process_2_2_53e590_partial(
+std::int64_t auro_asc4he_v1_sb_Processor_height_process_2_2(
     std::uint8_t* a1,
     std::uint64_t a2,
     std::uint64_t a3,
     std::uint64_t a4) {
-    const std::int64_t result = auro_asc4he_v1_base_Processor_default_process_53e730_partial(a1, a2, a3, a4);
+    const std::int64_t result = auro_asc4he_v1_base_Processor_default_process(a1, a2, a3, a4);
     if (!result && a1)
-        (void)auro_asc4he_v1_sb_HeightSatellites_process_2_2_543b30_partial(
+        (void)auro_asc4he_v1_sb_HeightSatellites_process_2_2(
             reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(*reinterpret_cast<std::uint64_t*>(a1 + 18184u))),
             reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(a2)),
             reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(a3)),
@@ -939,14 +947,14 @@ std::int64_t auro_asc4he_v1_sb_Processor_height_process_2_2_53e590_partial(
     return result;
 }
 
-std::int64_t auro_asc4he_v1_sb_Processor_height_process_2_0_53e5e0_partial(
+std::int64_t auro_asc4he_v1_sb_Processor_height_process_2_0(
     std::uint8_t* a1,
     std::uint64_t a2,
     std::uint64_t a3,
     std::uint64_t a4) {
-    const std::int64_t result = auro_asc4he_v1_base_Processor_default_process_53e730_partial(a1, a2, a3, a4);
+    const std::int64_t result = auro_asc4he_v1_base_Processor_default_process(a1, a2, a3, a4);
     if (!result && a1)
-        (void)auro_asc4he_v1_sb_HeightSatellites_process_2_0_5432b0_partial(
+        (void)auro_asc4he_v1_sb_HeightSatellites_process_2_0(
             reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(*reinterpret_cast<std::uint64_t*>(a1 + 18184u))),
             reinterpret_cast<std::uint64_t*>(static_cast<std::uintptr_t>(a2)),
             reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(a3)),
@@ -954,12 +962,12 @@ std::int64_t auro_asc4he_v1_sb_Processor_height_process_2_0_53e5e0_partial(
     return result;
 }
 
-std::int64_t auro_asc4he_v1_ss_Processor_t_is_supported_5445a0_partial(std::uint32_t a1) {
+std::int64_t auro_asc4he_v1_ss_Processor_t_is_supported(std::uint32_t a1) {
     const std::uint32_t v = a1 & 0xFFEFFFF7u;
     return (v == 4103u || v == 786439u) ? 1 : 0;
 }
 
-std::int64_t auro_asc4he_v1_ss_Processor_t_get_required_input_layout_5445c0_partial(
+std::int64_t auro_asc4he_v1_ss_Processor_t_get_required_input_layout(
     std::uint32_t a1,
     std::uint32_t* a2) {
     if (!a2)
@@ -972,7 +980,7 @@ std::int64_t auro_asc4he_v1_ss_Processor_t_get_required_input_layout_5445c0_part
     return 279;
 }
 
-std::int64_t auro_asc4he_v1_ss_Processor_t_construct_5445f0_partial(std::uint8_t* a1, const std::uint8_t* a2) {
+std::int64_t auro_asc4he_v1_ss_Processor_t_construct(std::uint8_t* a1, const std::uint8_t* a2) {
     if (!a1 || !a2)
         return 0;
     alignas(8) std::uint8_t v3[32]{};
@@ -984,24 +992,24 @@ std::int64_t auro_asc4he_v1_ss_Processor_t_construct_5445f0_partial(std::uint8_t
     *reinterpret_cast<std::uint32_t*>(v3 + 20u) = 1u;
     *reinterpret_cast<std::uint32_t*>(v3 + 24u) = 1u;
     *reinterpret_cast<std::uint32_t*>(v3 + 28u) = 1u;
-    return auro_asc4he_v1_base_Processor_t_construct_53e630_partial(a1, v3, a2) != 0 ? 1 : 0;
+    return auro_asc4he_v1_base_Processor_t_construct(a1, v3, a2) != 0 ? 1 : 0;
 }
 
-std::int64_t auro_asc4he_v1_multichannel_Processor_t_is_supported_544650_partial(std::uint32_t a1) {
-    if ((~a1 & 3u) == 0u && is_median_symmetric_5a6590_partial(a1 & 0xFFEFFFF7u)) {
+std::int64_t auro_asc4he_v1_multichannel_Processor_t_is_supported(std::uint32_t a1) {
+    if ((~a1 & 3u) == 0u && is_median_symmetric(a1 & 0xFFEFFFF7u)) {
         const bool ok_height = ((~a1 & 0x180u) != 0u) || ((~a1 & 0x30u) == 0u);
         return ok_height && ((a1 & 0xFB7u) == (a1 & 0xFFEFFFF7u)) ? 1 : 0;
     }
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_multichannel_Processor_t_get_required_input_layout_5446b0_partial(
+std::int64_t auro_asc4he_v1_multichannel_Processor_t_get_required_input_layout(
     std::uint32_t a1,
     std::uint32_t* a2) {
     if (!a2)
         return 3;
     const std::uint32_t v = a1 & 0xFFEFFFF7u;
-    if ((~a1 & 3u) != 0u || !is_median_symmetric_5a6590_partial(v) || ((a1 & 0xFB7u) != v))
+    if ((~a1 & 3u) != 0u || !is_median_symmetric(v) || ((a1 & 0xFB7u) != v))
         return 278;
     const std::uint32_t v7 = a1 & 0x180u;
     const std::uint32_t v8 = a1 & 0x30u;
@@ -1019,7 +1027,8 @@ std::int64_t auro_asc4he_v1_multichannel_Processor_t_get_required_input_layout_5
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_multichannel_HXs_t_construct_544990_partial(std::uint8_t* a1) {
+std::int64_t /* Decompiled name: auro_asc4he_v1_multichannel_HXs_t_construct */
+auro_asc4he_v1_multichannel_HXs_t_construct(std::uint8_t* a1) {
     if (!a1)
         return 0;
     *reinterpret_cast<std::uint64_t*>(a1 + 0u) = 0x545200u;
@@ -1028,7 +1037,7 @@ std::int64_t auro_asc4he_v1_multichannel_HXs_t_construct_544990_partial(std::uin
     return 1;
 }
 
-std::int64_t auro_asc4he_v1_multichannel_HXs_process_5449c0_partial(
+std::int64_t auro_asc4he_v1_multichannel_HXs_process(
     std::uint8_t* a1,
     std::uint64_t* a2,
     std::uint64_t a3,
@@ -1045,8 +1054,8 @@ std::int64_t auro_asc4he_v1_multichannel_HXs_process_5449c0_partial(
     float* work = a4 + 192;
     asc4he_copy_pair_32(pair[0], pair[1], src0, src1);
     std::uint64_t pair_u64[2]{asc4he_u64_ptr(pair[0]), asc4he_u64_ptr(pair[1])};
-    (void)auro_asc4he_v1_ElevationEQ_process_1090c0_partial(reinterpret_cast<float*>(a1 + 24u), pair_u64);
-    (void)auro_asc4he_v1_CGenXOverBlock_process_without_external_center_548b00_partial(
+    (void)auro_asc4he_v1_ElevationEQ_process(reinterpret_cast<float*>(a1 + 24u), pair_u64);
+    (void)auro_asc4he_v1_CGenXOverBlock_process_without_external_center(
         a1 + 168u,
         pair,
         hi,
@@ -1054,7 +1063,7 @@ std::int64_t auro_asc4he_v1_multichannel_HXs_process_5449c0_partial(
         a3 - 768u,
         work);
     void* vh_pair[2]{low[0], low[1]};
-    (void)auro_asc4he_v1_VirtualHeight_process_10cdc0_partial(a1 + 1824u, vh_pair);
+    (void)auro_asc4he_v1_VirtualHeight_process(a1 + 1824u, vh_pair);
     asc4he_add_scaled_pair_32(
         pair[0],
         pair[1],
@@ -1062,7 +1071,7 @@ std::int64_t auro_asc4he_v1_multichannel_HXs_process_5449c0_partial(
         low[1],
         *reinterpret_cast<const float*>(a1 + 6068u));
     std::uint64_t delay_pair[2]{asc4he_u64_ptr(pair[0]), asc4he_u64_ptr(pair[1])};
-    (void)auro_asc4he_v1_Delay7ms_process_545360_partial(a1 + 2704u, reinterpret_cast<std::uint8_t*>(delay_pair));
+    (void)auro_asc4he_v1_Delay7ms_process(a1 + 2704u, reinterpret_cast<std::uint8_t*>(delay_pair));
     asc4he_add_scaled_pair_32(
         dst0,
         dst1,
@@ -1072,35 +1081,35 @@ std::int64_t auro_asc4he_v1_multichannel_HXs_process_5449c0_partial(
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_multichannel_HXs_reset_545200_partial(std::uint8_t* a1) {
+std::int64_t auro_asc4he_v1_multichannel_HXs_reset(std::uint8_t* a1) {
     if (!a1)
         return 0;
-    auro_asc4he_v1_ElevationEQ_reset_audio_state_108fc0_partial(a1 + 24u);
-    auro_asc4he_v1_CGenXOverBlock_reset_audio_state_547d60_partial(a1 + 168u);
-    auro_asc4he_v1_VirtualHeight_reset_audio_state_10ccf0_partial(a1 + 1824u);
-    return auro_asc4he_v1_Delay7ms_reset_audio_state_545350_partial(a1 + 2704u);
+    auro_asc4he_v1_ElevationEQ_reset_audio_state(a1 + 24u);
+    auro_asc4he_v1_CGenXOverBlock_reset_audio_state(a1 + 168u);
+    auro_asc4he_v1_VirtualHeight_reset_audio_state(a1 + 1824u);
+    return auro_asc4he_v1_Delay7ms_reset_audio_state(a1 + 2704u);
 }
 
-std::int64_t auro_asc4he_v1_multichannel_HXs_initialize_545240_partial(
+std::int64_t auro_asc4he_v1_multichannel_HXs_initialize(
     std::uint8_t* a1,
     const std::uint8_t*,
     std::uint32_t a3) {
     if (!a1)
         return 1;
-    std::int64_t result = auro_asc4he_v1_ElevationEQ_initialize_108fc0_partial(a1 + 24u, a3);
+    std::int64_t result = auro_asc4he_v1_ElevationEQ_initialize(a1 + 24u, a3);
     if (result)
         return result;
     std::uint8_t fixed[kAsc4heCenterGenFixedDefaultsBytes]{};
     std::uint8_t dyn[kAsc4heCenterGenDynamicDefaultsBytes]{};
-    auro_asc4he_v1_CenterGen_get_default_fixed_parameters_5479f0_partial(fixed);
-    auro_asc4he_v1_CenterGen_get_default_dynamic_parameters_547a10_partial(dyn);
-    result = auro_asc4he_v1_CGenXOverBlock_initialize_547cb0_partial(a1 + 168u, a3, 1, fixed, dyn);
+    auro_asc4he_v1_CenterGen_get_default_fixed_parameters(fixed);
+    auro_asc4he_v1_CenterGen_get_default_dynamic_parameters(dyn);
+    result = auro_asc4he_v1_CGenXOverBlock_initialize(a1 + 168u, a3, 1, fixed, dyn);
     if (result)
         return result;
-    result = auro_asc4he_v1_VirtualHeight_initialize_10ccf0_partial(a1 + 1824u, a3);
+    result = auro_asc4he_v1_VirtualHeight_initialize(a1 + 1824u, a3);
     if (result)
         return result;
-    result = auro_asc4he_v1_Delay7ms_initialize_545310_partial(a1 + 2704u, a3);
+    result = auro_asc4he_v1_Delay7ms_initialize(a1 + 2704u, a3);
     if (result)
         return result;
     *reinterpret_cast<std::uint32_t*>(a1 + 168u) = 1065353216u;
@@ -1113,12 +1122,12 @@ std::int64_t auro_asc4he_v1_multichannel_HXs_initialize_545240_partial(
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_multichannel_Processor_process_544870_partial(
+std::int64_t auro_asc4he_v1_multichannel_Processor_process(
     std::uint8_t* a1,
     std::uint64_t a2,
     std::uint64_t a3,
     std::uint64_t a4) {
-    const std::int64_t result = auro_asc4he_v1_base_Processor_default_process_53e730_partial(a1, a2, a3, a4);
+    const std::int64_t result = auro_asc4he_v1_base_Processor_default_process(a1, a2, a3, a4);
     if (result || !a1)
         return result;
     const std::uint32_t count = *reinterpret_cast<const std::uint32_t*>(a1 + 20184u);
@@ -1126,7 +1135,7 @@ std::int64_t auro_asc4he_v1_multichannel_Processor_process_544870_partial(
         const std::uint64_t hx = *reinterpret_cast<const std::uint64_t*>(a1 + 20176u + 8u * i);
         if (hx == 0u)
             continue;
-        const std::int64_t rc = auro_asc4he_v1_multichannel_HXs_process_5449c0_partial(
+        const std::int64_t rc = auro_asc4he_v1_multichannel_HXs_process(
             reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(hx)),
             reinterpret_cast<std::uint64_t*>(static_cast<std::uintptr_t>(a2)),
             a3,
@@ -1137,30 +1146,30 @@ std::int64_t auro_asc4he_v1_multichannel_Processor_process_544870_partial(
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_multichannel_Processor_reset_5448f0_partial(std::uint8_t* a1) {
-    auro_asc4he_v1_base_Processor_default_reset_audio_state_540fc0_partial(a1);
+std::int64_t auro_asc4he_v1_multichannel_Processor_reset(std::uint8_t* a1) {
+    auro_asc4he_v1_base_Processor_default_reset_audio_state(a1);
     if (!a1)
         return 0;
     const std::uint32_t count = *reinterpret_cast<const std::uint32_t*>(a1 + 20184u);
     for (std::uint32_t i = 0; i != count; ++i) {
         const std::uint64_t hx = *reinterpret_cast<const std::uint64_t*>(a1 + 20176u + 8u * i);
-        auro_asc4he_v1_multichannel_HXs_reset_545200_partial(
+        auro_asc4he_v1_multichannel_HXs_reset(
             reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(hx)));
     }
     return count;
 }
 
-std::int64_t auro_asc4he_v1_multichannel_Processor_initialize_544930_partial(
+std::int64_t auro_asc4he_v1_multichannel_Processor_initialize(
     std::uint8_t* a1,
     const std::uint8_t* a2,
     std::uint32_t a3) {
-    std::int64_t result = auro_asc4he_v1_base_Processor_default_initialize_541090_partial(a1, a2, a3);
+    std::int64_t result = auro_asc4he_v1_base_Processor_default_initialize(a1, a2, a3);
     if (result || !a1)
         return result;
     const std::uint32_t count = *reinterpret_cast<const std::uint32_t*>(a1 + 20184u);
     for (std::uint32_t i = 0; i != count; ++i) {
         const std::uint64_t hx = *reinterpret_cast<const std::uint64_t*>(a1 + 20176u + 8u * i);
-        result = auro_asc4he_v1_multichannel_HXs_initialize_545240_partial(
+        result = auro_asc4he_v1_multichannel_HXs_initialize(
             reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(hx)),
             a2,
             a3);
@@ -1170,7 +1179,7 @@ std::int64_t auro_asc4he_v1_multichannel_Processor_initialize_544930_partial(
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_multichannel_Processor_t_construct_544780_partial(
+std::int64_t auro_asc4he_v1_multichannel_Processor_t_construct(
     std::uint8_t* a1,
     const std::uint8_t* a2) {
     if (!a1 || !a2)
@@ -1181,11 +1190,12 @@ std::int64_t auro_asc4he_v1_multichannel_Processor_t_construct_544780_partial(
     *reinterpret_cast<std::uint32_t*>(v5 + 8u) = ((~v2 & 0x30u) == 0u) ? 1u : 2u;
     *reinterpret_cast<std::uint32_t*>(v5 + 12u) = 1u;
     *reinterpret_cast<std::uint32_t*>(v5 + 16u) = (v2 & 4u) == 0u ? 1u : 0u;
-    if (!auro_asc4he_v1_base_Processor_t_construct_53e630_partial(a1, v5, a2))
+    if (!auro_asc4he_v1_base_Processor_t_construct(a1, v5, a2))
         return 0;
     *reinterpret_cast<std::uint32_t*>(a1 + 20184u) = 0u;
     if ((~*reinterpret_cast<const std::uint8_t*>(a2 + 8u) & 0x30u) == 0u) {
-        if (!auro_asc4he_v1_multichannel_HXs_t_construct_544990_partial(a1 + 14104u))
+        if (!/* Decompiled name: auro_asc4he_v1_multichannel_HXs_t_construct */
+auro_asc4he_v1_multichannel_HXs_t_construct(a1 + 14104u))
             return 0;
         *reinterpret_cast<std::uint32_t*>(a1 + 20184u) = 1u;
         *reinterpret_cast<std::uint64_t*>(a1 + 20176u) = reinterpret_cast<std::uint64_t>(a1 + 14104u);
@@ -1196,32 +1206,32 @@ std::int64_t auro_asc4he_v1_multichannel_Processor_t_construct_544780_partial(
     return 1;
 }
 
-std::int64_t auro_asc4he_v1_Processor_t_is_supported_53dd00_partial(std::uint32_t a1, std::uint32_t a2) {
+std::int64_t auro_asc4he_v1_Processor_t_is_supported(std::uint32_t a1, std::uint32_t a2) {
     if (a1 == 0u)
-        return auro_asc4he_v1_multichannel_Processor_t_is_supported_544650_partial(a2);
+        return auro_asc4he_v1_multichannel_Processor_t_is_supported(a2);
     if (a1 == 1u)
-        return auro_asc4he_v1_sb_Processor_t_is_supported_53e0e0_partial(a2);
+        return auro_asc4he_v1_sb_Processor_t_is_supported(a2);
     if (a1 == 2u)
-        return auro_asc4he_v1_ss_Processor_t_is_supported_5445a0_partial(a2);
+        return auro_asc4he_v1_ss_Processor_t_is_supported(a2);
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_Processor_t_get_required_input_layout_53dd30_partial(
+std::int64_t auro_asc4he_v1_Processor_t_get_required_input_layout(
     std::uint32_t a1,
     std::uint32_t a2,
     std::uint32_t* a3) {
     if (!a3)
         return 3;
     if (a1 == 0u)
-        return auro_asc4he_v1_multichannel_Processor_t_get_required_input_layout_5446b0_partial(a2, a3);
+        return auro_asc4he_v1_multichannel_Processor_t_get_required_input_layout(a2, a3);
     if (a1 == 1u)
-        return auro_asc4he_v1_sb_Processor_t_get_required_input_layout_53e1a0_partial(a2, a3);
+        return auro_asc4he_v1_sb_Processor_t_get_required_input_layout(a2, a3);
     if (a1 == 2u)
-        return auro_asc4he_v1_ss_Processor_t_get_required_input_layout_5445c0_partial(a2, a3);
+        return auro_asc4he_v1_ss_Processor_t_get_required_input_layout(a2, a3);
     return 274;
 }
 
-std::int64_t auro_asc4he_v1_TuningManager_t_get_53d880_partial(
+std::int64_t auro_asc4he_v1_TuningManager_t_get(
     std::uint8_t* a1,
     std::uint32_t a2,
     std::uint32_t a3) {
@@ -1238,8 +1248,8 @@ std::int64_t auro_asc4he_v1_TuningManager_t_get_53d880_partial(
         *reinterpret_cast<std::uint64_t*>(p + off) = lo;
         *reinterpret_cast<std::uint64_t*>(p + off + 8u) = hi;
     };
-    auro_asc4he_v1_CenterGen_get_default_fixed_parameters_5479f0_partial(a1 + 140u);
-    auro_asc4he_v1_CenterGen_get_default_dynamic_parameters_547a10_partial(a1 + 160u);
+    auro_asc4he_v1_CenterGen_get_default_fixed_parameters(a1 + 140u);
+    auro_asc4he_v1_CenterGen_get_default_dynamic_parameters(a1 + 160u);
     if (a2 == 2u) {
         const bool direct_height = (a3 & 0xC0000u) == 0xC0000u;
         if (direct_height != ((a3 & 0x1000u) == 0u))
@@ -1330,7 +1340,7 @@ std::int64_t auro_asc4he_v1_TuningManager_t_get_53d880_partial(
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_Processor_t_check_static_parameters_53dd90_partial(const std::uint8_t* a1) {
+std::int64_t auro_asc4he_v1_Processor_t_check_static_parameters(const std::uint8_t* a1) {
     if (!a1)
         return 3;
     const std::uint32_t type = *reinterpret_cast<const std::uint32_t*>(a1 + 0u);
@@ -1340,7 +1350,7 @@ std::int64_t auro_asc4he_v1_Processor_t_check_static_parameters_53dd90_partial(c
     if (sample_rate != 48000u && sample_rate != 44100u)
         return 275;
     std::uint32_t actual = 0;
-    const std::int64_t rc = auro_asc4he_v1_Processor_t_get_required_input_layout_53dd30_partial(type, layout, &actual);
+    const std::int64_t rc = auro_asc4he_v1_Processor_t_get_required_input_layout(type, layout, &actual);
     if (rc)
         return rc;
     if (actual != required)
@@ -1352,10 +1362,10 @@ std::int64_t auro_asc4he_v1_Processor_t_check_static_parameters_53dd90_partial(c
     return 0;
 }
 
-std::uint8_t* auro_asc4he_v1_Processor_t_construct_53de70_partial(std::uint8_t* a1, const std::uint8_t* a2) {
+std::uint8_t* auro_asc4he_v1_Processor_t_construct(std::uint8_t* a1, const std::uint8_t* a2) {
     if (!a1 || !a2)
         return nullptr;
-    if (auro_asc4he_v1_Processor_t_check_static_parameters_53dd90_partial(a2))
+    if (auro_asc4he_v1_Processor_t_check_static_parameters(a2))
         return nullptr;
     std::memset(a1, 0, 0x4F08u);
     std::memcpy(a1 + 20208u, a2 + 16u, 16u);
@@ -1365,18 +1375,18 @@ std::uint8_t* auro_asc4he_v1_Processor_t_construct_53de70_partial(std::uint8_t* 
     const std::uint32_t type = *reinterpret_cast<const std::uint32_t*>(a2 + 0u);
     bool ok = false;
     if (type == 0u)
-        ok = auro_asc4he_v1_multichannel_Processor_t_construct_544780_partial(a1, a2) != 0;
+        ok = auro_asc4he_v1_multichannel_Processor_t_construct(a1, a2) != 0;
     else if (type == 1u)
-        ok = auro_asc4he_v1_sb_Processor_t_construct_53e2a0_partial(a1, a2) != 0;
+        ok = auro_asc4he_v1_sb_Processor_t_construct(a1, a2) != 0;
     else if (type == 2u)
-        ok = auro_asc4he_v1_ss_Processor_t_construct_5445f0_partial(a1, a2) != 0;
+        ok = auro_asc4he_v1_ss_Processor_t_construct(a1, a2) != 0;
     if (!ok)
         return nullptr;
     *reinterpret_cast<std::uint64_t*>(a1 + 20192u) = reinterpret_cast<std::uint64_t>(a1);
     std::uint8_t tuning[240]{};
     const std::uint8_t* params = a2 + 52u;
     if (*reinterpret_cast<const std::uint32_t*>(a2 + 48u) == 0u) {
-        if (auro_asc4he_v1_TuningManager_t_get_53d880_partial(
+        if (auro_asc4he_v1_TuningManager_t_get(
                 tuning,
                 *reinterpret_cast<const std::uint32_t*>(a2 + 0u),
                 *reinterpret_cast<const std::uint32_t*>(a2 + 8u)) != 0) {
@@ -1385,52 +1395,52 @@ std::uint8_t* auro_asc4he_v1_Processor_t_construct_53de70_partial(std::uint8_t* 
         params = tuning;
     }
     if (*reinterpret_cast<const std::uint64_t*>(a1 + 14096u) == 0x544930u)
-        ok = auro_asc4he_v1_multichannel_Processor_initialize_544930_partial(
+        ok = auro_asc4he_v1_multichannel_Processor_initialize(
                  a1,
                  params,
                  *reinterpret_cast<const std::uint32_t*>(a2 + 12u))
             == 0;
     else if (*reinterpret_cast<const std::uint64_t*>(a1 + 14096u) == 0x53E430u)
-        ok = auro_asc4he_v1_sb_Processor_surround_initialize_53e430_partial(
+        ok = auro_asc4he_v1_sb_Processor_surround_initialize(
                  a1,
                  params,
                  *reinterpret_cast<const std::uint32_t*>(a2 + 12u))
             == 0;
     else if (*reinterpret_cast<const std::uint64_t*>(a1 + 14096u) == 0x53E540u)
-        ok = auro_asc4he_v1_sb_Processor_height_initialize_53e540_partial(
+        ok = auro_asc4he_v1_sb_Processor_height_initialize(
                  a1,
                  params,
                  *reinterpret_cast<const std::uint32_t*>(a2 + 12u))
             == 0;
     else
-        ok = auro_asc4he_v1_base_Processor_default_initialize_541090_partial(
+        ok = auro_asc4he_v1_base_Processor_default_initialize(
                  a1,
                  params,
                  *reinterpret_cast<const std::uint32_t*>(a2 + 12u))
             == 0;
     if (!ok)
         return nullptr;
-    (void)auro_asc4he_v1_Processor_reset_audio_state_53e020_partial(a1);
+    (void)auro_asc4he_v1_Processor_reset_audio_state(a1);
     return a1;
 }
 
-std::int64_t auro_asc4he_v1_Processor_t_get_latency_53dfd0_partial() {
+std::int64_t auro_asc4he_v1_Processor_t_get_latency() {
     return 0;
 }
 
-std::int64_t auro_asc4he_v1_Processor_get_dynamic_parameters_53dfe0_partial(
+std::int64_t auro_asc4he_v1_Processor_get_dynamic_parameters(
     const std::uint8_t* a1,
     std::uint8_t* a2) {
     return (a1 == nullptr || a2 == nullptr) ? 1 : 0;
 }
 
-std::int64_t auro_asc4he_v1_Processor_set_dynamic_parameters_53e000_partial(
+std::int64_t auro_asc4he_v1_Processor_set_dynamic_parameters(
     std::uint8_t* a1,
     const std::uint8_t* a2) {
     return (a1 == nullptr || a2 == nullptr) ? 1 : 0;
 }
 
-std::int64_t auro_asc4he_v1_Processor_reset_audio_state_53e020_partial(std::uint8_t* a1) {
+std::int64_t auro_asc4he_v1_Processor_reset_audio_state(std::uint8_t* a1) {
     if (!a1)
         return 1;
     auto* const base = reinterpret_cast<std::uint8_t*>(
@@ -1439,15 +1449,15 @@ std::int64_t auro_asc4he_v1_Processor_reset_audio_state_53e020_partial(std::uint
         return 1;
     const std::uint64_t reset = *reinterpret_cast<const std::uint64_t*>(base + 14088u);
     if (reset == 0x5448F0u)
-        return auro_asc4he_v1_multichannel_Processor_reset_5448f0_partial(base);
+        return auro_asc4he_v1_multichannel_Processor_reset(base);
     if (reset == 0x53E410u)
-        return auro_asc4he_v1_sb_Processor_surround_reset_53e410_partial(base);
+        return auro_asc4he_v1_sb_Processor_surround_reset(base);
     if (reset == 0x53E520u)
-        return auro_asc4he_v1_sb_Processor_height_reset_53e520_partial(base);
-    return auro_asc4he_v1_base_Processor_default_reset_audio_state_540fc0_partial(base);
+        return auro_asc4he_v1_sb_Processor_height_reset(base);
+    return auro_asc4he_v1_base_Processor_default_reset_audio_state(base);
 }
 
-std::int64_t auro_asc4he_v1_Processor_process_53e030_partial(std::uint8_t* a1, std::uint32_t* a2) {
+std::int64_t auro_asc4he_v1_Processor_process(std::uint8_t* a1, std::uint32_t* a2) {
     if (!a1 || !a2)
         return 1;
     if (a2[0] != 32u)
@@ -1469,21 +1479,21 @@ std::int64_t auro_asc4he_v1_Processor_process_53e030_partial(std::uint8_t* a1, s
     std::int64_t rc = 0;
     const std::uint64_t table = reinterpret_cast<std::uint64_t>(a2);
     if (process == 0x544870u)
-        rc = auro_asc4he_v1_multichannel_Processor_process_544870_partial(base, table, scratch_bytes, scratch);
+        rc = auro_asc4he_v1_multichannel_Processor_process(base, table, scratch_bytes, scratch);
     else if (process == 0x53E480u)
-        rc = auro_asc4he_v1_sb_Processor_surround_process_2_2_53e480_partial(base, table, scratch_bytes, scratch);
+        rc = auro_asc4he_v1_sb_Processor_surround_process_2_2(base, table, scratch_bytes, scratch);
     else if (process == 0x53E4D0u)
-        rc = auro_asc4he_v1_sb_Processor_surround_process_2_0_53e4d0_partial(base, table, scratch_bytes, scratch);
+        rc = auro_asc4he_v1_sb_Processor_surround_process_2_0(base, table, scratch_bytes, scratch);
     else if (process == 0x53E590u)
-        rc = auro_asc4he_v1_sb_Processor_height_process_2_2_53e590_partial(base, table, scratch_bytes, scratch);
+        rc = auro_asc4he_v1_sb_Processor_height_process_2_2(base, table, scratch_bytes, scratch);
     else if (process == 0x53E5E0u)
-        rc = auro_asc4he_v1_sb_Processor_height_process_2_0_53e5e0_partial(base, table, scratch_bytes, scratch);
+        rc = auro_asc4he_v1_sb_Processor_height_process_2_0(base, table, scratch_bytes, scratch);
     else
-        rc = auro_asc4he_v1_base_Processor_default_process_53e730_partial(base, table, scratch_bytes, scratch);
+        rc = auro_asc4he_v1_base_Processor_default_process(base, table, scratch_bytes, scratch);
     return rc == 0 ? 0 : rc;
 }
 
-void auro_asc4he_v1_CenterGen_get_default_fixed_parameters_5479f0_partial(std::uint8_t* a1) {
+void auro_asc4he_v1_CenterGen_get_default_fixed_parameters(std::uint8_t* a1) {
     if (!a1)
         return;
     std::memset(a1, 0, kAsc4heCenterGenFixedDefaultsBytes);
@@ -1492,7 +1502,7 @@ void auro_asc4he_v1_CenterGen_get_default_fixed_parameters_5479f0_partial(std::u
     *reinterpret_cast<std::uint32_t*>(a1 + 16u) = 393216300u;
 }
 
-void auro_asc4he_v1_CenterGen_get_default_dynamic_parameters_547a10_partial(std::uint8_t* a1) {
+void auro_asc4he_v1_CenterGen_get_default_dynamic_parameters(std::uint8_t* a1) {
     if (!a1)
         return;
     std::memset(a1, 0, kAsc4heCenterGenDynamicDefaultsBytes);

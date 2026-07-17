@@ -141,7 +141,9 @@ bool auro_downmix_v1_plan_apply_label274(
     auto* row_base = reinterpret_cast<std::uint8_t*>(dp.plan) + 4u * (3u * anchor_row + 5u);
     *reinterpret_cast<std::int32_t*>(row_base) = dword0;
     *reinterpret_cast<std::uint64_t*>(row_base + 4u) = pair_qword;
-    src_mask = or_bits | (src_mask & and_mask);
+    // Native LABEL_274 applies the second route to a2[159], which already
+    // contains the mask update made by the first route in the pair.
+    src_mask = or_bits | (*dp.out_mask & and_mask);
     dp.patch_mask(src_mask, 0xFFFFFFFFu);
     return true;
 }
@@ -189,24 +191,28 @@ constexpr std::uint64_t kDmPair20481 = 0x0000005000000001uLL;
 constexpr std::uint64_t kDmPair20738 = 0x0000005100000002uLL;
 constexpr std::uint64_t kDmPair20766 = 0x000000510000001EuLL;
 
-bool auro_downmix_v1_plan_finalize_label275_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_finalize_label275 */
+auro_downmix_v1_plan_finalize_label275(
     std::int32_t* plan,
     std::uint32_t tgt_layout,
     std::uint8_t tgt_class_hint);
 
-bool auro_downmix_v1_plan_finish_label275_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_finish_label275 */
+auro_downmix_v1_plan_finish_label275(
     std::int32_t* plan,
     std::uint32_t tgt_layout,
     std::uint8_t tgt_class_hint,
     bool* engine_complete) {
-    if (!auro_downmix_v1_plan_finalize_label275_partial(plan, tgt_layout, tgt_class_hint))
+    if (!/* Decompiled name: auro_downmix_v1_plan_finalize_label275 */
+auro_downmix_v1_plan_finalize_label275(plan, tgt_layout, tgt_class_hint))
         return false;
     if (engine_complete)
         *engine_complete = true;
     return true;
 }
 
-bool auro_downmix_v1_plan_label257_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_label257 */
+auro_downmix_v1_plan_label257(
     DownmixPlanMut& dp,
     std::uint32_t& src_mask,
     std::uint32_t tgt_layout,
@@ -214,7 +220,8 @@ bool auro_downmix_v1_plan_label257_partial(
     bool* engine_complete) {
   // IDA LABEL_257 @ 591280: shared tail before LABEL_274/LABEL_275.
   if ((~src_mask & 0x30u) != 0u)
-    return auro_downmix_v1_plan_finish_label275_partial(
+    return /* Decompiled name: auro_downmix_v1_plan_finish_label275 */
+auro_downmix_v1_plan_finish_label275(
         dp.plan, tgt_layout, tgt_class_hint, engine_complete);
 
   const std::uint64_t r0 = *dp.row_count;
@@ -239,11 +246,13 @@ bool auro_downmix_v1_plan_label257_partial(
   if (!auro_downmix_v1_plan_apply_label274(
           dp, r0 + 3u, 5, kDmPair22282, 1024u, 0xFFFFFBFFu, src_mask))
     return false;
-  return auro_downmix_v1_plan_finish_label275_partial(
+  return /* Decompiled name: auro_downmix_v1_plan_finish_label275 */
+auro_downmix_v1_plan_finish_label275(
       dp.plan, tgt_layout, tgt_class_hint, engine_complete);
 }
 
-bool auro_downmix_v1_plan_label209_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_label209 */
+auro_downmix_v1_plan_label209(
     DownmixPlanMut& dp,
     std::uint32_t& src_mask,
     std::uint32_t tgt_layout,
@@ -253,7 +262,8 @@ bool auro_downmix_v1_plan_label209_partial(
     if (engine_complete)
         *engine_complete = false;
     const auto finish = [&]() {
-        return auro_downmix_v1_plan_finish_label275_partial(
+        return /* Decompiled name: auro_downmix_v1_plan_finish_label275 */
+auro_downmix_v1_plan_finish_label275(
             dp.plan, tgt_layout, tgt_class_hint, engine_complete);
     };
     const std::uint32_t v11 = inv_tgt;
@@ -443,10 +453,12 @@ bool auro_downmix_v1_plan_label209_partial(
         src_mask = src_mask & 0xFFFFFEBFu | 0x100u;
         dp.patch_mask(src_mask, 0xFFFFFFFFu);
         if ((v11 & 0x180u) == 0u)
-            return auro_downmix_v1_plan_label257_partial(
+            return /* Decompiled name: auro_downmix_v1_plan_label257 */
+auro_downmix_v1_plan_label257(
                 dp, src_mask, tgt_layout, tgt_class_hint, engine_complete);
     } else if ((v11 & 0x180u) == 0u) {
-        return auro_downmix_v1_plan_label257_partial(
+        return /* Decompiled name: auro_downmix_v1_plan_label257 */
+auro_downmix_v1_plan_label257(
             dp, src_mask, tgt_layout, tgt_class_hint, engine_complete);
     }
 
@@ -465,11 +477,13 @@ bool auro_downmix_v1_plan_label209_partial(
         dp.patch_mask(src_mask, 0xFFFFFFFFu);
     }
 
-    return auro_downmix_v1_plan_label257_partial(
+    return /* Decompiled name: auro_downmix_v1_plan_label257 */
+auro_downmix_v1_plan_label257(
         dp, src_mask, tgt_layout, tgt_class_hint, engine_complete);
 }
 
-bool auro_downmix_v1_plan_label101_v73_1536_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_label101_v73_1536 */
+auro_downmix_v1_plan_label101_v73_1536(
     DownmixPlanMut& dp,
     const std::int32_t* engine,
     std::uint32_t& src_mask,
@@ -520,7 +534,7 @@ bool auro_downmix_v1_plan_label101_v73_1536_partial(
                         return false;
                     *dp.row_count = r0 + 2u;
                     if (!auro_downmix_v1_plan_apply_label274(
-                            dp, r0, 14, kDmPair11784, 256u, 0xFFFFBF7Fu, src_mask))
+                            dp, r0, 14, kDmPair11784, 256u, 0xFFFFBEFFu, src_mask))
                         return false;
                 } else {
                     if (r0 > 0x33u)
@@ -532,7 +546,7 @@ bool auro_downmix_v1_plan_label101_v73_1536_partial(
                         return false;
                     *dp.row_count = r0 + 2u;
                     if (!auro_downmix_v1_plan_apply_label274(
-                            dp, r0, 14, kDmPair11269, 32u, 0xFFFFDFFFu, src_mask))
+                            dp, r0, 14, kDmPair11269, 32u, 0xFFFFBFDFu, src_mask))
                         return false;
                 }
             }
@@ -660,7 +674,8 @@ label_203:
     return true;
 }
 
-bool auro_downmix_v1_plan_height_post_label101_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_height_post_label101 */
+auro_downmix_v1_plan_height_post_label101(
     std::int32_t* plan,
     const std::int32_t* engine,
     std::uint32_t& src_mask,
@@ -762,7 +777,8 @@ bool auro_downmix_v1_plan_height_post_label101_partial(
     return true;
 }
 
-bool auro_downmix_v1_plan_height_tail_eng1_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_height_tail_eng1 */
+auro_downmix_v1_plan_height_tail_eng1(
     std::int32_t* plan,
     const std::int32_t* engine,
     std::uint32_t& src_mask,
@@ -778,8 +794,9 @@ bool auro_downmix_v1_plan_height_tail_eng1_partial(
         const std::uint64_t r0 = *dp.row_count;
         if (r0 > 0x33u)
             return false;
+        // IDA @591745: v66 = -4101 → 0xFFFFEFFB (clears Top+C, not RB).
         if (!auro_downmix_v1_plan_apply_label100(
-                dp, r0, 12, kDmPair6146, 4u, 0xFFFFFEFBu, src_mask))
+                dp, r0, 12, kDmPair6146, 4u, 0xFFFFEFFBu, src_mask))
             return false;
         // IDA LABEL_100 -> LABEL_101.
         if (goto_label101_out)
@@ -841,7 +858,8 @@ bool auro_downmix_v1_plan_height_tail_eng1_partial(
     return true;
 }
 
-bool auro_downmix_v1_plan_label101_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_label101 */
+auro_downmix_v1_plan_label101(
     std::int32_t* plan,
     const std::int32_t* engine,
     std::uint32_t& src_mask,
@@ -894,7 +912,7 @@ bool auro_downmix_v1_plan_label101_partial(
                     return false;
                 *dp.row_count = r0 + 2u;
                 if (!auro_downmix_v1_plan_apply_label274(
-                        dp, r0, 14, kDmPair11784, 256u, 0xFFFFBF7Fu, src_mask))
+                        dp, r0, 14, kDmPair11784, 256u, 0xFFFFBEFFu, src_mask))
                     return false;
             } else {
                 if (r0 > 0x33u)
@@ -906,7 +924,7 @@ bool auro_downmix_v1_plan_label101_partial(
                     return false;
                 *dp.row_count = r0 + 2u;
                 if (!auro_downmix_v1_plan_apply_label274(
-                        dp, r0, 14, kDmPair11269, 32u, 0xFFFFDFFFu, src_mask))
+                        dp, r0, 14, kDmPair11269, 32u, 0xFFFFBFDFu, src_mask))
                     return false;
             }
         }
@@ -936,14 +954,17 @@ bool auro_downmix_v1_plan_label101_partial(
                 return false;
         }
 
-        return auro_downmix_v1_plan_label209_partial(
+        return /* Decompiled name: auro_downmix_v1_plan_label209 */
+auro_downmix_v1_plan_label209(
             dp, src_mask, tgt_layout, inv_tgt, tgt_class_hint, engine_complete);
     }
 
-    if (!auro_downmix_v1_plan_label101_v73_1536_partial(
+    if (!/* Decompiled name: auro_downmix_v1_plan_label101_v73_1536 */
+auro_downmix_v1_plan_label101_v73_1536(
             dp, engine, src_mask, tgt_layout, inv_tgt))
         return false;
-    return auro_downmix_v1_plan_label209_partial(
+    return /* Decompiled name: auro_downmix_v1_plan_label209 */
+auro_downmix_v1_plan_label209(
         dp, src_mask, tgt_layout, inv_tgt, tgt_class_hint, engine_complete);
 }
 
@@ -980,7 +1001,8 @@ bool auro_downmix_v1_plan_apply_label29(
     return true;
 }
 
-bool auro_downmix_v1_plan_height_preprocess_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_height_preprocess */
+auro_downmix_v1_plan_height_preprocess(
     std::int32_t* plan,
     const std::int32_t* engine,
     std::uint32_t src_layout,
@@ -1171,51 +1193,55 @@ label_36:
         }
     }
 
+    // Native v200: (tgt_lo!=3) & ((uint8_t)tgt >> 2) — low byte only.
     const std::uint8_t tgt_class_hint =
-        static_cast<std::uint8_t>(static_cast<std::uint32_t>((tgt_layout & 3u) != 3u) & (tgt_layout >> 2u));
-    // IDA @590888: LABEL_101 when tgt has 0x1000 or src lacks it.
-    if ((tgt_layout & 0x1000u) != 0u || (src_mask & 0x1000u) == 0u) {
-        if (!auro_downmix_v1_plan_label101_partial(
-                plan, engine, src_mask, tgt_layout, inv_tgt, tgt_class_hint, engine_complete))
+        (tgt_layout & 3u) != 3u
+            ? static_cast<std::uint8_t>(static_cast<std::uint8_t>(tgt_layout) >> 2)
+            : static_cast<std::uint8_t>(0);
+    // IDA @590888: if (tgt&0x1000) || !(src&0x1000) goto LABEL_101; else
+    // eng0/eng1 Top routing (LABEL_100) then fall into LABEL_101.
+    // Previous port called LABEL_101 first; label209's finish set
+    // engine_complete and skipped Top (bit 12) routing for 0x11bf→0x3.
+    const bool skip_top_routing =
+        (tgt_layout & 0x1000u) != 0u || (src_mask & 0x1000u) == 0u;
+    if (!skip_top_routing) {
+        bool routed_to_label101 = false;
+        if ((tgt_layout & 0x30000000u) == 0x30000000u || (inv_tgt & 0x600u) == 0u) {
+            if (!/* Decompiled name: auro_downmix_v1_plan_height_post_label101 */
+auro_downmix_v1_plan_height_post_label101(
+                    plan, engine, src_mask, tgt_layout, inv_tgt, &routed_to_label101))
+                return false;
+            // When inv_tgt&0x600 != 0 and tgt lacks 0x30000000, post returns
+            // without routing (fall through to eng1 in the native CFG).
+            if (!routed_to_label101 && (inv_tgt & 0x600u) != 0u) {
+                if (!/* Decompiled name: auro_downmix_v1_plan_height_tail_eng1 */
+auro_downmix_v1_plan_height_tail_eng1(
+                        plan, engine, src_mask, tgt_layout, &routed_to_label101))
+                    return false;
+            }
+        } else {
+            if (!/* Decompiled name: auro_downmix_v1_plan_height_tail_eng1 */
+auro_downmix_v1_plan_height_tail_eng1(
+                    plan, engine, src_mask, tgt_layout, &routed_to_label101))
+                return false;
+        }
+        if (!routed_to_label101)
             return false;
-        if (engine_complete && *engine_complete)
-            return true;
     }
 
-    // IDA eng0: single LABEL_100 -> LABEL_101 (no re-entry).
-    {
-        bool goto_label101 = false;
-        if (!auro_downmix_v1_plan_height_post_label101_partial(
-                plan, engine, src_mask, tgt_layout, inv_tgt, &goto_label101))
-            return false;
-        if (goto_label101) {
-            if (!auro_downmix_v1_plan_label101_partial(
-                    plan, engine, src_mask, tgt_layout, inv_tgt, tgt_class_hint, engine_complete))
-                return false;
-            if (engine_complete && *engine_complete)
-                return true;
-        }
-    }
-
-    // IDA eng1: single LABEL_100 -> LABEL_101, then LABEL_275.
-    {
-        bool goto_tail101 = false;
-        if (!auro_downmix_v1_plan_height_tail_eng1_partial(
-                plan, engine, src_mask, tgt_layout, &goto_tail101))
-            return false;
-        if (goto_tail101) {
-            if (!auro_downmix_v1_plan_label101_partial(
-                    plan, engine, src_mask, tgt_layout, inv_tgt, tgt_class_hint, engine_complete))
-                return false;
-            if (engine_complete && *engine_complete)
-                return true;
-        }
-    }
+    if (!/* Decompiled name: auro_downmix_v1_plan_label101 */
+auro_downmix_v1_plan_label101(
+            plan, engine, src_mask, tgt_layout, inv_tgt, tgt_class_hint, engine_complete))
+        return false;
+    if (engine_complete && *engine_complete)
+        return true;
     // IDA LABEL_275 @ 591129: sub_5911C0 -> sub_5914E0 -> sub_5917B0.
-    return auro_downmix_v1_plan_finalize_label275_partial(plan, tgt_layout, tgt_class_hint);
+    return /* Decompiled name: auro_downmix_v1_plan_finalize_label275 */
+auro_downmix_v1_plan_finalize_label275(plan, tgt_layout, tgt_class_hint);
 }
 
-bool auro_downmix_v1_plan_sub_5911c0_partial(std::int32_t* plan, std::uint32_t tgt_layout) {
+bool /* Decompiled name: auro_downmix_v1_plan_add_height_routes */
+auro_downmix_v1_plan_add_height_routes(std::int32_t* plan, std::uint32_t tgt_layout) {
     auto* row_count = reinterpret_cast<std::uint64_t*>(plan);
     auto* out_mask = reinterpret_cast<std::uint32_t*>(plan + 159);
     const std::uint32_t inv_tgt = ~tgt_layout;
@@ -1343,7 +1369,8 @@ bool auro_downmix_v1_plan_sub_5911c0_partial(std::int32_t* plan, std::uint32_t t
     return true;
 }
 
-bool auro_downmix_v1_plan_sub_5914e0_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_add_center_routes */
+auro_downmix_v1_plan_add_center_routes(
     std::int32_t* plan,
     std::uint32_t tgt_layout,
     std::uint8_t tgt_class_hint) {
@@ -1462,7 +1489,8 @@ bool auro_downmix_v1_plan_sub_5914e0_partial(
     return true;
 }
 
-bool auro_downmix_v1_plan_sub_5917b0_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_add_front_routes */
+auro_downmix_v1_plan_add_front_routes(
     std::int32_t* plan,
     std::uint32_t tgt_layout,
     std::uint8_t tgt_class_hint) {
@@ -1605,24 +1633,30 @@ bool auro_downmix_v1_plan_sub_5917b0_partial(
     return true;
 }
 
-bool auro_downmix_v1_plan_finalize_label275_partial(
+bool /* Decompiled name: auro_downmix_v1_plan_finalize_label275 */
+auro_downmix_v1_plan_finalize_label275(
     std::int32_t* plan,
     std::uint32_t tgt_layout,
     std::uint8_t tgt_class_hint) {
-    return auro_downmix_v1_plan_sub_5911c0_partial(plan, tgt_layout)
-        && auro_downmix_v1_plan_sub_5914e0_partial(plan, tgt_layout, tgt_class_hint)
-        && auro_downmix_v1_plan_sub_5917b0_partial(plan, tgt_layout, tgt_class_hint);
+    return /* Decompiled name: auro_downmix_v1_plan_add_height_routes */
+auro_downmix_v1_plan_add_height_routes(plan, tgt_layout)
+        && /* Decompiled name: auro_downmix_v1_plan_add_center_routes */
+auro_downmix_v1_plan_add_center_routes(plan, tgt_layout, tgt_class_hint)
+        && /* Decompiled name: auro_downmix_v1_plan_add_front_routes */
+auro_downmix_v1_plan_add_front_routes(plan, tgt_layout, tgt_class_hint);
 }
 
 } // namespace
 
-void auro_downmix_v1_engine_t_construct_partial(std::uint8_t* engine_base) {
+void /* Decompiled name: auro_downmix_v1_engine_t_construct */
+auro_downmix_v1_engine_t_construct(std::uint8_t* engine_base) {
     if (!engine_base)
         return;
     std::memset(engine_base, 0, 56u);
 }
 
-bool auro_downmix_v1_engine_calculate_partial(
+bool /* Decompiled name: auro_downmix_v1_engine_calculate */
+auro_downmix_v1_engine_calculate(
     std::int32_t* engine,
     std::int32_t* plan,
     std::uint32_t src_layout,
@@ -1643,8 +1677,12 @@ bool auro_downmix_v1_engine_calculate_partial(
     }
     const std::uint32_t tgt_lo = tgt_layout & 3u;
     // Height entry @ 0x58EF80: v200 || tgt&0x40000000 || tgt_lo==3.
+    // v200 = (tgt_lo!=3) & ((uint8_t)tgt >> 2). Non-matching layouts return
+    // false — Hex-Rays `(result=0, cond)` has no separate successful branch.
     const std::uint8_t tgt_class_hint =
-        static_cast<std::uint8_t>(static_cast<std::uint32_t>(tgt_lo != 3u) & (tgt_layout >> 2u));
+        tgt_lo != 3u
+            ? static_cast<std::uint8_t>(static_cast<std::uint8_t>(tgt_layout) >> 2)
+            : static_cast<std::uint8_t>(0);
     const bool height_entry =
         tgt_class_hint != 0u || (tgt_layout & 0x40000000u) != 0u || tgt_lo == 3u;
     if (height_entry) {
@@ -1663,7 +1701,8 @@ bool auro_downmix_v1_engine_calculate_partial(
         plan[158] = static_cast<std::int32_t>(src_layout);
         plan[159] = static_cast<std::int32_t>(src_layout);
         bool engine_complete = false;
-        if (!auro_downmix_v1_plan_height_preprocess_partial(
+        if (!/* Decompiled name: auro_downmix_v1_plan_height_preprocess */
+auro_downmix_v1_plan_height_preprocess(
                 plan, engine, src_layout, tgt_layout, &engine_complete))
             return false;
         return static_cast<std::uint32_t>(plan[159]) != 0u;
@@ -1671,12 +1710,15 @@ bool auro_downmix_v1_engine_calculate_partial(
     return false;
 }
 
-DownmixToPartial codec_v3_downmix_to_partial(std::uint32_t layout, std::uint32_t target_layout) {
+DownmixToPartial /* Decompiled name: codec_v3_downmix_to */
+codec_v3_downmix_to(std::uint32_t layout, std::uint32_t target_layout) {
     DownmixToPartial out{};
     alignas(16) std::uint8_t engine[56]{};
     alignas(16) std::int32_t plan[kDownmixPlanIntCount]{};
-    auro_downmix_v1_engine_t_construct_partial(engine);
-    if (!auro_downmix_v1_engine_calculate_partial(
+    /* Decompiled name: auro_downmix_v1_engine_t_construct */
+auro_downmix_v1_engine_t_construct(engine);
+    if (!/* Decompiled name: auro_downmix_v1_engine_calculate */
+auro_downmix_v1_engine_calculate(
             reinterpret_cast<std::int32_t*>(engine),
             plan,
             layout,
@@ -1724,7 +1766,7 @@ void codec_v3_write_decide_decode_aggregate(std::uint64_t ctx, std::uint32_t agg
         std::uint32_t* state_word = reinterpret_cast<std::uint32_t*>(blob + 2496u);
         if (*state_word != aggregate_mask) {
             *state_word = aggregate_mask;
-            sub_4d95e0_partial(static_cast<std::int64_t>(ctx), 1);
+            auro_a3deng_v3_set_decode_state_and_notify(static_cast<std::int64_t>(ctx), 1);
         }
         return;
     }
@@ -1782,13 +1824,15 @@ void codec_v3_layout_pair_from_decoder(
 
 namespace {
 
-std::uint32_t codec_v3_decide_decode_fill_started_flags_partial(
+std::uint32_t /* Decompiled name: codec_v3_decide_decode_fill_started_flags */
+codec_v3_decide_decode_fill_started_flags(
     std::uint32_t count,
     std::uint64_t ranges_base,
     std::uint64_t started_base,
     std::uint32_t output_layout,
     std::uint32_t target_layout) {
-    const DownmixToPartial output_downmix = codec_v3_downmix_to_partial(output_layout, target_layout);
+    const DownmixToPartial output_downmix = /* Decompiled name: codec_v3_downmix_to */
+codec_v3_downmix_to(output_layout, target_layout);
     if (!output_downmix.ok) {
         for (std::uint32_t i = 0; i < count; ++i) {
             *reinterpret_cast<std::uint32_t*>(started_base + 4ull * static_cast<std::uint64_t>(i)) = 0u;
@@ -1811,7 +1855,8 @@ std::uint32_t codec_v3_decide_decode_fill_started_flags_partial(
             continue;
         }
 
-        const DownmixToPartial frame_downmix = codec_v3_downmix_to_partial(seg_flags, target_layout);
+        const DownmixToPartial frame_downmix = /* Decompiled name: codec_v3_downmix_to */
+codec_v3_downmix_to(seg_flags, target_layout);
         if (!frame_downmix.ok) {
             *started_word = 0u;
             continue;
@@ -1828,7 +1873,7 @@ std::uint32_t codec_v3_decide_decode_fill_started_flags_partial(
 
 } // namespace
 
-std::int64_t codec_v3_pre_segments_decide_decode_partial(
+std::int64_t codec_v3_pre_segments_decide_decode(
     std::uint64_t ctx,
     std::uint64_t ranges_base,
     std::uint64_t started_base) {
@@ -1849,7 +1894,8 @@ std::int64_t codec_v3_pre_segments_decide_decode_partial(
     std::uint32_t output_layout = 0u;
     std::uint32_t target_layout = 0u;
     codec_v3_layout_pair_from_ctx(ctx, &output_layout, &target_layout);
-    const std::uint32_t aggregate_mask = codec_v3_decide_decode_fill_started_flags_partial(
+    const std::uint32_t aggregate_mask = /* Decompiled name: codec_v3_decide_decode_fill_started_flags */
+codec_v3_decide_decode_fill_started_flags(
         count,
         ranges_base,
         started_base,
@@ -1859,7 +1905,7 @@ std::int64_t codec_v3_pre_segments_decide_decode_partial(
     return 0;
 }
 
-std::int64_t codec_v3_pre_segments_decide_decode_decoder_partial(
+std::int64_t codec_v3_pre_segments_decide_decode_decoder(
     std::uint64_t decoder_base,
     std::uint64_t ranges_base,
     std::uint64_t started_base) {
@@ -1881,7 +1927,8 @@ std::int64_t codec_v3_pre_segments_decide_decode_decoder_partial(
     std::uint32_t output_layout = 0u;
     std::uint32_t target_layout = 0u;
     codec_v3_layout_pair_from_decoder(dec, &output_layout, &target_layout);
-    const std::uint32_t aggregate_mask = codec_v3_decide_decode_fill_started_flags_partial(
+    const std::uint32_t aggregate_mask = /* Decompiled name: codec_v3_decide_decode_fill_started_flags */
+codec_v3_decide_decode_fill_started_flags(
         count,
         ranges_base,
         started_base,
@@ -1892,7 +1939,7 @@ std::int64_t codec_v3_pre_segments_decide_decode_decoder_partial(
     return 0;
 }
 
-std::int64_t codec_v3_pre_segments_decide_decode_layouts_partial(
+std::int64_t codec_v3_pre_segments_decide_decode_layouts(
     std::uint32_t segment_count,
     std::uint64_t ranges_base,
     std::uint64_t started_base,
@@ -1919,7 +1966,8 @@ std::int64_t codec_v3_pre_segments_decide_decode_layouts_partial(
         return 0;
     }
 
-    const std::uint32_t aggregate_mask = codec_v3_decide_decode_fill_started_flags_partial(
+    const std::uint32_t aggregate_mask = /* Decompiled name: codec_v3_decide_decode_fill_started_flags */
+codec_v3_decide_decode_fill_started_flags(
         segment_count,
         ranges_base,
         started_base,
@@ -1974,7 +2022,7 @@ void codec_v3_decide_decode_callback_eb8a0(
     notify_codec_v3_state_change(state, 1);
 }
 
-std::int64_t codec_v3_dispatch_eb5a0_partial(
+std::int64_t codec_v3_dispatch(
     CodecV3DispatchStateEb5a0* state,
     const CodecV3IoBufferDescEb5a0* input_desc,
     const CodecV3IoBufferDescEb5a0* output_desc,
@@ -2017,7 +2065,7 @@ std::int64_t codec_v3_process_partial_eb5a0(
     runtime->dispatch->sample_rate = input_desc->sample_rate;
 
     if (delay_line_write_buffer_106ab0(runtime->delay_line, input_desc, input_mask) != 0) {
-        format_detector_process_1056c0_partial(
+        format_detector_process(
             runtime->format_detector,
             input_desc,
             input_mask,
@@ -2149,7 +2197,7 @@ std::int64_t codec_v3_decoder_process_101800(
         reinterpret_cast<DelayLineState106b40*>(delay_line_base),
         input_desc,
         input_mask);
-    format_detector_process_1056c0_partial(
+    format_detector_process(
         &reinterpret_cast<FormatDetectorRegion1056c0*>(
             decoder_base + auro_codec_v3_ida::kDecoder_off_FormatDetector)->tail,
         input_desc,
@@ -2181,7 +2229,7 @@ std::int64_t codec_v3_decoder_process_101800(
     const std::uint64_t og_pre_cb = *reinterpret_cast<const std::uint64_t*>(
         decoder_base + auro_codec_v3_ida::kDecoder_off_OutputGenerator + kOgOff_pre_segments_cb);
     if (og_pre_cb == 0u) {
-        fns.pre_segments_callback = codec_v3_pre_segments_decide_decode_decoder_partial;
+        fns.pre_segments_callback = codec_v3_pre_segments_decide_decode_decoder;
         fns.pre_segments_ctx = reinterpret_cast<std::uint64_t>(decoder_base);
     }
     if (output_runtime_fns) {
@@ -2209,7 +2257,7 @@ std::int64_t codec_v3_decoder_process_101800(
 
     std::uint32_t local_status = 0u;
     std::uint32_t* status_ptr = io_status ? io_status : &local_status;
-    (void)output_generator_process_1024a9_partial(
+    (void)output_generator_process(
         decoder_base + auro_codec_v3_ida::kDecoder_off_OutputGenerator,
         reinterpret_cast<std::uint64_t>(output_desc),
         fns,
@@ -2306,9 +2354,9 @@ std::int64_t codec_v3_parser_process_1034e0(
                         auto* parse_result_slot = reinterpret_cast<std::uint64_t*>(v11 + 16u);
                         if (*parse_result_slot == 0u) {
                             const std::uint64_t v14 =
-                                ::auro3deng::parse_result_pool_get_new_107220_partial(a1[6]);
+                                ::auro3deng::parse_result_pool_get_new(a1[6]);
                             *parse_result_slot = v14;
-                            ::auro3deng::channel_parser_construct_104210_partial(
+                            ::auro3deng::channel_parser_construct(
                                 v12,
                                 v14,
                                 v6 + 28u,
@@ -2402,7 +2450,7 @@ std::int64_t codec_v3_parser_process_1034e0(
     }
 }
 
-std::int32_t codec_v3_decoder_process_validate_101800_partial(
+std::int32_t codec_v3_decoder_process_validate(
     const CodecV3DispatchStateEb5a0* state,
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask,
@@ -2468,7 +2516,7 @@ std::uint64_t delay_line_get_buffer_106b40(
     return state->ring_storage_base + kDelayLineBufferSlotStrideBytes * slot;
 }
 
-std::uint64_t delay_line_get_buffer_u64_state_partial(
+std::uint64_t delay_line_get_buffer_u64_state(
     std::uint64_t delay_line_ptr,
     std::uint64_t cursor,
     std::uint64_t* io_state_u64) {
@@ -2493,7 +2541,7 @@ std::uint64_t delay_line_get_channel_from_buffer_106ab0(
     return base ? (base + 4ull * start) : 0;
 }
 
-std::uint64_t delay_line_stream_index_5306c0_partial(
+std::uint64_t delay_line_stream_index(
     const DelayLineState106b40* state,
     std::uint32_t stage_count) {
     if (!state)
@@ -2540,13 +2588,13 @@ std::uint64_t delay_line_write_buffer_106ab0(
 }
 
 // Mirrors `auro_codec_v3_decoder_FormatDetector_process` @ 0x52D060 (libauro.so idb).
-void sync_detector_t_construct_105ee0_partial(SyncDetectorState105ee0* state) {
+void sync_detector_t_construct(SyncDetectorState105ee0* state) {
     if (!state)
         return;
     std::memset(state, 0, sizeof(*state));
 }
 
-void sync_detector_set_callback_105ee0_partial(
+void sync_detector_set_callback(
     SyncDetectorState105ee0* state,
     void (*notify)(void* ctx, std::int64_t kind, std::uint64_t a, std::uint64_t b),
     void* notify_ctx) {
@@ -2556,13 +2604,13 @@ void sync_detector_set_callback_105ee0_partial(
     state->notify_ctx = notify_ctx;
 }
 
-const std::uint32_t* sync_detector_get_common_header_105ee0_partial(const SyncDetectorState105ee0* state) {
+const std::uint32_t* sync_detector_get_common_header(const SyncDetectorState105ee0* state) {
     if (!state || state->enabled == 0u || state->state != 1u)
         return nullptr;
     return &state->detect_counter;
 }
 
-const SyncDetectorChannelState105ee0* sync_detector_find_channel_header_105ee0_partial(
+const SyncDetectorChannelState105ee0* sync_detector_find_channel_header(
     const SyncDetectorState105ee0* state,
     std::uint32_t channel) {
     if (!state || state->enabled == 0u || state->state != 1u)
@@ -2577,7 +2625,7 @@ const SyncDetectorChannelState105ee0* sync_detector_find_channel_header_105ee0_p
     return nullptr;
 }
 
-void format_detector_t_construct_1056c0_partial(
+void format_detector_t_construct(
     FormatDetectorRegion1056c0* region,
     std::uint8_t* decoder_base,
     std::uint8_t* memory_base) {
@@ -2594,15 +2642,15 @@ void format_detector_t_construct_1056c0_partial(
     const std::uint32_t stage0_count = *reinterpret_cast<const std::uint32_t*>(
         decoder_base + auro_codec_v3_ida::kDecoderConfig_off_stage0_count);
     region->tail.processed_samples =
-        delay_line_stream_index_5306c0_partial(delay_line, stage0_count);
-    sync_detector_t_construct_105ee0_partial(&region->sync);
-    sync_detector_set_callback_105ee0_partial(
+        delay_line_stream_index(delay_line, stage0_count);
+    sync_detector_t_construct(&region->sync);
+    sync_detector_set_callback(
         &region->sync,
-        format_detector_sync_callback_52ced0_partial,
+        format_detector_sync_callback,
         region);
 }
 
-void format_detector_sync_callback_52ced0_partial(
+void format_detector_sync_callback(
     void* region_raw,
     std::int64_t kind,
     std::uint64_t rel_start,
@@ -2614,9 +2662,9 @@ void format_detector_sync_callback_52ced0_partial(
 
     if (kind == 2) {
         if (tail.frame_deque_ptr != 0u) {
-            (void)frame_deque_pop_back_5303f0_partial(
+            (void)frame_deque_pop_back(
                 tail.frame_deque_ptr,
-                frame_mark_as_unused_106cd0_default_partial);
+                frame_mark_as_unused_106cd0_default);
         }
         // IDA sub_52CED0 kind==2: clear sync_state only (not expected_frame_end @+328).
         if (tail.sync_state != 0u) {
@@ -2643,7 +2691,7 @@ void format_detector_sync_callback_52ced0_partial(
 
     // IDA: Frame_t_construct always, then push only when common_header is valid.
     std::array<std::uint8_t, kCodecV3FrameDequeSlotCopyBytes> frame{};
-    frame_construct_106ba0_partial(
+    frame_construct(
         reinterpret_cast<std::uint64_t>(frame.data()),
         frame_start,
         frame_span,
@@ -2651,7 +2699,7 @@ void format_detector_sync_callback_52ced0_partial(
         active_mask);
 
     const std::uint32_t* common_header =
-        sync_detector_get_common_header_105ee0_partial(&region->sync);
+        sync_detector_get_common_header(&region->sync);
     if (!common_header)
         return;
     std::memcpy(frame.data() + 28u, common_header, 16u);
@@ -2664,7 +2712,7 @@ void format_detector_sync_callback_52ced0_partial(
         if (*reinterpret_cast<const std::uint32_t*>(slot + 4u) == 0u)
             continue;
         const std::uint32_t ch = *reinterpret_cast<const std::uint32_t*>(slot + 0u);
-        const auto* header = sync_detector_find_channel_header_105ee0_partial(&region->sync, ch);
+        const auto* header = sync_detector_find_channel_header(&region->sync, ch);
         if (!header)
             return;
         // IDA: get_channel_header returns &aligned_word; qword@+0 -> slot+8, dword@+8 -> slot+16.
@@ -2676,7 +2724,7 @@ void format_detector_sync_callback_52ced0_partial(
 
     if (tail.frame_deque_ptr == 0u)
         return;
-    if (frame_deque_push_back_13d5d0_partial(
+    if (frame_deque_push_back(
             tail.frame_deque_ptr,
             reinterpret_cast<std::uint64_t>(frame.data()),
             kCodecV3FrameDequeSlotCopyBytes) == 0)
@@ -2690,7 +2738,7 @@ void format_detector_sync_callback_52ced0_partial(
     }
 }
 
-void format_detector_process_1056c0_partial(
+void format_detector_process(
     FormatDetectorState1056c0* state,
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask,
@@ -2749,7 +2797,7 @@ void format_detector_process_1056c0_partial(
 }
 
 // Mirrors `auro_codec_v3_decoder_SyncDetector_set_layout` @ 0x52C460 (libauro.so idb).
-void sync_detector_set_layout_105ee0_partial(SyncDetectorState105ee0* state, std::uint32_t layout_mask) {
+void sync_detector_set_layout(SyncDetectorState105ee0* state, std::uint32_t layout_mask) {
     if (!state || state->layout == layout_mask)
         return;
 
@@ -2789,7 +2837,7 @@ void sync_detector_set_layout_105ee0_partial(SyncDetectorState105ee0* state, std
 }
 
 // Mirrors `auro_codec_v3_decoder_SyncDetector_process_block` @ 0x52C680 (libauro.so idb).
-void sync_detector_process_block_106110_partial(
+void sync_detector_process_block(
     SyncDetectorState105ee0* state,
     const std::uint64_t* channel_ptrs_27) {
     if (!state || !channel_ptrs_27 || state->enabled == 0)
@@ -2947,7 +2995,7 @@ OutputGeneratorSegmentPlan output_generator_build_segment_plan_1024a9(
         std::uint32_t frame_flags = 0;
 
         const std::uint64_t abs_pos = timeline_cursor + consumed;
-        frame_ptr = frame_deque_find_first_with_end_after_13d570_partial(base_q[kOgOff_frame_deque_ptr / 8], abs_pos);
+        frame_ptr = frame_deque_find_first_with_end_after(base_q[kOgOff_frame_deque_ptr / 8], abs_pos);
 
         if (frame_ptr != 0) {
             const std::uint64_t frame_start_u64 = *reinterpret_cast<std::uint64_t*>(frame_ptr + 0);
@@ -3435,7 +3483,7 @@ std::int64_t output_generator_process_1024a9(
         input_mask);
 }
 
-std::int64_t output_generator_process_1024a9_partial(
+std::int64_t output_generator_process(
     std::uint8_t* output_generator_base,
     std::uint64_t output_channels_table_base,
     const OutputGeneratorRuntimeFns1024a9& fns,
@@ -3451,7 +3499,7 @@ std::int64_t output_generator_process_1024a9_partial(
         input_mask);
 }
 
-std::int64_t decoder_run_output_generator_1024a9_partial(
+std::int64_t decoder_run_output_generator(
     const DecoderOutputGeneratorRunContext1024a9* ctx) {
     std::memset(ctx->output_channels_table, 0, ctx->output_channels_table_size);
     for (std::uint32_t ch = 0; ch < kCodecV3ChannelCount; ++ch) {
@@ -3471,7 +3519,7 @@ std::int64_t decoder_run_output_generator_1024a9_partial(
     *reinterpret_cast<std::uint64_t*>(ctx->output_generator_base + kOgOff_frame_deque_ptr) = ctx->frame_deque_ptr;
 
     std::uint32_t output_mask = 0;
-    const std::int64_t rc = output_generator_process_1024a9_partial(
+    const std::int64_t rc = output_generator_process(
         ctx->output_generator_base,
         reinterpret_cast<std::uint64_t>(ctx->output_channels_table),
         ctx->runtime_fns,
@@ -3483,7 +3531,7 @@ std::int64_t decoder_run_output_generator_1024a9_partial(
     return rc;
 }
 
-void output_generator_construct_52af20_partial(
+void output_generator_construct(
     std::uint8_t* output_generator_base,
     const std::uint8_t* output_config,
     std::uint64_t memory_base) {
@@ -3503,7 +3551,7 @@ void output_generator_construct_52af20_partial(
     const std::uint32_t latency_blocks =
         *reinterpret_cast<const std::uint32_t*>(output_config + 28u);
     *reinterpret_cast<std::uint64_t*>(output_generator_base + kOgOff_timeline_cursor) =
-        delay_line_stream_index_5306c0_partial(delay_line, latency_blocks);
+        delay_line_stream_index(delay_line, latency_blocks);
     std::memset(output_generator_base + 888u, 0, 0x158u);
     std::memset(output_generator_base + kOgOff_pre_segments_cb, 0, 32u);
     const std::uint32_t copy_input_flag = *reinterpret_cast<const std::uint32_t*>(output_config + 56u);

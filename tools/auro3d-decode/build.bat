@@ -2,7 +2,8 @@
 setlocal
 chcp 65001 >nul
 
-set "VSDEV=%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"
+set "VSDEV=%ProgramFiles%\Microsoft Visual Studio\18\Insiders\Common7\Tools\VsDevCmd.bat"
+if not exist "%VSDEV%" set "VSDEV=%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"
 if not exist "%VSDEV%" set "VSDEV=%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\Tools\VsDevCmd.bat"
 if not exist "%VSDEV%" set "VSDEV=%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat"
 if not exist "%VSDEV%" set "VSDEV=%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat"
@@ -22,7 +23,7 @@ rc /nologo /fo "..\..\bin\obj\auro3d-decode\xinn_presets.res" xinn_presets.rc
 if errorlevel 1 exit /b 1
 
 cl /nologo /std:c++17 /utf-8 /EHsc /O2 /D_CRT_SECURE_NO_WARNINGS /I. /Isrc ^
-  src\app\main.cpp src\app\decoder.cpp src\app\cx_probe.cpp ^
+  src\app\main.cpp src\app\decoder.cpp src\app\cx_probe.cpp src\app\cx_gain.cpp src\app\cx_decode.cpp src\app\awc_lossless.cpp src\app\lfe_decode.cpp src\app\sasc_apply.cpp src\app\sasc_plan.cpp src\app\sasc_resample.cpp ^
   src\io\wav_writer.cpp ^
   src\render\binaural_renderer.cpp src\render\java_auro_decode_pcm.cpp ^
   src\util\auro3deng_strength.cpp ^

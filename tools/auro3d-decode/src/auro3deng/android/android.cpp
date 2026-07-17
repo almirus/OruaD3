@@ -188,7 +188,7 @@ std::uint32_t a3deng_target_rate_31af50(
     std::uint32_t decoder_mode) {
     if (decoder_mode == 2u)
         output_mode = 0u;
-    return auro_a3deng_v4_android_A3DENG_output_sample_rate_3198d0_partial(input_sample_rate, output_mode);
+    return auro_a3deng_v4_android_A3DENG_calculate_output_sample_rate(input_sample_rate, output_mode);
 }
 
 A3DENGRateBlock_31af50 a3deng_rate_block_31af50(
@@ -300,7 +300,7 @@ std::uint32_t a3deng_current_output_sample_rate_31b700(std::uint8_t* a3deng_base
     const auto it = a3deng_partial_queues_319ae0().find(a3deng_base);
     if (it != a3deng_partial_queues_319ae0().end() && it->second.output_sample_rate != 0u)
         return it->second.output_sample_rate;
-    return auro_a3deng_v4_android_A3DENG_output_sample_rate_319920_partial(a3deng_base);
+    return auro_a3deng_v4_android_A3DENG_get_output_sample_rate(a3deng_base);
 }
 
 std::uint32_t a3deng_output_sample_bytes_31b7f0(std::uint32_t output_sample_type) {
@@ -341,7 +341,7 @@ std::uint32_t a3deng_input_sample_bits_31af50(std::uint32_t decoder_mode, std::u
 
 std::vector<std::uint32_t> a3deng_mask_channel_order_31ace0(std::uint32_t channel_mask, std::uint32_t hdmi_mapping) {
     alignas(16) std::uint8_t layout[0x188]{};
-    auro_a3deng_v4_android_channel_layout_31ace0_partial(layout, channel_mask, hdmi_mapping);
+    auro_a3deng_v4_android_channel_layout(layout, channel_mask, hdmi_mapping);
     const std::uint64_t count64 = *reinterpret_cast<const std::uint64_t*>(layout);
     const std::uint32_t count = static_cast<std::uint32_t>(std::min<std::uint64_t>(count64, 24u));
     std::vector<std::uint32_t> channels;
@@ -586,16 +586,16 @@ bool a3deng_native_configure_319e60(
     if (decoder_mode != 4u) {
         *reinterpret_cast<std::uint64_t*>(cfg.data() + kA3DENG_cfg_off_input_sample_rate) =
             a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_sample_rate_runtime);
-        auro_a3deng_v4_android_channel_layout_31ace0_partial(
+        auro_a3deng_v4_android_channel_layout(
             cfg.data() + kA3DENG_cfg_off_input_channels,
             a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_channel_mask_runtime),
             a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_hdmi_channel_mapping_runtime));
     }
     *reinterpret_cast<std::uint64_t*>(cfg.data() + kA3DENG_cfg_off_output_sample_rate) =
-        auro_a3deng_v4_android_A3DENG_output_sample_rate_319920_partial(a3deng_base);
+        auro_a3deng_v4_android_A3DENG_get_output_sample_rate(a3deng_base);
     *reinterpret_cast<std::uint32_t*>(cfg.data() + kA3DENG_cfg_off_target_device) =
-        auro_a3deng_v4_android_A3DENG_Settings_Config_target_device_3198b0_partial(settings_0x34);
-    auro_a3deng_v4_android_channel_layout_31ace0_partial(
+        auro_a3deng_v4_android_A3DENG_Settings_Config_target_device(settings_0x34);
+    auro_a3deng_v4_android_channel_layout(
         cfg.data() + kA3DENG_cfg_off_output_channels,
         a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_channel_mask_runtime),
         a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_hdmi_channel_mapping_runtime));
@@ -776,7 +776,7 @@ bool a3deng_render_audio_native_31b7f0(
             static_cast<std::uintptr_t>(api + auro_engine_v4_ida::kA3DENG_api_vtable_off_render_audio)));
     if (!fn)
         return false;
-    const std::uint64_t info = auro_a3deng_v4_android_A3DENG_get_output_info_31b4e0_partial(a3deng_base);
+    const std::uint64_t info = auro_a3deng_v4_android_A3DENG_get_output_info(a3deng_base);
     const std::uint32_t block_count = static_cast<std::uint32_t>(info >> 32u);
     if (block_count == 0u)
         return false;
@@ -932,7 +932,7 @@ bool a3deng_push_audio_native_31af50(
         a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_channel_mask_runtime);
     const std::uint32_t input_block_frames = decoder_mode == 4u
         ? input_byte_count
-        : auro_a3deng_v4_android_A3DENG_input_block_size_31b280_partial(a3deng_base);
+        : auro_a3deng_v4_android_A3DENG_input_block_size(a3deng_base);
     const std::uint32_t channels = decoder_mode == 4u
         ? 1u
         : auro_channel_Mask_count(input_mask, 0, 0);
@@ -962,7 +962,8 @@ bool a3deng_has_api_and_instance_31b4e0(const std::uint8_t* a3deng_base) {
     return api != 0u && instance != 0u;
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_valid_31ae50_partial(
+std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_valid */
+auro_a3deng_v4_android_A3DENG_valid(
     const std::uint8_t* a3deng_base) {
     return a3deng_has_api_and_instance_31b4e0(a3deng_base) ? 1 : 0;
 }
@@ -1010,33 +1011,33 @@ A3DENGSettingsCompare_319a00 a3deng_settings_compare_319a00(
 
 } // namespace
 
-std::uint32_t auro_a3deng_v4_android_A3DENG_input_block_size_31b280_partial(
+std::uint32_t auro_a3deng_v4_android_A3DENG_input_block_size(
     const std::uint8_t* a3deng_base) {
     return a3deng_input_block_size_31b280(a3deng_base);
 }
 
-std::uint32_t auro_a3deng_v4_android_A3DENG_Settings_Config_target_device_3198b0_partial(
+std::uint32_t auro_a3deng_v4_android_A3DENG_Settings_Config_target_device(
     const std::uint8_t* settings_0x34) {
     return a3deng_settings_config_target_device_3198b0(settings_0x34);
 }
 
-bool auro_a3deng_v4_android_A3DENG_Settings_Config_equals_3199c0_partial(
+bool auro_a3deng_v4_android_A3DENG_Settings_Config_equals(
     const std::uint8_t* lhs_0x34,
     const std::uint8_t* rhs_0x34) {
     return a3deng_settings_config_equals_3199c0(lhs_0x34, rhs_0x34);
 }
 
-std::uint32_t auro_a3deng_v4_android_A3DENG_Settings_virtualization_mode_319980_partial(
+std::uint32_t auro_a3deng_v4_android_A3DENG_Settings_virtualization_mode(
     const std::uint8_t* settings_0x34) {
     return a3deng_settings_virtualization_mode_319980(settings_0x34);
 }
 
-std::uint32_t auro_a3deng_v4_android_A3DENG_Settings_listening_mode_3199a0_partial(
+std::uint32_t auro_a3deng_v4_android_A3DENG_Settings_listening_mode(
     const std::uint8_t* settings_0x34) {
     return a3deng_settings_listening_mode_3199a0(settings_0x34);
 }
 
-std::uint8_t* auro_a3deng_v4_android_A3DENG_construct_319ae0_partial(
+std::uint8_t* auro_a3deng_v4_android_A3DENG_construct(
     std::uint8_t* a3deng_base,
     std::uint32_t pipeline_audio_block_size,
     std::uint32_t output_mode) {
@@ -1059,11 +1060,11 @@ std::uint8_t* auro_a3deng_v4_android_A3DENG_construct_319ae0_partial(
     return a3deng_base;
 }
 
-std::uint8_t* auro_a3deng_v4_android_A3DENG_AuroInitialize_318c90_partial(
+std::uint8_t* auro_a3deng_v4_android_A3DENG_AuroInitialize(
     std::uint32_t pipeline_audio_block_size,
     std::uint32_t output_mode) {
     auto* a3deng_base = new std::uint8_t[0x2E0u];
-    if (!auro_a3deng_v4_android_A3DENG_construct_319ae0_partial(
+    if (!auro_a3deng_v4_android_A3DENG_construct(
             a3deng_base,
             pipeline_audio_block_size,
             output_mode)) {
@@ -1073,17 +1074,17 @@ std::uint8_t* auro_a3deng_v4_android_A3DENG_AuroInitialize_318c90_partial(
     return a3deng_base;
 }
 
-void auro_a3deng_v4_android_A3DENG_destroy_319ae0_partial(std::uint8_t* a3deng_base) {
+void auro_a3deng_v4_android_A3DENG_destroy(std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return;
-    auro_a3deng_v4_android_A3DENG_destroy_instance_319dd0_partial(a3deng_base);
+    auro_a3deng_v4_android_A3DENG_destroy_instance(a3deng_base);
     auto& map = a3deng_partial_queues_319ae0();
     map.erase(a3deng_base);
     a3deng_debug_dirs_31bde0().erase(a3deng_base);
     std::memset(a3deng_base, 0, 0x2E0u);
 }
 
-bool auro_a3deng_v4_android_A3DENG_get_version_31bbe0_partial(
+bool auro_a3deng_v4_android_A3DENG_get_version(
     const std::uint8_t* a3deng_base,
     A3DENGVersionFields31bbe0* out) {
     if (!a3deng_base || !out)
@@ -1101,7 +1102,7 @@ bool auro_a3deng_v4_android_A3DENG_get_version_31bbe0_partial(
     return true;
 }
 
-bool auro_a3deng_v4_android_A3DENG_destroy_instance_319dd0_partial(
+bool auro_a3deng_v4_android_A3DENG_destroy_instance(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return false;
@@ -1134,7 +1135,7 @@ bool auro_a3deng_v4_android_A3DENG_destroy_instance_319dd0_partial(
     return true;
 }
 
-bool auro_a3deng_v4_android_A3DENG_create_instance_31a790_partial(
+bool auro_a3deng_v4_android_A3DENG_create_instance(
     std::uint8_t* a3deng_base,
     std::uint32_t decoder_mode) {
     if (!a3deng_base)
@@ -1184,17 +1185,17 @@ bool auro_a3deng_v4_android_A3DENG_create_instance_31a790_partial(
     return true;
 }
 
-std::uint8_t* auro_a3deng_v4_android_A3DENG_settings_319e50_partial(
+std::uint8_t* auro_a3deng_v4_android_A3DENG_settings(
     std::uint8_t* a3deng_base) {
     return a3deng_base ? a3deng_base + auro_engine_v4_ida::kA3DENG_off_settings : nullptr;
 }
 
-const std::uint8_t* auro_a3deng_v4_android_A3DENG_settings_319e50_partial(
+const std::uint8_t* auro_a3deng_v4_android_A3DENG_settings(
     const std::uint8_t* a3deng_base) {
     return a3deng_base ? a3deng_base + auro_engine_v4_ida::kA3DENG_off_settings : nullptr;
 }
 
-std::uint32_t auro_a3deng_v4_android_A3DENG_output_sample_rate_3198d0_partial(
+std::uint32_t auro_a3deng_v4_android_A3DENG_calculate_output_sample_rate(
     std::uint32_t input_sample_rate,
     std::uint32_t output_mode) {
     if (input_sample_rate == 0u)
@@ -1224,7 +1225,7 @@ std::uint32_t auro_a3deng_v4_android_A3DENG_output_sample_rate_3198d0_partial(
     return input_sample_rate;
 }
 
-std::uint32_t auro_a3deng_v4_android_A3DENG_output_sample_rate_319920_partial(
+std::uint32_t auro_a3deng_v4_android_A3DENG_get_output_sample_rate(
     const std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 48000u;
@@ -1233,15 +1234,15 @@ std::uint32_t auro_a3deng_v4_android_A3DENG_output_sample_rate_319920_partial(
     std::uint32_t output_mode = 0u;
     if (a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_decoder_mode) != 2u)
         output_mode = a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_mode);
-    return auro_a3deng_v4_android_A3DENG_output_sample_rate_3198d0_partial(input_sample_rate, output_mode);
+    return auro_a3deng_v4_android_A3DENG_calculate_output_sample_rate(input_sample_rate, output_mode);
 }
 
-std::string auro_a3deng_v4_android_A3DENG_AuroVersion_3188e0_partial() {
+std::string auro_a3deng_v4_android_A3DENG_AuroVersion() {
     alignas(8) std::uint8_t tmp[0x2E0u];
-    auro_a3deng_v4_android_A3DENG_construct_319ae0_partial(tmp, 0x40u, 1u);
+    auro_a3deng_v4_android_A3DENG_construct(tmp, 0x40u, 1u);
     A3DENGVersionFields31bbe0 version{};
-    if (!auro_a3deng_v4_android_A3DENG_get_version_31bbe0_partial(tmp, &version)) {
-        auro_a3deng_v4_android_A3DENG_destroy_319ae0_partial(tmp);
+    if (!auro_a3deng_v4_android_A3DENG_get_version(tmp, &version)) {
+        auro_a3deng_v4_android_A3DENG_destroy(tmp);
         return {};
     }
 
@@ -1269,59 +1270,60 @@ std::string auro_a3deng_v4_android_A3DENG_AuroVersion_3188e0_partial() {
         out.push_back('-');
         out += version.tag;
     }
-    auro_a3deng_v4_android_A3DENG_destroy_319ae0_partial(tmp);
+    auro_a3deng_v4_android_A3DENG_destroy(tmp);
     return out;
 }
 
-bool auro_a3deng_v4_android_A3DENG_AuroRelease_318d14_partial(std::uint8_t* a3deng_base) {
+bool auro_a3deng_v4_android_A3DENG_AuroRelease(std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return false;
-    auro_a3deng_v4_android_A3DENG_destroy_319ae0_partial(a3deng_base);
+    auro_a3deng_v4_android_A3DENG_destroy(a3deng_base);
     delete[] a3deng_base;
     return true;
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_AuroIsValid_318cd0_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_AuroIsValid(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0;
-    return auro_a3deng_v4_android_A3DENG_valid_31ae50_partial(a3deng_base);
+    return /* Decompiled name: auro_a3deng_v4_android_A3DENG_valid */
+auro_a3deng_v4_android_A3DENG_valid(a3deng_base);
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_AuroReset_318fa0_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_AuroReset(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0;
-    return auro_a3deng_v4_android_A3DENG_reset_31ae90_partial(a3deng_base) ? 1 : 0;
+    return auro_a3deng_v4_android_A3DENG_reset(a3deng_base) ? 1 : 0;
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_AuroPush_318fe0_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_AuroPush(
     std::uint8_t* a3deng_base,
     const std::uint8_t* input_bytes,
     std::int32_t input_byte_count) {
     if (!a3deng_base || !input_bytes)
         return 0;
-    return auro_a3deng_v4_android_A3DENG_push_31af50_partial(
+    return auro_a3deng_v4_android_A3DENG_push(
         a3deng_base,
         input_bytes,
         static_cast<std::uint32_t>(input_byte_count));
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_AuroGetLatencyUs_319050_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_AuroGetLatencyUs(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0;
-    return auro_a3deng_v4_android_A3DENG_get_latency_nr_samples_31b5f0_partial(a3deng_base);
+    return auro_a3deng_v4_android_A3DENG_get_latency_nr_samples(a3deng_base);
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_AuroGetOutputChannelCount_319090_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_AuroGetOutputChannelCount(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0;
-    return auro_a3deng_v4_android_A3DENG_get_output_channel_count_31b400_partial(a3deng_base);
+    return auro_a3deng_v4_android_A3DENG_get_output_channel_count(a3deng_base);
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_AuroPop_319120_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_AuroPop(
     std::uint8_t* a3deng_base,
     std::uint8_t* output_bytes,
     std::int32_t output_byte_count) {
@@ -1329,39 +1331,39 @@ std::int64_t auro_a3deng_v4_android_A3DENG_AuroPop_319120_partial(
         return 0;
     if (!output_bytes || output_byte_count <= 0)
         return -1;
-    return auro_a3deng_v4_android_A3DENG_pop_31b7a0_partial(
+    return auro_a3deng_v4_android_A3DENG_pop(
         a3deng_base,
         output_bytes,
         output_byte_count);
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_AuroGetMaximumOutputBytecount_319040_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_AuroGetMaximumOutputBytecount(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0;
     const std::uint64_t packed =
-        auro_a3deng_v4_android_A3DENG_get_maximum_output_bytecount_31b5a0_partial(a3deng_base);
+        auro_a3deng_v4_android_A3DENG_get_maximum_output_bytecount(a3deng_base);
     if ((packed & 0xFF00000000ull) == 0u)
         return -1;
     return static_cast<std::int64_t>(packed & 0xFFFFFFFFull);
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_AuroInputBlockSize_3191d0_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_AuroInputBlockSize(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0;
     return static_cast<std::int64_t>(
-        auro_a3deng_v4_android_A3DENG_input_block_size_31b280_partial(a3deng_base));
+        auro_a3deng_v4_android_A3DENG_input_block_size(a3deng_base));
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_AuroResetAudioState_319210_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_AuroResetAudioState(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0;
-    return auro_a3deng_v4_android_A3DENG_reset_audio_state_31bc00_partial(a3deng_base) ? 1 : 0;
+    return auro_a3deng_v4_android_A3DENG_reset_audio_state(a3deng_base) ? 1 : 0;
 }
 
-bool auro_a3deng_v4_android_A3DENG_AuroSetDebugPath_319260_partial(
+bool auro_a3deng_v4_android_A3DENG_AuroSetDebugPath(
     std::uint8_t* a3deng_base,
     const char* path_utf8,
     const char* tag_utf8) {
@@ -1369,7 +1371,7 @@ bool auro_a3deng_v4_android_A3DENG_AuroSetDebugPath_319260_partial(
         return false;
     if (!path_utf8 || !tag_utf8)
         return false;
-    (void)auro_a3deng_v4_android_A3DENG_set_debug_path_31bde0_partial(
+    (void)auro_a3deng_v4_android_A3DENG_set_debug_path(
         a3deng_base,
         path_utf8,
         tag_utf8);
@@ -1434,17 +1436,17 @@ void auro_a3deng_v4_android_A3DENG_settings_pack_like_jni_318d60(
         f.hp_hrtf_preset);
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_AuroUpdate2_318d60_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_AuroUpdate2(
     std::uint8_t* a3deng_base,
     const A3DENGSettingsFields318d60& f) {
     if (!a3deng_base)
         return 0;
     alignas(8) std::uint8_t settings[0x34];
     auro_a3deng_v4_android_A3DENG_settings_pack_like_jni_318d60(settings, f);
-    return auro_a3deng_v4_android_A3DENG_update_319e60_partial(a3deng_base, settings) ? 1 : 0;
+    return auro_a3deng_v4_android_A3DENG_update(a3deng_base, settings) ? 1 : 0;
 }
 
-bool auro_a3deng_v4_android_A3DENG_update_319e60_partial(
+bool auro_a3deng_v4_android_A3DENG_update(
     std::uint8_t* a3deng_base,
     const std::uint8_t* settings_0x34) {
     if (!a3deng_base || !settings_0x34)
@@ -1474,17 +1476,17 @@ bool auro_a3deng_v4_android_A3DENG_update_319e60_partial(
         return false;
 
     if (*reinterpret_cast<const std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance) == 0u) {
-        if (!auro_a3deng_v4_android_A3DENG_create_instance_31a790_partial(a3deng_base, decoder_mode))
+        if (!auro_a3deng_v4_android_A3DENG_create_instance(a3deng_base, decoder_mode))
             return false;
     }
 
     const bool was_configured = a3deng_base[auro_engine_v4_ida::kA3DENG_off_configured] != 0u;
     auto cmp = a3deng_settings_compare_319a00(
         settings_0x34,
-        auro_a3deng_v4_android_A3DENG_settings_319e50_partial(a3deng_base));
+        auro_a3deng_v4_android_A3DENG_settings(a3deng_base));
     if (!was_configured)
         cmp = {true, true};
-    std::memcpy(auro_a3deng_v4_android_A3DENG_settings_319e50_partial(a3deng_base), settings_0x34, 0x34u);
+    std::memcpy(auro_a3deng_v4_android_A3DENG_settings(a3deng_base), settings_0x34, 0x34u);
     a3deng_base[auro_engine_v4_ida::kA3DENG_off_configured] = 1u;
     if (!cmp.config_changed && !cmp.dynamic_changed)
         return true;
@@ -1510,12 +1512,12 @@ bool auro_a3deng_v4_android_A3DENG_update_319e60_partial(
         a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_hp_hrtf_preset));
     auto& q = a3deng_partial_queues_319ae0()[a3deng_base];
     q.target_device =
-        auro_a3deng_v4_android_A3DENG_Settings_Config_target_device_3198b0_partial(settings_0x34);
-    q.output_sample_rate = auro_a3deng_v4_android_A3DENG_output_sample_rate_319920_partial(a3deng_base);
+        auro_a3deng_v4_android_A3DENG_Settings_Config_target_device(settings_0x34);
+    q.output_sample_rate = auro_a3deng_v4_android_A3DENG_get_output_sample_rate(a3deng_base);
     q.effective_virtualization_mode =
-        auro_a3deng_v4_android_A3DENG_Settings_virtualization_mode_319980_partial(settings_0x34);
+        auro_a3deng_v4_android_A3DENG_Settings_virtualization_mode(settings_0x34);
     q.effective_listening_mode =
-        auro_a3deng_v4_android_A3DENG_Settings_listening_mode_3199a0_partial(settings_0x34);
+        auro_a3deng_v4_android_A3DENG_Settings_listening_mode(settings_0x34);
     q.is_abr = settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_is_abr] != 0u;
     if (cmp.config_changed && !a3deng_native_configure_319e60(a3deng_base, settings_0x34))
         return false;
@@ -1524,7 +1526,7 @@ bool auro_a3deng_v4_android_A3DENG_update_319e60_partial(
     return true;
 }
 
-void auro_a3deng_v4_android_channel_layout_31ace0_partial(
+void auro_a3deng_v4_android_channel_layout(
     std::uint8_t* layout_0x188,
     std::uint32_t channel_mask,
     std::uint32_t hdmi_channel_mapping) {
@@ -1555,7 +1557,7 @@ bool a3deng_output_info_valid_31b4e0(std::uint64_t output_info) {
         && static_cast<std::uint32_t>(output_info >> 32u) != 0u;
 }
 
-std::uint64_t auro_a3deng_v4_android_A3DENG_get_output_info_31b4e0_partial(
+std::uint64_t auro_a3deng_v4_android_A3DENG_get_output_info(
     std::uint8_t* a3deng_base) {
     if (!a3deng_has_api_and_instance_31b4e0(a3deng_base))
         return 0u;
@@ -1567,11 +1569,11 @@ std::uint64_t auro_a3deng_v4_android_A3DENG_get_output_info_31b4e0_partial(
         | static_cast<std::uint64_t>(static_cast<std::uint8_t>(pipeline_field));
 }
 
-std::uint64_t auro_a3deng_v4_android_A3DENG_get_maximum_output_bytecount_31b5a0_partial(
+std::uint64_t auro_a3deng_v4_android_A3DENG_get_maximum_output_bytecount(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0u;
-    const std::uint64_t info = auro_a3deng_v4_android_A3DENG_get_output_info_31b4e0_partial(a3deng_base);
+    const std::uint64_t info = auro_a3deng_v4_android_A3DENG_get_output_info(a3deng_base);
     const std::uint32_t block_size = static_cast<std::uint32_t>(info);
     const std::uint32_t block_count = static_cast<std::uint32_t>(info >> 32u);
     if (!a3deng_output_info_valid_31b4e0(info))
@@ -1590,14 +1592,14 @@ std::uint64_t auro_a3deng_v4_android_A3DENG_get_maximum_output_bytecount_31b5a0_
     return 0x100000000ull | (bytes & 0xFFFFFFFFull);
 }
 
-bool auro_a3deng_v4_android_A3DENG_reset_31ae90_partial(std::uint8_t* a3deng_base) {
+bool auro_a3deng_v4_android_A3DENG_reset(std::uint8_t* a3deng_base) {
     if (!a3deng_has_api_and_instance_31b4e0(a3deng_base))
         return false;
     a3deng_base[auro_engine_v4_ida::kA3DENG_off_pruned_output_valid] = 0u;
     return true;
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_get_latency_nr_samples_31b5f0_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_get_latency_nr_samples(
     std::uint8_t* a3deng_base) {
     if (!a3deng_has_api_and_instance_31b4e0(a3deng_base))
         return -1;
@@ -1617,10 +1619,10 @@ std::int64_t auro_a3deng_v4_android_A3DENG_get_latency_nr_samples_31b5f0_partial
     return 0;
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_get_latency_us_31b700_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_get_latency_us(
     std::uint8_t* a3deng_base) {
     const std::int64_t latency_samples =
-        auro_a3deng_v4_android_A3DENG_get_latency_nr_samples_31b5f0_partial(a3deng_base);
+        auro_a3deng_v4_android_A3DENG_get_latency_nr_samples(a3deng_base);
     if (latency_samples == -1)
         return -1;
     const std::uint32_t output_sample_rate = a3deng_current_output_sample_rate_31b700(a3deng_base);
@@ -1633,7 +1635,7 @@ std::int64_t auro_a3deng_v4_android_A3DENG_get_latency_us_31b700_partial(
     return static_cast<std::uint32_t>(static_cast<std::int32_t>(latency_us));
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_push_31af50_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_push(
     std::uint8_t* a3deng_base,
     const std::uint8_t* input_bytes,
     std::uint32_t input_byte_count) {
@@ -1661,7 +1663,7 @@ std::int64_t auro_a3deng_v4_android_A3DENG_push_31af50_partial(
     if (input_sample_bytes == 0u)
         return 0;
     const std::uint32_t input_block_frames =
-        auro_a3deng_v4_android_A3DENG_input_block_size_31b280_partial(a3deng_base);
+        auro_a3deng_v4_android_A3DENG_input_block_size(a3deng_base);
     const std::uint32_t channel_count = std::max<std::uint32_t>(1u, auro_channel_Mask_count(input_mask, 0, 0));
     const std::uint64_t bytes_per_block =
         static_cast<std::uint64_t>(input_block_frames) * channel_count * input_sample_bytes;
@@ -1673,7 +1675,7 @@ std::int64_t auro_a3deng_v4_android_A3DENG_push_31af50_partial(
     return 1;
 }
 
-bool auro_a3deng_v4_android_A3DENG_reset_audio_state_31bc00_partial(std::uint8_t* a3deng_base) {
+bool auro_a3deng_v4_android_A3DENG_reset_audio_state(std::uint8_t* a3deng_base) {
     if (!a3deng_has_api_and_instance_31b4e0(a3deng_base))
         return false;
     bool ok = true;
@@ -1700,7 +1702,7 @@ bool auro_a3deng_v4_android_A3DENG_reset_audio_state_31bc00_partial(std::uint8_t
     return ok;
 }
 
-bool auro_a3deng_v4_android_A3DENG_set_debug_path_31bde0_partial(
+bool auro_a3deng_v4_android_A3DENG_set_debug_path(
     std::uint8_t* a3deng_base,
     const char* path_utf8,
     const char* tag_utf8) {
@@ -1725,7 +1727,7 @@ bool auro_a3deng_v4_android_A3DENG_set_debug_path_31bde0_partial(
     return true;
 }
 
-bool auro_a3deng_v4_android_A3DENG_pop_internal_31b7f0_partial(
+bool auro_a3deng_v4_android_A3DENG_pop_internal(
     std::uint8_t* a3deng_base,
     std::uint8_t*& output_bytes,
     std::int32_t& remaining_output_byte_count) {
@@ -1733,7 +1735,7 @@ bool auro_a3deng_v4_android_A3DENG_pop_internal_31b7f0_partial(
         return false;
     if (a3deng_render_audio_native_31b7f0(a3deng_base, output_bytes, remaining_output_byte_count))
         return true;
-    const std::uint64_t info = auro_a3deng_v4_android_A3DENG_get_output_info_31b4e0_partial(a3deng_base);
+    const std::uint64_t info = auro_a3deng_v4_android_A3DENG_get_output_info(a3deng_base);
     const std::uint32_t block_count = static_cast<std::uint32_t>(info >> 32u);
     if (!a3deng_output_info_valid_31b4e0(info))
         return false;
@@ -1741,7 +1743,7 @@ bool auro_a3deng_v4_android_A3DENG_pop_internal_31b7f0_partial(
     const std::uint32_t pipeline_block =
         a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_pipeline_audio_block_size);
     const std::uint32_t input_block =
-        auro_a3deng_v4_android_A3DENG_input_block_size_31b280_partial(a3deng_base);
+        auro_a3deng_v4_android_A3DENG_input_block_size(a3deng_base);
     const std::uint32_t output_mask =
         a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_channel_mask_runtime);
     const std::uint32_t input_mask =
@@ -1811,32 +1813,32 @@ bool auro_a3deng_v4_android_A3DENG_pop_internal_31b7f0_partial(
     return true;
 }
 
-std::int64_t auro_a3deng_v4_android_A3DENG_pop_31b7a0_partial(
+std::int64_t auro_a3deng_v4_android_A3DENG_pop(
     std::uint8_t* a3deng_base,
     std::uint8_t* output_bytes,
     std::int32_t output_byte_count) {
     std::uint8_t* output_cursor = output_bytes;
     std::int32_t remaining = output_byte_count;
-    if (!auro_a3deng_v4_android_A3DENG_pop_internal_31b7f0_partial(a3deng_base, output_cursor, remaining))
+    if (!auro_a3deng_v4_android_A3DENG_pop_internal(a3deng_base, output_cursor, remaining))
         return -1;
     return static_cast<std::int64_t>(output_byte_count - remaining);
 }
 
-std::uint32_t auro_a3deng_v4_android_A3DENG_get_output_layout_31b330_partial(
+std::uint32_t auro_a3deng_v4_android_A3DENG_get_output_layout(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0u;
     return a3deng_pruned_output_mask_31b330(a3deng_base);
 }
 
-std::uint32_t auro_a3deng_v4_android_A3DENG_get_output_channel_count_31b400_partial(
+std::uint32_t auro_a3deng_v4_android_A3DENG_get_output_channel_count(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0u;
-    return auro_channel_Mask_count(auro_a3deng_v4_android_A3DENG_get_output_layout_31b330_partial(a3deng_base), 0, 0);
+    return auro_channel_Mask_count(auro_a3deng_v4_android_A3DENG_get_output_layout(a3deng_base), 0, 0);
 }
 
-void auro_a3deng_v4_android_A3DENG_set_codec_v3_pop_render_hook_partial(
+void auro_a3deng_v4_android_A3DENG_set_codec_v3_pop_render_hook(
     std::uint8_t* a3deng_base,
     A3dengCodecV3PopRenderFn fn,
     void* user) {
@@ -1847,7 +1849,7 @@ void auro_a3deng_v4_android_A3DENG_set_codec_v3_pop_render_hook_partial(
     q.codec_v3_pop_render_user = user;
 }
 
-const std::uint8_t* auro_a3deng_v4_android_A3DENG_partial_queue_input_data_partial(
+const std::uint8_t* auro_a3deng_v4_android_A3DENG_partial_queue_input_data(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return nullptr;
@@ -1857,7 +1859,7 @@ const std::uint8_t* auro_a3deng_v4_android_A3DENG_partial_queue_input_data_parti
     return it->second.input.data();
 }
 
-std::size_t auro_a3deng_v4_android_A3DENG_partial_queue_input_size_partial(
+std::size_t auro_a3deng_v4_android_A3DENG_partial_queue_input_size(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0u;
@@ -1909,7 +1911,7 @@ static void a3deng_write_interleaved_sample_i32(
     }
 }
 
-bool auro_a3deng_v4_android_A3DENG_consume_interleaved_input_to_planar_i32_partial(
+bool auro_a3deng_v4_android_A3DENG_consume_interleaved_input_to_planar_i32(
     std::uint8_t* a3deng_base,
     std::uint32_t frames,
     std::uint32_t input_mask,
@@ -1967,7 +1969,7 @@ bool auro_a3deng_v4_android_A3DENG_consume_interleaved_input_to_planar_i32_parti
     return frames_to_copy == frames;
 }
 
-std::uint64_t a3deng_write_pruned_interleaved_from_planar_i32_partial(
+std::uint64_t a3deng_write_pruned_interleaved_from_planar_i32(
     std::uint8_t* a3deng_base,
     std::uint8_t* output_bytes,
     std::uint32_t frames,
@@ -2040,7 +2042,7 @@ OutputGeneratorExtrapolateSources output_generator_select_extrapolate_sources_10
     return out;
 }
 
-void a3deng_u32_vector_assign_sub_31cb30_partial(
+void a3deng_u32_vector_assign_sub(
     std::uint8_t* vector_base24,
     const void* src_bytes,
     std::size_t uint32_element_count) {
@@ -2064,7 +2066,7 @@ void a3deng_u32_vector_assign_sub_31cb30_partial(
     *cap_end = p + uint32_element_count;
 }
 
-std::uint32_t a3deng_channel_mask_slots_hdmi_back_before_surround_partial(
+std::uint32_t a3deng_channel_mask_slots_hdmi_back_before_surround(
     std::uint32_t* out_slots,
     std::uint32_t out_cap,
     std::uint32_t channel_mask) {
@@ -2082,7 +2084,7 @@ std::uint32_t a3deng_channel_mask_slots_hdmi_back_before_surround_partial(
     return n;
 }
 
-std::int64_t auro_iir_biquad_parameter_Config_float32_t_compute_partial(
+std::int64_t auro_iir_biquad_parameter_Config_float32_t_compute(
     std::uint8_t* param_stack12,
     std::uint64_t cfg_ptr,
     std::uint8_t* coeff_state_out) {

@@ -164,7 +164,7 @@ void zero_unproduced_output_channels_1024a9(
 }
 
 // IDA: `auro_codec_v3_decoder_OutputGenerator_cross_fade_` @ `auro_engine_v4_ida::kLibauro_codec_OutputGenerator_cross_fade_inner`.
-std::int64_t output_generator_cross_fade_52b0b0_partial(
+std::int64_t output_generator_cross_fade(
     std::uint8_t* output_generator_base,
     std::uint64_t output_channels_table_base,
     std::uint32_t fade_in_mask,
@@ -391,7 +391,8 @@ std::int32_t div4_mix3_52e5c0(std::int32_t v39, std::int32_t v46) {
 }
 
 // libauro3d `0x104460` / libauro `auro_codec_v3_ida::kLibauro_codec_channel_Extrapolate_process`.
-std::int64_t extrapolate_process_104460_partial(
+std::int64_t /* Decompiled name: extrapolate_process */
+extrapolate_process(
     std::uint64_t ex_state_ptr,
     std::uint64_t channel_ptr,
     std::uint64_t errors_buf_ptr,
@@ -1296,7 +1297,8 @@ std::int64_t raw_decode_channel_segment(
     if (c->fns.extrapolate_process) {
         (void)c->fns.extrapolate_process(ex_state, src_ptr, errors_buf, s0, s1, s2, sample_count);
     } else {
-        (void)extrapolate_process_104460_partial(ex_state, src_ptr, errors_buf, s0, s1, s2, sample_count);
+        (void)/* Decompiled name: extrapolate_process */
+extrapolate_process(ex_state, src_ptr, errors_buf, s0, s1, s2, sample_count);
     }
     return 0;
 }

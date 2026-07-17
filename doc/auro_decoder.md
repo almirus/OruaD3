@@ -5,8 +5,8 @@ how AURO metadata is found in PCM, how layouts are derived, and how missing
 channels are reconstructed.
 
 The implementation targets metadata-bearing Auro-Codec streams in PCM carriers.
-The AuroCX path and the Auro-Matic XinN synthetic upmixer are intentionally not
-implemented.
+The AuroCX path is implemented separately for MP4 `a3ds` tracks. The Auro-Matic
+XinN synthetic upmixer is intentionally not implemented.
 
 ## Input model
 
@@ -218,21 +218,218 @@ carrier_passthrough=ch0(FL),ch1(FR),ch3(LFE)
 auromatic=ch2(C),ch4(LS),ch5(RS)
 ```
 
+## Probe (`--probe`)
+
+`--probe -i <file>` prints diagnostics without writing PCM (`-o` not required).
+Dispatch matches decode: MP4 with an `a3ds` sample entry uses the AuroCX
+container/schema probe; otherwise the classic/native path opens the file and
+prints the same open-time layout/metadata lines as `-v`.
+
+### AuroCX MP4 probe
+
+The AuroCX path is separate from the PCM/WAV codec-v3 decoder. The probe reads
+an MP4 `a3ds` track, parses `acxd`, reconstructs access-unit offsets from
+`stsc`/`stsz`/`stco`/`co64`, validates the `A3 DC 0D ED` sync prefix, and
+decodes XOR/VLQ blob segment `1` as the schema block.
+
+### Confirmed schema syntax (segment 1)
+
+- **ConfigHeader** starts with unary codec version/profile, 3-bit sample-rate id
+  (20 extra bits when id=7), block-size id, audio-stream unary bit width, and a
+  `common` flag. Markus AU1/AU2 use `common=0` with explicit counts (`beds=1`);
+  when `common=1`, counts are inherited from `SchemaDecodeState` (requires a valid
+  prior AU).
+- **Program optional tail** (loudness/DRC/optionals #8/#9) is parsed only on initial
+  AUs; delta AUs skip it. `Loudness_t` is three 3/2/2-bit fields plus up to three
+  optional `LoudnessDataSet` blocks (9× optional 11-bit levels each). DRC uses
+  VLQ(8) byte count + 8 bits per element.
+- **ConfigData** follows with program, bed, object, switch, and extension
+  metadata. `Audio.pdus` begins at the exact cursor produced by that traversal;
+  the decoder does not scan for the PDU vector or payload starts.
+- **Bed/Object mappings** retain all bed channel layers, ambisonics component
+  streams, object-group streams, and switch-group references. SASC channel
+  counts are derived from the selected schema element and linked object groups.
+- **PDU vector** count uses unary quotient + `audio_stream_bits` remainder
+  (matches decompiled golomb_rice with parameter = stream bit width).
+- **ConfigData extensions** follow programs, beds, objects, and switches. Each
+  `auro_cx_user_Extension_t` starts with two base-8 VLQs carried in 4-bit
+  continuation chunks, followed by a VLQ(8) payload byte count and exactly that
+  many payload bytes. This accounts for the observed 40- and 48-bit additions
+  before `Audio.pdus`.
+- **Initial AWC payload config** (inside schema PDU payload, not frame body):
+  lossless AWC uses `9 + 4*stream_count` bits (common preamble often `10`, per-
+  stream parameter often `2`); transparent/near-lossless uses
+  `8 + 12*stream_count` bits (preamble often `5`).
+- **AWC lossless LPC table indices** (`parse_` ~0x443340): per stream/subblock,
+  a `custom_angles` flag selects between reading `6*lpc_order` table-index bits
+  from the bitstream vs using default index `32` for every coefficient (decompile
+  fills `0x20` without reading). Indices are not read a second time after
+  residuals. After each lossless AWC frame body, padding bits to the next byte
+  boundary are consumed before the next PDU frame in the delta blob.
+- **AWC transparent ErrorScaler** (`parse_` ~0x448000): a set residual flag is
+  followed by the LDC vector, optional extended-order precision bit, and 8-bit
+  error scale factor. A zero residual flag zero-fills the vector and jumps to
+  the next stream/subblock without consuming either ErrorScaler field.
+- **Partition granule lengths** use `index_bits(total-1)`. LDC custom maximum
+  uses `index_bits(total-2)`, while partitioned subelement count/property-count
+  fields use `index_bits(property_count-2)`. These are decompiled
+  `32 - (BSR(value) ^ 31)` expressions, not `32 - index_bits(value)`.
+  AWC lossless `parse_bitdepth_mode` width is
+  `index_bits(error_scale_byte - 1)` (~0x4497F0), not `32 - index_bits(...)`.
+- LDC alternating golomb+unary (~0x4539D0 case 2+1): 2-bit unary skip, then
+  `pop_all_ones` + `(golomb+1)`-bit value as `(mask|unary<<g)+1`.
+- LDC alternating fixed+golomb (case 0+2) and golomb+fixed (case 2+0) use
+  different index/marker order than the old `golomb_sparse` helper.
+- After `pop_all_ones`, lossless LDC/common-Golomb reads consume one unary zero
+  terminator followed by exactly `golomb` remainder bits. The native reader
+  advances by `golomb+1` total bits and extracts from `bitpos+1`.
+- Native `Reader::pop_all_ones` (~0x338E30) counts consecutive one bits and
+  leaves the terminating zero for that following read.
+- Lossless AWC `parse_` reads subblock ICC before per-subblock error-scale
+  values from the bitstream (mode 2); error-scale context fill for mode 0 is
+  non-bitstream.
+- Lossless `Policy::icc_decode_subblock` (`0x449640`): ICP gain from
+  `icp::Gains[angle]`; bitdepth downshift uses toward-zero
+  `(gain + (((1<<n)-1) & (gain>>63))) >> n`. For `count>=12` (non-overlapping)
+  the SIMD path applies rounded Q23 (`bias 0x7FFFFF` then `>>23`); the short
+  or overlapping scalar path uses truncating `/ 0x800000`. Transparent ICC is
+  a separate float PCA path (`0x4560xx`), not ICP Q23.
+- Partitioned LDC subelement sizes consume granule properties with a moving
+  cursor. Each encoded property count sums the next disjoint range; it is not a
+  prefix length relative to the start of the property vector.
+- Differential LDC granule properties split the first granule whenever its
+  value is greater than one: `[first, tail...]` becomes
+  `[1, first-1, tail...]`. A first value of zero or one leaves the full vector
+  unchanged.
+- Alternating LDC with an entropy-coded marker and zero-width fixed index is a
+  dense form: it decodes one marker for every output element, including the
+  final element.
+- When both alternating LDC fields are common-Golomb families, the second field
+  encodes the index jump and the first encodes the marker. Type 2 and type 3 are
+  selected independently for those two reads.
+- An LDC custom maximum limits the property vector and entropy-coded prefix.
+  Elements after that prefix are zero-filled by the decoder; they do not carry
+  additional subelement syntax.
+- `Params::read` (~0x445060) first reads an active flag. A clear flag yields an
+  all-zero vector. If active, the next flag controls only the optional maximum;
+  the granule partition and per-subelement parameters follow in both branches.
+- Entropy parameters are read once by `run_length_dispatch::Params::read`
+  (~0x445B70). Dense type-2/type-3 decoding reuses the saved Golomb parameter
+  instead of consuming another four bits.
+
+### Access unit 2+ (delta schema)
+
+Confirmed on all seven corpus MP4s: ConfigHeader may inherit stored counts when
+`common=1`, but ConfigData and `Audio.pdus` retain their normal field order.
+After consuming ConfigData extensions, the PDU count is read as the native
+Golomb-Rice value, followed by every PDU header, payload length, and payload.
+The decoder does not replay a prior schema or cached residual payload.
+
+Probe reports `schema_bits`, `consumed_bits`, and `post_schema_bits`
+(remaining blob bits after schema parse). On delta frames, `consumed_bits`
+includes skipped PDU payload bits; AuroCX decode must start AWC/LFE decode at
+each PDU's `payload_bit_offset` (recorded during schema parse), not at
+`consumed_bits`.
+
+Known declared layouts from `acxd`: `0x01bf` (7.1), `0x663f` (5.1+4H),
+`0x7fbf` (7.1+5H+T). Some lossless files carry `0x8060`; their explicit schema
+channel list is authoritative over the declared mask name.
+
 ## Current limitations
 
-- AuroCX audio rendering is not implemented. `--probe-cx` detects an MP4
-  `a3ds` track, parses its `acxd` descriptor and MP4 sample tables, validates
-  the `A3 DC 0D ED` access-unit sync, decodes blob framing, and reports the
-  schema header counts and declared layout. The probe also decodes the first
-  program-to-bed reference, channel IDs, channel-to-audio-stream mapping, and
-  PDU types plus AWC/LFE audio-stream ranges. Both explicit channel-descriptor
-  beds and compact beds that rely on the `acxd` declared layout are recognized;
-  the latter currently uses structural PDU-vector recovery. Known layouts
-  include 7.1 (`0x01bf`), 5.1+4H (`0x663f`), and 7.1+5H+T (`0x7fbf`).
-  MP4 access-unit offsets are reconstructed from `stsc`, `stsz`, and
-  `stco`/`co64` rather than treating chunk offsets as packet offsets. The probe
-  also reports an experimental parse of the second access unit, which exposes
-  the transition from static schema configuration to dynamic AWC frame data.
+- AuroCX audio rendering is wired end to end through auto path selection
+  (`-i`/`-o`: MP4 `a3ds` → CX, else classic native), including
+  schema-bed mapping, SASC application, and PCM24 WAV output. A fresh build
+  completes all eight `test_files/aurocx` MP4s. Yamamoto near-lossless Top
+  (bit 12) level-0 routing matches native height-tail order before `label101`;
+  Alessandro applies schema `channel.downmix` via `Downmixer::append_` /
+  `set_layout_independent_gains_` (`0x434EA0`) and 2d→1d table overrides.
+  Height beds with custom `gain0` follow `add_3d_to_2d_src_gains_`
+  (`0x435520`) / `set_3d_to_2d_src_gains_` (`0x435230`) and the `+920`
+  destination post-scale when `calculate_` sets `+3576` (confirmed on
+  `auro_cx.mp4`, which has no `acxd` box). Nested `minf/hdlr` (`url `) must
+  not clear `mdia/hdlr=soun` during MP4 track walk. Native PCM oracle is
+  HDMI-7.1 Float32 (device prune ≤8ch): Frida harness
+  `oracle/oracle_acx_pcm_job.js` (+ CLI `oracle_acx_pcm_frida.js`). Push
+  needs `allocateDirect`; pop part `832*8*4`. With
+  `set_channels_backs_before_surrounds(true)` order is FL,FR,C,LFE,LB,RB,
+  LS,RS (`kHdmiOrder_1db2b0`). Our WAVE-sorted 12ch bed for `auro_cx`
+  (`0x67BF`) matches that for the first 8 planes — compare with
+  `regression/compare_oracle_f32_hdmi8.py`. On AUs 0..260, lag **+2816**
+  (oracle delayed), FL corr≈0.9947; other HDMI channels near-silent in
+  both (multichannel onset ≈AU 261). **12ch discrete oracle (AC 1.26.36 /
+  libauro `4.0.14-9d106532` arm64) — blocked:** forcing
+  `AuroUpdateParams.output_layout=0x67BF` reports `outCh=12`, but native
+  `Decoder::configure` returns
+  `AURO_A3DENG_V4_RC_INVALID_OUTPUT_LAYOUT` (255) for HDMI/Soundbar when
+  the channel layout actually contains height (`sub_31ACE0` with
+  `hdmi_mapping=0` → size 12). With `hdmi_mapping=1` the layout is built
+  as 8 bed channels only, configure succeeds, and `AuroPop` emits
+  `26624=832×8×4`. Forcing configure RC→0 does not allocate 12ch output.
+  Harness: `oracle/oracle_acx_pcm_12ch_job.js`. Full 12ch discrete
+  equality still open. PCM24 output is written one AU at a time.
+  The `--cx-only` regression checks channel count, 48 kHz/PCM24 geometry,
+  nonzero frames, and at least one nonzero PCM byte.
+- LFE payload parsing follows `Processor::parse_` at `0x463A90`. Residuals are
+  converted through the native minimum-phase `multirate::interpolation` cascade
+  for factors 40/80/160/320/640 with filter state retained across access units.
+  LFE, lossless AWC, and transparent AWC payloads must be consumed exactly.
+- SASC channel-bed `Planner::compute_` (`0x49D840`) calls `sub_49EB20`
+  (`0x49EB20`) → `Downmixer::compute_plan` (`0x436890`) for SCG levels 2/1/0.
+  Level 2 is identity (coefficients already unity). Levels 1/0 use
+  `auro_downmix_v1` rules, but acceptance follows the Downmixer residual mask
+  (sequential apply with deferred source clear; must equal the target), not
+  `plan[159]` equality — that engine progress mask is often a strict superset
+  (confirmed on Lori `0x663f`→`0x3f`). Custom `channel.downmix` overrides the
+  default 111-slot gain table through `append_` / `set_layout_independent_gains_`
+  (`0x434EA0`); ChannelDownmix +152 is `intra_layer_gains` (fixed count from
+  `qword_1E4EA0[id-4]`), not MonoTopDownmix. On 2d→1d layers, +128 gains also
+  override 2d→1d source slots (`add_2d_to_1d_src_gains_` / calculate_gains_
+  LABEL_15) and FL/FR destination post-scales at +1416.   On 3d→2d/1d layers
+  (`calculate_` `+3576`), height `gain0` uses mask `257536` →
+  `add_3d_to_2d_src_gains_` (`0x435520`) / `set_3d_to_2d_src_gains_`
+  (`0x435230`) and mask `202113527` → `+920` destination post-scale.
+  Height `gain1` (`append_` `a2[45]`) feeds mask `786932` → `+2408` and
+  FL/FR `+1416`; without height those slots still come from `gain0`.
+  Post-scale in `calculate_gains_` (`+3576`/`+3577`) uses rounded Q23
+  (`product + (product<0 ? 0x7FFFFF : 0)) >> 23`); relative schema gains
+  from `compensate_channel_gains` (`0x4349A0`) use truncating `/ 0x800000`.
+  Plan step order matches native: post-scale first, then relative.
+  `auro_downmix_v1_Engine_calculate` (`0x58EF80`) `tgt_class_hint` /
+  `v200` is `(tgt_lo!=3) & ((uint8_t)tgt >> 2)` (low byte only). Layouts
+  that miss that gate return false — there is no separate non-height success
+  path.
+  `set_mono_top_` (`0x435580`) uses `details::inv_sqrt` (`0x433C20`,
+  `qword_1DB190` = Q23 `1/sqrt(1..4)`) into gain slots 16–31.
+  `set_stereo_top_` (`0x435C50`) reads `StereoTopDownmix_t` for channels 28/29
+  only (ChannelDownmix decode `0x41A6B0` mask `805306368`): optional blocks at
+  `+80` (types #3) and `+104` (type #4). Kind 0 → 2 IntegralGains; kind 2|3 →
+  1 gain. Gains land in slots 0–13 (`gains[i]` ↔ Downmixer `+(32+8*i)`); channel
+  29 selects the odd twin of each even slot. Channel 12 (`T`) is MonoTop only —
+  do not parse 28/29 as MonoTop (wrong gain counts). No corpus file currently
+  exercises present mono/stereo-top fields (`downmix=0` on T beds; no ch 28/29).
+  Apply filter is independent of PDU `source_layer`: `scg::details::decode`
+  (`0x495460`) cancels when `step.layer < SCG+448`; full discrete WAV sets
+  that layer to **2** so height (planned as layer 1) is dematrixed out of the
+  bed. PDU `source_layer` only gates which schema channels feed the planner.
+  Header+60 is a `calculate_mode` query flag, not a per-frame apply flag;
+  `Processor::run_` (`0x492AA0`) keeps decoding the persistent SCG context on
+  later AUs, including AUs whose `config_flag` does not rebuild the planner.
+  For `0x67BF`→`0x1BF`→`0x3`, layer 0 also emits LFE→FL/FR
+  (`auro_downmix_v1_plan_add_center_routes`, gain indices 104/105, default
+  −3 dB). SCG layer 2 cancels those edges; listening `FL≈−LFE/√2` on the
+  `auro_cx` LFE sweep matches cancel-on-quiet-carriers, not a missing native
+  mute. Do not invent FL/FR silence by dropping LFE layer-0 steps.
+  Linked-object branch in `Planner::compute_` (`0x49D840`): after level-2
+  `sub_49EB20`, native walks `linked_object_group_idxs`, applies
+  `get_object_group_ref_gain` relative to bed ref, then
+  `ObjectRenderer::compute_panning_gains` (`0x4BF010` / ESPCAP
+  RoomCentricPanner) and emits layer-2 mix steps into bed streams before
+  levels 1/0. `get_layouts(linked!=0)` masks the bed with `0xFFEFFFF7`.
+  Corpus MP4s have `object_groups=0`; planner validates metadata and passes
+  the linked layout flag, but hard-errors only at the unported ESPCAP call.
+  Pure object-group SASC (`header_value=0`) with `config_flag` is not
+  `Planner::compute_` (needs a bed) — separate hard-error.
 - Auro-Matic XinN synthetic upmix is not implemented.
 - Full `7.1 + 5H + T` expansion is not implemented; current output uses the
   native direct subset.
