@@ -2223,7 +2223,8 @@ bool find_supported_audio_stream(const std::string& path, unsigned& stream_index
 bool decode_supported_audio_to_pcm24_wav_bytes(
     const std::string& path,
     std::vector<std::uint8_t>& wav_bytes,
-    std::string& err) {
+    std::string& err,
+    std::uint32_t target_sample_rate = 0u) {
     err.clear();
     wav_bytes.clear();
     unsigned stream_index = 0u;
@@ -2234,7 +2235,11 @@ bool decode_supported_audio_to_pcm24_wav_bytes(
     const std::string cmd =
         "ffmpeg -y -v error -i " + shell_quote_path(path)
         + " -map 0:" + std::to_string(stream_index)
-        + " -c:a pcm_s24le -f wav " + shell_quote_path(tmp_wav);
+        + " -c:a pcm_s24le"
+        + (target_sample_rate != 0u
+            ? " -ar " + std::to_string(target_sample_rate)
+            : std::string())
+        + " -f wav " + shell_quote_path(tmp_wav);
     const int rc = std::system(cmd.c_str());
     if (rc != 0) {
         std::remove(tmp_wav.c_str());
@@ -2346,6 +2351,8 @@ void Decoder::apply_native_input_channel_mapping() {
     for (unsigned work_index = 0; work_index < layout.slot_count; ++work_index) {
         const std::uint32_t logical_slot = layout.slots[work_index];
         if (logical_slot >= auro_codec_v3_ida::kAuroProcessorIoChannelPtrCount || work_index >= channel_count_)
+            continue;
+        if ((input_signal_channel_mask_ & (1u << logical_slot)) == 0u)
             continue;
         input_desc_.channel_ptr[logical_slot] =
             reinterpret_cast<std::uint64_t>(native_input_buffer(work_index));
@@ -3786,6 +3793,47 @@ DecodeError Decoder::open(const std::string& path) {
             opened_ = false;
             return DecodeError::NotImplemented;
         }
+        // Native XinN accepts 32/44.1/48 kHz. The A3DENG pipeline inserts a
+        // factor-2 resampler before it for 96 kHz input; use FFmpeg for the
+        // same 1fs boundary until the native matic resampler step is ported.
+        if (sample_rate_ > 48000u
+            && sample_rate_ % 48000u == 0u
+            && !raw_forced_
+            && is_ffmpeg_audio_input(prefix)) {
+            std::vector<std::uint8_t> resampled;
+            if (!decode_supported_audio_to_pcm24_wav_bytes(
+                    path, resampled, input_err, 48000u)) {
+                opened_ = false;
+                return DecodeError::BadInput;
+            }
+            std::size_t resampled_pcm_b = 0u;
+            std::size_t resampled_pcm_len = 0u;
+            std::uint16_t resampled_channels = 0u;
+            std::uint32_t resampled_rate = 0u;
+            std::uint32_t resampled_mask = 0u;
+            if (!try_parse_wav_s24le(
+                    resampled.data(), resampled.size(),
+                    resampled_pcm_b, resampled_pcm_len,
+                    resampled_channels, resampled_rate, resampled_mask,
+                    wav_err)
+                || resampled_channels != channel_count_
+                || resampled_rate != 48000u) {
+                opened_ = false;
+                return DecodeError::BadInput;
+            }
+            file_bytes_.swap(resampled);
+            pcm_begin_ = resampled_pcm_b;
+            pcm_length_ = resampled_pcm_len;
+            sample_rate_ = resampled_rate;
+            input_wav_channel_mask_ = resampled_mask;
+            read_pos_ = pcm_begin_;
+            auro_metadata_ = scan_auro_metadata_pcm24(
+                file_bytes_, pcm_begin_, pcm_length_, channel_count_);
+            if (auro_metadata_.found) {
+                opened_ = false;
+                return DecodeError::BadInput;
+            }
+        }
         legacy_auromatic_upmix_ = true;
     }
     // WAV channel_count is the container/layout width (often includes height slots).
@@ -3853,6 +3901,23 @@ DecodeError Decoder::open(const std::string& path) {
         opened_ = false;
         return DecodeError::NotImplemented;
     }
+    input_signal_channel_mask_ = input_layout.mask;
+    const std::size_t total_frames = pcm_length_ / sample_frame_b;
+    for (unsigned physical_ch = 0; physical_ch < channel_count_; ++physical_ch) {
+        bool has_audio_bits = false;
+        const std::uint8_t* sample = file_bytes_.data() + pcm_begin_ + static_cast<std::size_t>(physical_ch) * 3u;
+        for (std::size_t frame = 0; frame < total_frames; ++frame, sample += sample_frame_b) {
+            const std::int32_t value = decode_pcm24_sample(sample);
+            if (value < -7 || value > 7) {
+                has_audio_bits = true;
+                break;
+            }
+        }
+        if (!has_audio_bits)
+            input_signal_channel_mask_ &= ~(1u << input_layout.slots[physical_ch]);
+    }
+    if (input_signal_channel_mask_ == 0u)
+        input_signal_channel_mask_ = input_layout.mask;
     native_input_buffer_count_ = channel_count_;
     native_work_buffer_count_ = mask_count_27((input_layout.mask | requested_layout.mask) & 0x7FFFFFFu);
     native_input_buffer_storage_.assign(static_cast<std::size_t>(native_input_buffer_count_) * block_size_, 0);
@@ -4023,7 +4088,9 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
     if (past_warmup && !codec_v3_requested_layout_ever_satisfied_)
         return DecodeError::NotImplemented;
     // По умолчанию stereo, но при явном запросе рендерим все выходные слоты.
-    const float gain = auro3deng::strength_translate(static_cast<std::uint32_t>(dsp_strength_)) * dsp_headroom_gain_;
+    const float synthesized_gain =
+        auro3deng::strength_translate(static_cast<std::uint32_t>(dsp_strength_))
+        * dsp_headroom_gain_;
     const unsigned out_ch = dsp_output_channels_ ? dsp_output_channels_ : channel_count_;
     if (out_ch == 0 || output_channel_slot_map_.size() < out_ch)
         return DecodeError::BadInput;
@@ -4038,15 +4105,17 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
     const unsigned bytes_per_sample = (output_bits_ == 24u) ? 3u : 2u;
     const bool deglitch_fractional_frames =
         auro_metadata_.found && auro_metadata_.block_size == 1000u;
-    std::vector<float> output_channel_gain(out_ch, gain);
+    std::vector<float> output_channel_gain(out_ch, synthesized_gain);
     for (unsigned ch = 0; ch < out_ch; ++ch) {
         const std::uint32_t logical_slot = output_channel_slot_map_[ch];
         if ((native_config_state_.input_mask & (1u << logical_slot)) != 0u)
-            output_channel_gain[ch] = 1.0f;
+            output_channel_gain[ch] = dsp_headroom_gain_;
     }
-    pcm_out.resize(static_cast<std::size_t>(block_size_) * out_ch * bytes_per_sample);
+    const bool sanitize_partial_auro_tail =
+        auro_metadata_.found && valid_frames < block_size_;
+    pcm_out.resize(valid_frames * out_ch * bytes_per_sample);
     std::uint8_t* dst = pcm_out.data();
-    for (unsigned s = 0; s < block_size_; ++s) {
+    for (std::size_t s = 0; s < valid_frames; ++s) {
         for (unsigned ch = 0; ch < out_ch; ++ch) {
             const std::uint32_t logical_slot = output_channel_slot_map_[ch];
             const auto* src_plane = reinterpret_cast<const std::int32_t*>(
@@ -4077,7 +4146,12 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
             }
             const float channel_gain = output_channel_gain[ch];
             if (output_bits_ == 24u) {
-                const std::int32_t o = i32_sample_to_s24(v, channel_gain, &dsp_clipped_samples_);
+                std::int32_t o = i32_sample_to_s24(v, channel_gain, &dsp_clipped_samples_);
+                // An incomplete final codec block cannot consume its embedded
+                // LSB payload. Do not let that residual sync make decoded PCM
+                // look like a fresh Auro carrier to downstream hardware.
+                if (sanitize_partial_auro_tail)
+                    o = static_cast<std::int32_t>(static_cast<std::uint32_t>(o) & ~1u);
                 *dst++ = static_cast<std::uint8_t>(o & 0xFF);
                 *dst++ = static_cast<std::uint8_t>((static_cast<std::uint32_t>(o) >> 8) & 0xFF);
                 *dst++ = static_cast<std::uint8_t>((static_cast<std::uint32_t>(o) >> 16) & 0xFF);
@@ -4144,6 +4218,7 @@ void Decoder::close() {
     output_channel_slot_map_.clear();
     native_work_buffer_count_ = 0;
     native_input_buffer_count_ = 0;
+    input_signal_channel_mask_ = 0x7FFFFFFu;
     input_channel_mask_ = 0;
     requested_output_channel_mask_ = 0;
     output_channel_mask_ = 0;

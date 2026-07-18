@@ -424,6 +424,7 @@ private:
     std::uint64_t codec_v3_og_timeline_cursor_ = 0;
     std::uint32_t codec_v3_parser_state_ = 0;
     bool codec_v3_requested_layout_ever_satisfied_ = false;
+    std::uint32_t input_signal_channel_mask_ = 0x7FFFFFFu;
 };
 
 } // namespace auro3d

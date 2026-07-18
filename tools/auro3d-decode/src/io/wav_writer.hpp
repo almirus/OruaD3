@@ -21,7 +21,8 @@ bool write_pcm24_le(
     uint32_t sample_rate,
     uint16_t channels,
     const std::vector<std::uint8_t>& interleaved_pcm,
-    std::string& error_out);
+    std::string& error_out,
+    std::uint32_t channel_mask = 0);
 
 class Pcm24StreamWriter {
 public:

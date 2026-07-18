@@ -6,6 +6,7 @@
 #include "../render/binaural_renderer.hpp"
 #include "../util/auro3deng_strength.hpp"
 
+#include <array>
 #include <chrono>
 #include <cstdlib>
 #include <exception>
@@ -39,7 +40,7 @@ struct Options {
     unsigned dsp_output_channels = 0;
     unsigned output_bits = 24;
     std::string output_format;
-    float dsp_headroom_db = 6.0f;
+    float dsp_headroom_db = 0.0f;
     unsigned room_preset = auro3d::kDefaultRoomPreset;
     unsigned hrtf_preset = auro3d::kDefaultHrtfPreset;
     unsigned virtualizer_mode = auro3d::kDefaultVirtualizerMode;
@@ -85,6 +86,127 @@ const char* auro_slot_name(std::uint32_t slot) {
     case 26: return "OBJ";
     default: return "?";
     }
+}
+
+const char* native_reconstruction_note(std::uint32_t slot) {
+    if (slot >= 9u && slot <= 17u)
+        return "codec dematrix height";
+    if ((slot >= 4u && slot <= 8u) || (slot >= 21u && slot <= 25u))
+        return "codec reconstructed surround";
+    if (slot == 2u)
+        return "codec reconstructed center";
+    if (slot == 3u || slot == 20u)
+        return "codec reconstructed LFE";
+    return "codec reconstructed channel";
+}
+
+std::uint32_t wav_channel_mask_from_slots(
+    const std::vector<std::uint32_t>& slots,
+    unsigned channel_count) {
+    if (slots.size() < channel_count)
+        return 0u;
+    std::uint32_t mask = 0u;
+    int previous_bit = -1;
+    for (unsigned ch = 0; ch < channel_count; ++ch) {
+        int bit = -1;
+        switch (slots[ch]) {
+        case 0: bit = 0; break;
+        case 1: bit = 1; break;
+        case 2: bit = 2; break;
+        case 3: bit = 3; break;
+        case 7: bit = 4; break;
+        case 8: bit = 5; break;
+        case 18: bit = 6; break;
+        case 19: bit = 7; break;
+        case 6: bit = 8; break;
+        case 4: bit = 9; break;
+        case 5: bit = 10; break;
+        case 12: bit = 11; break;
+        case 9: bit = 12; break;
+        case 11: bit = 13; break;
+        case 10: bit = 14; break;
+        case 16: bit = 15; break;
+        case 15: bit = 16; break;
+        case 17: bit = 17; break;
+        default: return 0u;
+        }
+        if (bit <= previous_bit)
+            return 0u;
+        previous_bit = bit;
+        mask |= 1u << bit;
+    }
+    return mask;
+}
+
+// height_slot -> bed carrier used by Auro-Codec dematrix.
+struct DematrixPair {
+    std::uint32_t height_slot;
+    std::uint32_t bed_slot;
+};
+
+struct DematrixRouteMap {
+    std::uint32_t bed_mask = 0;
+    std::array<std::uint32_t, 27> height_to_bed{};
+    std::array<std::uint32_t, 27> bed_to_height{};
+
+    DematrixRouteMap() {
+        height_to_bed.fill(0xFFFFFFFFu);
+        bed_to_height.fill(0xFFFFFFFFu);
+    }
+};
+
+// Default vertical folds. For 7.1 -> native HL/HR (13.1 direct subset) the
+// encoder keeps the fold in LS/RS; FL/FR stay near-passthrough (confirmed on
+// test_files/7.1_5H1_1T.wav).
+DematrixRouteMap build_dematrix_route_map(
+    std::uint32_t input_mask,
+    std::uint32_t native_mask,
+    std::uint32_t layout_id,
+    std::uint32_t carrier_layout_id) {
+    static constexpr DematrixPair kDefaultPairs[] = {
+        {9u, 0u},   // HL <- FL
+        {10u, 1u},  // HR <- FR
+        {11u, 2u},  // HC <- C
+        {12u, 2u},  // T  <- C
+        {13u, 4u},  // HLS <- LS
+        {14u, 5u},  // HRS <- RS
+        {15u, 6u},  // HCS <- CS
+        {16u, 7u},  // HLB <- LB
+        {17u, 8u},  // HRB <- RB
+    };
+    static constexpr DematrixPair kPairs7_1NativeHlHr[] = {
+        {9u, 4u},   // HL <- LS
+        {10u, 5u},  // HR <- RS
+    };
+    constexpr std::uint32_t kLayout7_1_5H_1T = 0x7FBFu;
+    constexpr std::uint32_t kCarrier7_1 = 0x01BFu;
+    constexpr std::uint32_t kHlHrMask = (1u << 9) | (1u << 10);
+
+    const DematrixPair* pairs = kDefaultPairs;
+    std::size_t pair_count = sizeof(kDefaultPairs) / sizeof(kDefaultPairs[0]);
+    if (layout_id == kLayout7_1_5H_1T
+        && carrier_layout_id == kCarrier7_1
+        && (native_mask & kHlHrMask) != 0u
+        && (native_mask & ~kHlHrMask) == 0u) {
+        pairs = kPairs7_1NativeHlHr;
+        pair_count = sizeof(kPairs7_1NativeHlHr) / sizeof(kPairs7_1NativeHlHr[0]);
+    }
+
+    DematrixRouteMap map;
+    for (std::size_t i = 0; i < pair_count; ++i) {
+        const std::uint32_t height = pairs[i].height_slot;
+        const std::uint32_t bed = pairs[i].bed_slot;
+        if (height >= 27u || bed >= 27u)
+            continue;
+        if (((native_mask >> height) & 1u) == 0u)
+            continue;
+        if (((input_mask >> bed) & 1u) == 0u)
+            continue;
+        map.height_to_bed[height] = bed;
+        map.bed_to_height[bed] = height;
+        map.bed_mask |= (1u << bed);
+    }
+    return map;
 }
 
 void print_decode_mode_channel_list(
@@ -151,11 +273,12 @@ bool write_audio_file(
     unsigned bits,
     unsigned sample_rate,
     unsigned channels,
+    std::uint32_t channel_mask,
     const std::vector<std::uint8_t>& pcm,
     std::string& error_out) {
     if (format == "wav") {
         return bits == 24
-            ? wav::write_pcm24_le(output.string(), sample_rate, channels, pcm, error_out)
+            ? wav::write_pcm24_le(output.string(), sample_rate, channels, pcm, error_out, channel_mask)
             : wav::write_pcm16_le(output.string(), sample_rate, channels, pcm, error_out);
     }
 
@@ -163,7 +286,7 @@ bool write_audio_file(
     std::filesystem::path temp = std::filesystem::temp_directory_path()
         / ("auro3d-decode-" + std::to_string(stamp) + ".wav");
     const bool wav_ok = bits == 24
-        ? wav::write_pcm24_le(temp.string(), sample_rate, channels, pcm, error_out)
+        ? wav::write_pcm24_le(temp.string(), sample_rate, channels, pcm, error_out, channel_mask)
         : wav::write_pcm16_le(temp.string(), sample_rate, channels, pcm, error_out);
     if (!wav_ok)
         return false;
@@ -197,6 +320,7 @@ std::string xml_escape(const std::string& value) {
 
 bool write_channel_mapping_xml(
     const std::filesystem::path& audio_path,
+    const std::filesystem::path& source_path,
     unsigned sample_rate,
     unsigned bits_per_sample,
     unsigned channel_count,
@@ -204,6 +328,7 @@ bool write_channel_mapping_xml(
     std::uint32_t input_mask,
     std::uint32_t native_mask,
     std::uint32_t auromatic_mask,
+    const DematrixRouteMap& dematrix,
     bool binaural,
     std::string& error_out) {
     std::filesystem::path xml_path = audio_path;
@@ -217,29 +342,56 @@ bool write_channel_mapping_xml(
     out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         << "<channelMapping audioFile=\""
         << xml_escape(audio_path.filename().string())
+        << "\" sourceFile=\""
+        << xml_escape(source_path.filename().string())
         << "\" sampleRate=\"" << sample_rate
         << "\" bitsPerSample=\"" << bits_per_sample
         << "\" channelCount=\"" << channel_count << "\">\n";
     for (unsigned ch = 0; ch < channel_count; ++ch) {
         const bool known_slot = ch < slots.size() && slots[ch] < 27u;
-        const std::uint32_t slot_bit = known_slot ? (1u << slots[ch]) : 0u;
+        const std::uint32_t slot = known_slot ? slots[ch] : 0xFFFFFFFFu;
+        const std::uint32_t slot_bit = known_slot ? (1u << slot) : 0u;
         const char* source = "unknown";
-        if (binaural)
+        const char* dematrix_from = nullptr;
+        const char* dematrix_height = nullptr;
+        const char* note = nullptr;
+        if (binaural) {
             source = "binaural_renderer";
-        else if ((input_mask & slot_bit) != 0u)
-            source = "carrier_passthrough";
-        else if ((native_mask & slot_bit) != 0u)
+        } else if ((input_mask & slot_bit) != 0u) {
+            if ((dematrix.bed_mask & slot_bit) != 0u) {
+                source = "carrier_dematrix";
+                const std::uint32_t height = dematrix.bed_to_height[slot];
+                if (height < 27u)
+                    dematrix_height = auro_slot_name(height);
+                note = "bed recovered by dematrix; may be silent";
+            } else {
+                source = "carrier_passthrough";
+            }
+        } else if ((native_mask & slot_bit) != 0u) {
             source = "native_auro";
-        else if ((auromatic_mask & slot_bit) != 0u)
+            const std::uint32_t bed = dematrix.height_to_bed[slot];
+            if (bed < 27u)
+                dematrix_from = auro_slot_name(bed);
+            note = native_reconstruction_note(slot);
+        } else if ((auromatic_mask & slot_bit) != 0u) {
             source = "auromatic";
+            note = "XinN upmix from decoded bed";
+        }
         out << "  <channel index=\"" << ch << "\" number=\"" << (ch + 1u) << "\"";
         if (known_slot) {
-            out << " slot=\"" << slots[ch] << "\" name=\""
-                << auro_slot_name(slots[ch]) << "\"";
+            out << " slot=\"" << slot << "\" name=\""
+                << auro_slot_name(slot) << "\"";
         } else {
             out << " name=\"ch" << ch << "\"";
         }
-        out << " source=\"" << source << "\"/>\n";
+        out << " source=\"" << source << "\"";
+        if (dematrix_from)
+            out << " dematrixFrom=\"" << dematrix_from << "\"";
+        if (dematrix_height)
+            out << " dematrixHeight=\"" << dematrix_height << "\"";
+        if (note)
+            out << " note=\"" << note << "\"";
+        out << "/>\n";
     }
     out << "</channelMapping>\n";
     if (!out) {
@@ -254,14 +406,12 @@ void print_channel_diagram(
     const std::vector<std::uint32_t>& slots,
     std::uint32_t input_mask,
     std::uint32_t native_mask,
-    std::uint32_t auromatic_mask) {
-    std::vector<unsigned> source_channels;
+    std::uint32_t auromatic_mask,
+    const DematrixRouteMap& dematrix) {
     std::uint32_t output_mask = 0u;
     for (unsigned ch = 0; ch < channels && ch < slots.size(); ++ch) {
         if (slots[ch] < 31u)
             output_mask |= 1u << slots[ch];
-        if (slots[ch] < 31u && ((input_mask >> slots[ch]) & 1u) != 0u)
-            source_channels.push_back(ch);
     }
 
     const char* input_layout = auro3d::auro_channel_layout_to_string(input_mask);
@@ -274,23 +424,38 @@ void print_channel_diagram(
         const std::uint32_t slot = ch < slots.size() ? slots[ch] : 0xFFFFFFFFu;
         const char* name = slot < 27u ? auro_slot_name(slot) : "?";
         if (slot < 31u && ((input_mask >> slot) & 1u) != 0u) {
-            std::cerr << "  carrier " << name << " -> " << name
-                      << " [native bed reconstruction]\n";
+            if (slot < 27u && ((dematrix.bed_mask >> slot) & 1u) != 0u) {
+                const std::uint32_t height = dematrix.bed_to_height[slot];
+                std::cerr << "  carrier " << name << " + codec -> " << name
+                          << " [dematrix bed; may be silent]";
+                if (height < 27u)
+                    std::cerr << ", " << auro_slot_name(height) << " [native AURO]";
+                std::cerr << "\n";
+            } else {
+                std::cerr << "  carrier " << name << " -> " << name
+                          << " [passthrough]\n";
+            }
             continue;
         }
 
-        const char* mode = slot < 31u && ((auromatic_mask >> slot) & 1u) != 0u
-            ? "Auro-Matic" : (slot < 31u && ((native_mask >> slot) & 1u) != 0u ? "native AURO" : "generated");
-        std::cerr << "  ";
-        for (std::size_t i = 0; i < source_channels.size(); ++i) {
-            if (i != 0u)
-                std::cerr << "+";
-            std::cerr << auro_slot_name(slots[source_channels[i]]);
+        if (slot < 31u && ((native_mask >> slot) & 1u) != 0u) {
+            const std::uint32_t bed =
+                (slot < 27u) ? dematrix.height_to_bed[slot] : 0xFFFFFFFFu;
+            if (bed < 27u) {
+                std::cerr << "  carrier " << auro_slot_name(bed)
+                          << " + codec -> " << name << " [native AURO dematrix]\n";
+            } else {
+                std::cerr << "  codec dematrix -> " << name << " [native AURO]\n";
+            }
+            continue;
         }
-        if (source_channels.empty())
-            std::cerr << "carrier";
-        std::cerr << (std::string(mode) == "Auro-Matic" ? " -> " : " + codec data -> ")
-                  << name << " [" << mode << "]\n";
+
+        if (slot < 31u && ((auromatic_mask >> slot) & 1u) != 0u) {
+            std::cerr << "  decoded bed -> " << name << " [Auro-Matic/XinN]\n";
+            continue;
+        }
+
+        std::cerr << "  generated -> " << name << " [generated]\n";
     }
 }
 
@@ -341,7 +506,7 @@ void print_usage() {
         << "  --probe              print format diagnostics without decoding to a file; -o is not required\n"
         << "                       MP4 a3ds (AuroCX) → schema/container probe; else → classic/native open info\n"
         << "  --binaural           render decoded channels to HRTF stereo (48 kHz)\n"
-        << "  --dsp-headroom-db X  headroom в dB (0..24; по умолчанию 6)\n"
+        << "  --dsp-headroom-db X  headroom в dB (0..24; по умолчанию 0)\n"
         << "  --room-preset N      room preset AURO (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
         << "  --hrtf-preset N      HRTF preset (0=HPV2,1=GENERIC_1,2=GENERIC_2,3=GENERIC_3)\n"
         << "  --virtualizer-mode N virtualization mode (0=ENABLED,1=DISABLED)\n"
@@ -599,7 +764,11 @@ int main(int argc, char** argv) {
     // to auro_native if CX was selected but decode fails.
     if (!opt.probe && !opt.raw && auro3d::mp4_has_auro_cx_a3ds(opt.input)) {
         std::string err;
-        const bool ok = auro3d::decode_auro_cx_mp4(opt.input, opt.output, err);
+        const bool ok = auro3d::decode_auro_cx_mp4(
+            opt.input,
+            opt.output,
+            err,
+            opt.dsp_headroom_db);
         if (!ok) {
             std::cerr << "AuroCX decode: " << err << '\n';
             return 2;
@@ -631,6 +800,13 @@ int main(int argc, char** argv) {
     }
 
     const auro3d::DecoderConfig cfg_open = dec.config();
+    const std::string output_format = selected_output_format(opt);
+    if (output_format == "flac" && cfg_open.channels > 8u) {
+        std::cerr << "FLAC: format supports at most 8 channels; use a .wav output for "
+                  << cfg_open.channels << " channels\n";
+        dec.close();
+        return 4;
+    }
     const auro3d::NativeDecoderConfigState native_cfg = dec.native_config_state();
     const auro3d::NativeRuntimeConfigurationState runtime_cfg = dec.native_runtime_configuration();
     const auro3d::NativeA3dengStaticConfigurationState static_cfg = dec.native_a3deng_static_configuration();
@@ -654,6 +830,11 @@ int main(int argc, char** argv) {
             & ~native_cfg.input_mask
             & ~native_mask;
     }
+    const DematrixRouteMap dematrix_routes = build_dematrix_route_map(
+        native_cfg.input_mask,
+        native_mask,
+        auro_meta.found ? auro_meta.layout_id : 0u,
+        auro_meta.found ? auro_meta.carrier_layout_id : 0u);
     if (opt.verbose) {
         const char* native_input_layout = auro3d::auro_channel_layout_to_string(native_cfg.input_mask);
         const char* requested_output_layout = auro3d::auro_channel_layout_to_string(native_cfg.requested_output_mask);
@@ -836,15 +1017,18 @@ int main(int argc, char** argv) {
                       << " hrtf_bank=" << (opt.hrtf_preset == 0 ? "HPv2" : "Generic2") << "\n";
         }
     }
-    const std::string output_format = selected_output_format(opt);
+    const std::uint32_t output_wav_channel_mask =
+        wav_channel_mask_from_slots(output_slots, cfg.channels);
     const bool ok = write_audio_file(
-        opt.output, output_format, cfg.bits_per_sample, cfg.sample_rate, cfg.channels, pcm_all, err);
+        opt.output, output_format, cfg.bits_per_sample, cfg.sample_rate, cfg.channels,
+        output_wav_channel_mask, pcm_all, err);
     if (!ok) {
         std::cerr << (output_format == "flac" ? "FLAC: " : "WAV: ") << err << "\n";
         return 4;
     }
     if (!write_channel_mapping_xml(
             opt.output,
+            opt.input,
             cfg.sample_rate,
             cfg.bits_per_sample,
             cfg.channels,
@@ -852,6 +1036,7 @@ int main(int argc, char** argv) {
             native_cfg.input_mask,
             native_mask,
             auromatic_mask,
+            dematrix_routes,
             opt.binaural,
             err)) {
         std::cerr << "XML: " << err << "\n";
@@ -863,7 +1048,8 @@ int main(int argc, char** argv) {
             output_slots,
             native_cfg.input_mask,
             native_mask,
-            auromatic_mask);
+            auromatic_mask,
+            dematrix_routes);
     }
     if (opt.mono_tracks) {
         const unsigned bytes_per_sample = cfg.bits_per_sample / 8u;
@@ -879,7 +1065,8 @@ int main(int argc, char** argv) {
             const std::vector<std::uint8_t> mono_pcm =
                 extract_mono_channel_pcm(pcm_all, cfg.channels, ch, bytes_per_sample);
             const bool mono_ok = write_audio_file(
-                mono_path, output_format, cfg.bits_per_sample, cfg.sample_rate, 1, mono_pcm, err);
+                mono_path, output_format, cfg.bits_per_sample, cfg.sample_rate, 1,
+                0u, mono_pcm, err);
             if (!mono_ok) {
                 std::cerr << (output_format == "flac" ? "FLAC mono " : "WAV mono ")
                           << mono_path.string() << ": " << err << "\n";

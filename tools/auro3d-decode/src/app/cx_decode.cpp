@@ -11,6 +11,7 @@
 #include "../io/wav_writer.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <limits>
 #include <utility>
@@ -349,7 +350,16 @@ bool mp4_has_auro_cx_a3ds(const std::string& path) {
     return find_track(mp4, track);
 }
 
-bool decode_auro_cx_mp4(const std::string& path, const std::string& out_wav, std::string& error) {
+bool decode_auro_cx_mp4(
+    const std::string& path,
+    const std::string& out_wav,
+    std::string& error,
+    float headroom_db) {
+    if (!std::isfinite(headroom_db) || headroom_db < 0.0f) {
+        error = "invalid output headroom";
+        return false;
+    }
+    const float headroom_gain = std::pow(10.0f, -headroom_db / 20.0f);
     std::ifstream file(path, std::ios::binary);
     if (!file) {
         error = "cannot open input";
@@ -1005,7 +1015,9 @@ bool decode_auro_cx_mp4(const std::string& path, const std::string& out_wav, std
                 const std::int32_t sample = stream < stream_buffers.size()
                     ? normalize_pcm24(stream_buffers[stream][frame], stream_bitdepths[stream])
                     : 0;
-                append_pcm24(au_pcm, sample);
+                append_pcm24(
+                    au_pcm,
+                    static_cast<std::int32_t>(static_cast<float>(sample) * headroom_gain));
             }
         }
         if (!wav_writer.write(au_pcm, error))

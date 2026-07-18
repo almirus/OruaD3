@@ -34,7 +34,19 @@ decode_channel_modes carrier_passthrough=... native=... auromatic=...
 
 `carrier_passthrough` channels are copied from the input carrier without DSP
 gain. `native` channels are reconstructed from Auro-Codec metadata. `auromatic`
-marks codec-signaled non-height 2D expansion, for example 2.1 carrier to 5.1.
+marks codec-signaled expansion filled by Auro-Matic/XinN (for example missing
+height beyond the native dematrix subset, or 2.1→5.1). Carrier slots that feed
+height dematrix are labeled `carrier_dematrix` in the channel-mapping XML and
+`--channel-diagram` output: the bed is recovered (and may be silent) while the
+paired height is emitted as `native_auro`.
+
+Example for `7.1_5H1_1T` (`--channel-diagram`):
+
+```text
+carrier LS + codec -> LS [dematrix bed; may be silent], HL [native AURO]
+carrier RS + codec -> RS [dematrix bed; may be silent], HR [native AURO]
+decoded bed -> HC [Auro-Matic/XinN]
+```
 
 ## Metadata storage
 
@@ -63,6 +75,16 @@ Important fields are stored in `AuroMetadataInfo`:
 
 The metadata scanner is only used to choose layout and boot parameters. The
 actual channel payload is decoded later by the codec-v3 parser/output generator.
+Decoded output is trimmed to the number of real input frames. If the source ends
+inside an Auro block, the final partial block has its PCM LSB cleared on export:
+the incomplete embedded payload cannot be consumed and must not leave a valid
+ADOL sync that makes downstream hardware decode the PCM a second time.
+
+Legacy XinN accepts 32/44.1/48 kHz. A 96 kHz decoded PCM input is converted to
+48 kHz at the 1fs boundary before XinN, matching the resampler position in the
+native A3DENG plan. Exported WAVE/temporary-FLAC input carries a speaker mask
+derived from the actual output slots, so LS/RS are not reinterpreted as LB/RB.
+FLAC itself is limited to eight channels; 5.1.4 and larger exports use WAV.
 
 ## Layout selection
 
@@ -73,6 +95,14 @@ The input channel slot map is chosen from the WAV channel count plus metadata:
 - if metadata has a valid carrier layout matching the WAV channel count, that
   carrier layout is used;
 - otherwise the decoder falls back to the WAV/native channel mask.
+
+Carrier planes whose complete PCM payload contains only the three embedded
+metadata bits (`-7..7`) are treated as silent padding and removed from the
+effective codec-v3 input mask. They remain container channels, but must not
+create inactive frame slots that overwrite an Extrapolate destination. This is
+required by the 8-channel `5.1+2H` carrier: logical channels 4/5 reconstruct
+native destinations 7/8, while the physical padding planes for 7/8 contain no
+audio.
 
 The requested output layout is chosen from the decoded AURO layout. For the
 special `7.1_5H1_1T` stream the current native path selects the closest direct
@@ -217,6 +247,14 @@ Example for `auro_2d.wav`:
 carrier_passthrough=ch0(FL),ch1(FR),ch3(LFE)
 auromatic=ch2(C),ch4(LS),ch5(RS)
 ```
+
+### Output headroom
+
+`--dsp-headroom-db` defaults to `0`. An explicitly requested value is converted
+to `10^(-dB/20)` and applied to every output channel, including carrier bed,
+decoded bed, LFE, and height channels. DSP strength remains limited to
+synthesized/non-carrier channels. AuroCX uses the same global output-headroom
+rule.
 
 ## Probe (`--probe`)
 
