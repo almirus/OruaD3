@@ -9,9 +9,11 @@
 #include "sasc_resample.hpp"
 
 #include "../io/wav_writer.hpp"
+#include "../render/binaural_renderer.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <limits>
 #include <utility>
@@ -236,9 +238,107 @@ void append_pcm24(std::vector<std::uint8_t>& out, std::int32_t sample) {
 
 struct OutputMapping {
     std::vector<std::uint32_t> stream_for_output_channel;
+    std::vector<std::uint32_t> channel_id_for_output_channel;
     std::uint16_t channels = 0;
     std::uint32_t channel_mask = 0;
 };
+
+const char* cx_channel_name(std::uint32_t channel_id) {
+    static constexpr const char* names[] = {
+        "FL", "FR", "C", "LFE", "LS", "RS", "CS", "LB",
+        "RB", "HL", "HR", "HC", "T", "HLS", "HRS", "HCS"
+    };
+    return channel_id < sizeof(names) / sizeof(names[0]) ? names[channel_id] : nullptr;
+}
+
+const char* cx_layout_name(std::uint32_t layout) {
+    switch (layout) {
+    case 0x01BFu: return "7.1";
+    case 0x663Fu: return "5.1+4H (9.1)";
+    case 0x67BFu: return "7.1+4H (11.1)";
+    case 0x7FBFu: return "7.1+5H+T (13.1)";
+    default: return "custom";
+    }
+}
+
+std::uint32_t cx_layout_from_mapping(const OutputMapping& mapping) {
+    std::uint32_t layout = 0;
+    for (const std::uint32_t channel_id : mapping.channel_id_for_output_channel) {
+        if (channel_id < 32u)
+            layout |= 1u << channel_id;
+    }
+    return layout;
+}
+
+std::string xml_escape(const std::string& value) {
+    std::string escaped;
+    for (const char c : value) {
+        switch (c) {
+        case '&': escaped += "&amp;"; break;
+        case '<': escaped += "&lt;"; break;
+        case '>': escaped += "&gt;"; break;
+        case '\"': escaped += "&quot;"; break;
+        case '\'': escaped += "&apos;"; break;
+        default: escaped += c; break;
+        }
+    }
+    return escaped;
+}
+
+bool write_channel_mapping_xml(
+    const std::filesystem::path& audio_path,
+    const std::filesystem::path& source_path,
+    std::uint32_t sample_rate,
+    const OutputMapping& mapping,
+    bool binaural,
+    std::string& error) {
+    if (!binaural && (mapping.channel_id_for_output_channel.size() != mapping.channels ||
+        mapping.stream_for_output_channel.size() != mapping.channels)) {
+        error = "AuroCX output mapping is incomplete";
+        return false;
+    }
+    std::filesystem::path xml_path = audio_path;
+    xml_path.replace_extension(".xml");
+    std::ofstream out(xml_path, std::ios::binary | std::ios::trunc);
+    if (!out) {
+        error = "cannot open channel mapping XML: " + xml_path.string();
+        return false;
+    }
+    const std::uint32_t source_layout = cx_layout_from_mapping(mapping);
+    out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        << "<channelMapping audioFile=\""
+        << xml_escape(audio_path.filename().string())
+        << "\" sourceFile=\""
+        << xml_escape(source_path.filename().string())
+        << "\" decoder=\"AuroCX\" sampleRate=\"" << sample_rate
+        << "\" sourceLayout=\"" << cx_layout_name(source_layout)
+        << "\" sourceLayoutMask=\"0x" << std::hex << source_layout << std::dec
+        << "\" bitsPerSample=\"24\" channelCount=\"" << (binaural ? 2u : mapping.channels)
+        << "\">\n";
+    if (binaural) {
+        out << "  <channel index=\"0\" number=\"1\" slot=\"0\" name=\"FL\" source=\"binaural_renderer\"/>\n"
+            << "  <channel index=\"1\" number=\"2\" slot=\"1\" name=\"FR\" source=\"binaural_renderer\"/>\n";
+    }
+    for (std::uint32_t index = 0; !binaural && index < mapping.channels; ++index) {
+        const std::uint32_t channel_id = mapping.channel_id_for_output_channel[index];
+        const char* name = cx_channel_name(channel_id);
+        out << "  <channel index=\"" << index
+            << "\" number=\"" << (index + 1u)
+            << "\" slot=\"" << channel_id << "\" name=\"";
+        if (name)
+            out << name;
+        else
+            out << "ch" << channel_id;
+        out << "\" source=\"native_aurocx\" audioStream=\""
+            << mapping.stream_for_output_channel[index] << "\"/>\n";
+    }
+    out << "</channelMapping>\n";
+    if (!out) {
+        error = "failed to write channel mapping XML: " + xml_path.string();
+        return false;
+    }
+    return true;
+}
 
 std::uint32_t wave_speaker_mask(std::uint32_t channel_id) {
     static constexpr std::uint32_t masks[] = {
@@ -286,7 +386,9 @@ OutputMapping make_wave_output_mapping(
     if (channels.empty() || channels.size() > UINT16_MAX)
         return map;
 
-    std::vector<std::pair<std::uint32_t, std::uint32_t>> ordered;
+    std::vector<std::pair<
+        std::uint32_t,
+        std::pair<std::uint32_t, std::uint32_t>>> ordered;
     ordered.reserve(channels.size());
     std::uint32_t channel_mask = 0;
     for (const auto& channel : channels) {
@@ -294,19 +396,25 @@ OutputMapping make_wave_output_mapping(
         if (!speaker || (channel_mask & speaker)) {
             map.channels = static_cast<std::uint16_t>(channels.size());
             map.stream_for_output_channel.reserve(channels.size());
-            for (const auto& original : channels)
+            map.channel_id_for_output_channel.reserve(channels.size());
+            for (const auto& original : channels) {
+                map.channel_id_for_output_channel.push_back(original.first);
                 map.stream_for_output_channel.push_back(original.second);
+            }
             return map;
         }
         channel_mask |= speaker;
-        ordered.emplace_back(speaker, channel.second);
+        ordered.emplace_back(speaker, channel);
     }
     std::sort(ordered.begin(), ordered.end());
     map.channels = static_cast<std::uint16_t>(ordered.size());
     map.channel_mask = channel_mask;
     map.stream_for_output_channel.reserve(ordered.size());
-    for (const auto& channel : ordered)
-        map.stream_for_output_channel.push_back(channel.second);
+    map.channel_id_for_output_channel.reserve(ordered.size());
+    for (const auto& channel : ordered) {
+        map.channel_id_for_output_channel.push_back(channel.second.first);
+        map.stream_for_output_channel.push_back(channel.second.second);
+    }
     return map;
 }
 
@@ -354,7 +462,10 @@ bool decode_auro_cx_mp4(
     const std::string& path,
     const std::string& out_wav,
     std::string& error,
-    float headroom_db) {
+    float headroom_db,
+    bool binaural,
+    unsigned room_preset,
+    unsigned hrtf_preset) {
     if (!std::isfinite(headroom_db) || headroom_db < 0.0f) {
         error = "invalid output headroom";
         return false;
@@ -404,7 +515,9 @@ bool decode_auro_cx_mp4(
     std::uint32_t sasc_scratch_stream = UINT32_MAX;
     std::vector<std::uint32_t> awc_stream_parameters;
     wav::Pcm24StreamWriter wav_writer;
+    BinauralStreamRenderer binaural_renderer;
     std::vector<std::uint8_t> au_pcm;
+    std::vector<std::uint8_t> binaural_pcm;
 
     const auto bed_stream_count = [&](const CxSchemaParseResult& schema) -> std::uint32_t {
         std::uint32_t count = 0;
@@ -665,13 +778,23 @@ bool decode_auro_cx_mp4(
                 stream_buffers[s].assign(samples_per_au, 0);
             const std::uint64_t frame_count =
                 static_cast<std::uint64_t>(track.offsets.size() - 1u) * samples_per_au;
+            if (binaural && !binaural_renderer.initialize(
+                    24u,
+                    track.rate,
+                    mapping.channels,
+                    mapping.channel_id_for_output_channel,
+                    room_preset,
+                    hrtf_preset,
+                    samples_per_au,
+                    error))
+                return false;
             if (!wav_writer.open(
                     out_wav,
                     track.rate,
-                    mapping.channels,
+                    binaural ? 2u : mapping.channels,
                     frame_count,
                     error,
-                    mapping.channel_mask))
+                    binaural ? 3u : mapping.channel_mask))
                 return false;
             au_pcm.reserve(static_cast<std::size_t>(mapping.channels) * samples_per_au * 3u);
             continue;
@@ -1020,7 +1143,13 @@ bool decode_auro_cx_mp4(
                     static_cast<std::int32_t>(static_cast<float>(sample) * headroom_gain));
             }
         }
-        if (!wav_writer.write(au_pcm, error))
+        const std::vector<std::uint8_t>* output_pcm = &au_pcm;
+        if (binaural) {
+            if (!binaural_renderer.process(au_pcm, binaural_pcm, error))
+                return false;
+            output_pcm = &binaural_pcm;
+        }
+        if (!wav_writer.write(*output_pcm, error))
             return false;
     }
 
@@ -1030,6 +1159,8 @@ bool decode_auro_cx_mp4(
     }
 
     if (!wav_writer.close(error))
+        return false;
+    if (!write_channel_mapping_xml(out_wav, path, track.rate, mapping, binaural, error))
         return false;
     return true;
 }

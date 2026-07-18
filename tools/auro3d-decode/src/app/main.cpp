@@ -324,6 +324,7 @@ bool write_channel_mapping_xml(
     unsigned sample_rate,
     unsigned bits_per_sample,
     unsigned channel_count,
+    std::uint32_t source_layout_mask,
     const std::vector<std::uint32_t>& slots,
     std::uint32_t input_mask,
     std::uint32_t native_mask,
@@ -339,12 +340,16 @@ bool write_channel_mapping_xml(
         return false;
     }
 
+    const char* source_layout = auro3d::auro_channel_layout_to_string(source_layout_mask);
     out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         << "<channelMapping audioFile=\""
         << xml_escape(audio_path.filename().string())
         << "\" sourceFile=\""
         << xml_escape(source_path.filename().string())
         << "\" sampleRate=\"" << sample_rate
+        << "\" sourceLayout=\""
+        << xml_escape(source_layout[0] ? source_layout : "custom")
+        << "\" sourceLayoutMask=\"0x" << std::hex << source_layout_mask << std::dec
         << "\" bitsPerSample=\"" << bits_per_sample
         << "\" channelCount=\"" << channel_count << "\">\n";
     for (unsigned ch = 0; ch < channel_count; ++ch) {
@@ -482,7 +487,7 @@ std::vector<std::uint8_t> extract_mono_channel_pcm(
 
 void print_usage() {
     std::cerr
-        << auro3d_decode::kName << " " << auro3d_decode::kVersion << " — консольный декодер AURO на базе RE libauro.so / libauro3d.so.\n\n"
+        << auro3d_decode::kName << " " << auro3d_decode::kVersion << " — консольный декодер AURO.\n\n"
         << "Использование:\n"
         << "  " << auro3d_decode::kName << " -i <input.wav|input.flac|input.mkv|input.mp4|input.s24le> -o <output.wav|output.flac> [опции]\n"
         << "  " << auro3d_decode::kName << " --probe -i <input>   # диагностика без -o\n"
@@ -504,7 +509,6 @@ void print_usage() {
         << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac, etc.\n"
         << "  --channel-diagram    print structural input-to-output channel diagram\n"
         << "  --probe              print format diagnostics without decoding to a file; -o is not required\n"
-        << "                       MP4 a3ds (AuroCX) → schema/container probe; else → classic/native open info\n"
         << "  --binaural           render decoded channels to HRTF stereo (48 kHz)\n"
         << "  --dsp-headroom-db X  headroom в dB (0..24; по умолчанию 0)\n"
         << "  --room-preset N      room preset AURO (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
@@ -768,7 +772,10 @@ int main(int argc, char** argv) {
             opt.input,
             opt.output,
             err,
-            opt.dsp_headroom_db);
+            opt.dsp_headroom_db,
+            opt.binaural,
+            opt.room_preset,
+            opt.hrtf_preset);
         if (!ok) {
             std::cerr << "AuroCX decode: " << err << '\n';
             return 2;
@@ -1032,6 +1039,7 @@ int main(int argc, char** argv) {
             cfg.sample_rate,
             cfg.bits_per_sample,
             cfg.channels,
+            native_cfg.requested_output_mask,
             output_slots,
             native_cfg.input_mask,
             native_mask,

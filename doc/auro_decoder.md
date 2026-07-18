@@ -8,6 +8,15 @@ The implementation targets metadata-bearing Auro-Codec streams in PCM carriers.
 The AuroCX path is implemented separately for MP4 `a3ds` tracks. The Auro-Matic
 XinN synthetic upmixer is intentionally not implemented.
 
+Successful AuroCX decoding writes a channel-mapping XML next to the output WAV.
+It records the output and original filenames, decoder type, PCM format, and the
+source schema layout (name and mask), plus the schema channel id, name, and
+audio-stream index for every emitted channel. Binaural XML retains the original
+multichannel source layout while describing a two-channel output.
+The `auro_native` channel-mapping XML exposes the same `sourceLayout` and
+`sourceLayoutMask` attributes from the metadata-requested output layout; these
+also remain multichannel for binaural output.
+
 ## Input model
 
 The command line tool reads WAV PCM24 interleaved input and converts it to
@@ -256,6 +265,14 @@ decoded bed, LFE, and height channels. DSP strength remains limited to
 synthesized/non-carrier channels. AuroCX uses the same global output-headroom
 rule.
 
+### Binaural output
+
+`--binaural` is available for both classic AURO and AuroCX. AuroCX feeds each
+decoded access unit directly into the embedded AHP/HRTF convolution renderer;
+FFT overlap-add state is retained across AU boundaries, so no intermediate
+multichannel WAV or whole-file PCM buffer is required. The output is stereo
+PCM24 and its XML contains two `binaural_renderer` channels.
+
 ## Probe (`--probe`)
 
 `--probe -i <file>` prints diagnostics without writing PCM (`-o` not required).
@@ -269,6 +286,9 @@ The AuroCX path is separate from the PCM/WAV codec-v3 decoder. The probe reads
 an MP4 `a3ds` track, parses `acxd`, reconstructs access-unit offsets from
 `stsc`/`stsz`/`stco`/`co64`, validates the `A3 DC 0D ED` sync prefix, and
 decodes XOR/VLQ blob segment `1` as the schema block.
+The `audio_coding` probe line classifies AWC PDUs from their policy flag as
+`lossless`, `transparent_near_lossless`, or `mixed`; individual AWC PDU lines
+also print the selected coding policy.
 
 ### Confirmed schema syntax (segment 1)
 

@@ -31,26 +31,172 @@ void write_sample(std::vector<std::uint8_t>& out,double x,unsigned bits){
 }
 }
 
-bool render_binaural_from_embedded_ir(const std::vector<std::uint8_t>& pcm,unsigned bits,unsigned rate,unsigned channels,
- const std::vector<std::uint32_t>& channel_slots,unsigned room,unsigned hrtf,std::vector<std::uint8_t>& out,std::string& err){
-    HRSRC rs=FindResourceW(nullptr,MAKEINTRESOURCEW(102),MAKEINTRESOURCEW(10)); if(!rs){err="binaural IR resource not found";return false;}
-    HGLOBAL hg=LoadResource(nullptr,rs); const auto* data=(const std::uint8_t*)LockResource(hg); std::size_t size=SizeofResource(nullptr,rs);
-    if(!data||size<sizeof(IrHeader)){err="invalid binaural IR resource";return false;} const auto*h=(const IrHeader*)data;
-    if(std::memcmp(h->magic,"AUROHPIR",8)||h->version!=1||h->rate!=48000||rate!=48000){err="binaural mode currently requires 48000 Hz";return false;}
-    if(room>=h->rooms){err="invalid room preset";return false;} unsigned bank=hrtf==0?0:1; if(bank>=h->banks)bank=0;
-    unsigned bps=bits/8; if((bits!=16&&bits!=24&&bits!=32)||!channels||pcm.size()%(channels*bps)){err="unsupported PCM format";return false;}
-    std::size_t frames=pcm.size()/(channels*bps), nfft=1;while(nfft<frames+h->frames-1)nfft<<=1;
-    std::vector<C> sumL(nfft),sumR(nfft),x(nfft),ir(nfft); const float* base=(const float*)(data+sizeof(IrHeader));
-    const std::size_t ir_stride=std::size_t(h->frames)*2, perf_index=0;
-    for(unsigned ch=0;ch<channels&&ch<channel_slots.size();++ch){int si=-1;double remix_gain=1.0;std::uint32_t slot=channel_slots[ch];
-        // The native pipeline remixes layouts wider than its canonical 5.1.4
-        // AHP input. Preserve its rear-to-surround -3 dB fold for 7.1/7.1.4.
-        if(slot==7||slot==21){slot=4;remix_gain=0.7071067811865476;}else if(slot==8||slot==22){slot=5;remix_gain=0.7071067811865476;}
-        for(unsigned s=0;s<h->slots;s++)if(h->slot_ids[s]==slot)si=(int)s;if(si<0)continue;
-        std::fill(x.begin(),x.end(),C{});for(std::size_t f=0;f<frames;f++)x[f]=read_sample(&pcm[(f*channels+ch)*bps],bits)*remix_gain;fft(x,false);
-        std::size_t idx=(((std::size_t(bank)*h->rooms+room)*h->perf+perf_index)*h->slots+si)*ir_stride;
-        for(unsigned ear=0;ear<2;ear++){std::fill(ir.begin(),ir.end(),C{});for(unsigned f=0;f<h->frames;f++){unsigned block=f/32,pos=f%32;float v=base[idx+block*64+ear*32+pos];if(f+1024>h->frames)v*=double(h->frames-f)/1024.0;ir[f]=v;}fft(ir,false);auto&sum=ear?sumR:sumL;for(std::size_t k=0;k<nfft;k++)sum[k]+=x[k]*ir[k];}
+struct BinauralStreamRenderer::Impl {
+    unsigned bits = 0;
+    unsigned channels = 0;
+    unsigned bytes_per_sample = 0;
+    std::size_t maximum_block_frames = 0;
+    std::size_t ir_frames = 0;
+    std::size_t nfft = 0;
+    std::vector<std::vector<C>> ir_left;
+    std::vector<std::vector<C>> ir_right;
+    std::vector<double> overlap_left;
+    std::vector<double> overlap_right;
+};
+
+BinauralStreamRenderer::BinauralStreamRenderer() = default;
+BinauralStreamRenderer::~BinauralStreamRenderer() = default;
+BinauralStreamRenderer::BinauralStreamRenderer(BinauralStreamRenderer&&) noexcept = default;
+BinauralStreamRenderer& BinauralStreamRenderer::operator=(BinauralStreamRenderer&&) noexcept = default;
+
+bool BinauralStreamRenderer::initialize(
+    unsigned bits,
+    unsigned rate,
+    unsigned channels,
+    const std::vector<std::uint32_t>& channel_slots,
+    unsigned room,
+    unsigned hrtf,
+    std::size_t maximum_block_frames,
+    std::string& err) {
+    HRSRC rs = FindResourceW(nullptr, MAKEINTRESOURCEW(102), MAKEINTRESOURCEW(10));
+    if (!rs) { err = "binaural IR resource not found"; return false; }
+    HGLOBAL hg = LoadResource(nullptr, rs);
+    const auto* data = static_cast<const std::uint8_t*>(LockResource(hg));
+    const std::size_t size = SizeofResource(nullptr, rs);
+    if (!data || size < sizeof(IrHeader)) { err = "invalid binaural IR resource"; return false; }
+    const auto* h = reinterpret_cast<const IrHeader*>(data);
+    if (std::memcmp(h->magic, "AUROHPIR", 8) || h->version != 1 ||
+        h->rate != 48000 || rate != 48000) {
+        err = "binaural mode currently requires 48000 Hz";
+        return false;
     }
-    fft(sumL,true);fft(sumR,true);out.clear();out.reserve(frames*2*bps);for(std::size_t f=0;f<frames;f++){write_sample(out,sumL[f].real(),bits);write_sample(out,sumR[f].real(),bits);}return true;
+    if (room >= h->rooms) { err = "invalid room preset"; return false; }
+    if ((bits != 16 && bits != 24 && bits != 32) || !channels ||
+        channel_slots.size() < channels || !maximum_block_frames) {
+        err = "unsupported PCM format";
+        return false;
+    }
+    unsigned bank = hrtf == 0 ? 0 : 1;
+    if (bank >= h->banks) bank = 0;
+
+    auto impl = std::make_unique<Impl>();
+    impl->bits = bits;
+    impl->channels = channels;
+    impl->bytes_per_sample = bits / 8;
+    impl->maximum_block_frames = maximum_block_frames;
+    impl->ir_frames = h->frames;
+    impl->nfft = 1;
+    while (impl->nfft < maximum_block_frames + h->frames - 1u)
+        impl->nfft <<= 1u;
+    impl->ir_left.resize(channels);
+    impl->ir_right.resize(channels);
+    impl->overlap_left.assign(h->frames ? h->frames - 1u : 0u, 0.0);
+    impl->overlap_right.assign(h->frames ? h->frames - 1u : 0u, 0.0);
+
+    const float* base = reinterpret_cast<const float*>(data + sizeof(IrHeader));
+    const std::size_t ir_stride = static_cast<std::size_t>(h->frames) * 2u;
+    constexpr std::size_t perf_index = 0;
+    std::vector<C> ir(impl->nfft);
+    for (unsigned ch = 0; ch < channels; ++ch) {
+        int slot_index = -1;
+        double remix_gain = 1.0;
+        std::uint32_t slot = channel_slots[ch];
+        if (slot == 7 || slot == 21) { slot = 4; remix_gain = 0.7071067811865476; }
+        else if (slot == 8 || slot == 22) { slot = 5; remix_gain = 0.7071067811865476; }
+        for (unsigned s = 0; s < h->slots; ++s)
+            if (h->slot_ids[s] == slot) slot_index = static_cast<int>(s);
+        if (slot_index < 0)
+            continue;
+        const std::size_t index = (((static_cast<std::size_t>(bank) * h->rooms + room)
+            * h->perf + perf_index) * h->slots + static_cast<unsigned>(slot_index)) * ir_stride;
+        for (unsigned ear = 0; ear < 2; ++ear) {
+            std::fill(ir.begin(), ir.end(), C{});
+            for (unsigned frame = 0; frame < h->frames; ++frame) {
+                const unsigned block = frame / 32u;
+                const unsigned position = frame % 32u;
+                double value = base[index + block * 64u + ear * 32u + position] * remix_gain;
+                if (frame + 1024u > h->frames)
+                    value *= static_cast<double>(h->frames - frame) / 1024.0;
+                ir[frame] = value;
+            }
+            fft(ir, false);
+            (ear ? impl->ir_right[ch] : impl->ir_left[ch]) = ir;
+        }
+    }
+    impl_ = std::move(impl);
+    return true;
+}
+
+bool BinauralStreamRenderer::process(
+    const std::vector<std::uint8_t>& pcm,
+    std::vector<std::uint8_t>& out,
+    std::string& err) {
+    if (!impl_) { err = "binaural renderer is not initialized"; return false; }
+    const std::size_t frame_bytes = static_cast<std::size_t>(impl_->channels) * impl_->bytes_per_sample;
+    if (!frame_bytes || pcm.size() % frame_bytes) { err = "unsupported PCM format"; return false; }
+    const std::size_t frames = pcm.size() / frame_bytes;
+    if (frames > impl_->maximum_block_frames) { err = "binaural block is too large"; return false; }
+
+    std::vector<C> sum_left(impl_->nfft), sum_right(impl_->nfft), input(impl_->nfft);
+    for (unsigned ch = 0; ch < impl_->channels; ++ch) {
+        if (impl_->ir_left[ch].empty())
+            continue;
+        std::fill(input.begin(), input.end(), C{});
+        for (std::size_t frame = 0; frame < frames; ++frame)
+            input[frame] = read_sample(&pcm[(frame * impl_->channels + ch) * impl_->bytes_per_sample], impl_->bits);
+        fft(input, false);
+        for (std::size_t k = 0; k < impl_->nfft; ++k) {
+            sum_left[k] += input[k] * impl_->ir_left[ch][k];
+            sum_right[k] += input[k] * impl_->ir_right[ch][k];
+        }
+    }
+    fft(sum_left, true);
+    fft(sum_right, true);
+
+    out.clear();
+    out.reserve(frames * 2u * impl_->bytes_per_sample);
+    for (std::size_t frame = 0; frame < frames; ++frame) {
+        const double old_left = frame < impl_->overlap_left.size() ? impl_->overlap_left[frame] : 0.0;
+        const double old_right = frame < impl_->overlap_right.size() ? impl_->overlap_right[frame] : 0.0;
+        write_sample(out, sum_left[frame].real() + old_left, impl_->bits);
+        write_sample(out, sum_right[frame].real() + old_right, impl_->bits);
+    }
+    std::vector<double> next_left(impl_->overlap_left.size(), 0.0);
+    std::vector<double> next_right(impl_->overlap_right.size(), 0.0);
+    for (std::size_t k = 0; k < next_left.size(); ++k) {
+        const std::size_t position = frames + k;
+        if (position < impl_->overlap_left.size()) {
+            next_left[k] += impl_->overlap_left[position];
+            next_right[k] += impl_->overlap_right[position];
+        }
+        if (position < impl_->nfft) {
+            next_left[k] += sum_left[position].real();
+            next_right[k] += sum_right[position].real();
+        }
+    }
+    impl_->overlap_left = std::move(next_left);
+    impl_->overlap_right = std::move(next_right);
+    return true;
+}
+
+bool render_binaural_from_embedded_ir(
+    const std::vector<std::uint8_t>& pcm,
+    unsigned bits,
+    unsigned rate,
+    unsigned channels,
+    const std::vector<std::uint32_t>& channel_slots,
+    unsigned room,
+    unsigned hrtf,
+    std::vector<std::uint8_t>& out,
+    std::string& err) {
+    const unsigned bytes_per_sample = bits / 8u;
+    if (!bytes_per_sample || !channels || pcm.size() % (channels * bytes_per_sample)) {
+        err = "unsupported PCM format";
+        return false;
+    }
+    const std::size_t frames = pcm.size() / (channels * bytes_per_sample);
+    BinauralStreamRenderer renderer;
+    return renderer.initialize(bits, rate, channels, channel_slots, room, hrtf, frames, err)
+        && renderer.process(pcm, out, err);
 }
 }

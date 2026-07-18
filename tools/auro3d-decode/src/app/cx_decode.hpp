@@ -12,6 +12,9 @@ bool decode_auro_cx_mp4(
     const std::string& path,
     const std::string& out_wav,
     std::string& error,
-    float headroom_db = 0.0f);
+    float headroom_db = 0.0f,
+    bool binaural = false,
+    unsigned room_preset = 0,
+    unsigned hrtf_preset = 0);
 
 } // namespace auro3d
