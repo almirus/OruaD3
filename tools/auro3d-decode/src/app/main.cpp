@@ -9,6 +9,7 @@
 #include <array>
 #include <chrono>
 #include <cstdlib>
+#include <cwchar>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -54,6 +55,22 @@ void configure_console_encoding() {
     SetConsoleCP(CP_UTF8);
 #endif
 }
+
+#ifdef _WIN32
+std::string wide_to_utf8(const wchar_t* value) {
+    if (!value || !*value)
+        return {};
+    const int length = static_cast<int>(std::wcslen(value));
+    const int size = WideCharToMultiByte(
+        CP_UTF8, 0, value, length, nullptr, 0, nullptr, nullptr);
+    if (size <= 0)
+        return {};
+    std::string result(static_cast<std::size_t>(size), '\0');
+    WideCharToMultiByte(
+        CP_UTF8, 0, value, length, result.data(), size, nullptr, nullptr);
+    return result;
+}
+#endif
 
 const char* auro_slot_name(std::uint32_t slot) {
     switch (slot) {
@@ -321,16 +338,16 @@ bool write_channel_mapping_xml(
     xml_path.replace_extension(".xml");
     std::ofstream out(xml_path, std::ios::binary | std::ios::trunc);
     if (!out) {
-        error_out = "cannot open channel mapping XML: " + xml_path.string();
+        error_out = "cannot open channel mapping XML: " + xml_path.u8string();
         return false;
     }
 
     const char* source_layout = auro3d::auro_channel_layout_to_string(source_layout_mask);
     out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         << "<channelMapping audioFile=\""
-        << xml_escape(audio_path.filename().string())
+        << xml_escape(audio_path.filename().u8string())
         << "\" sourceFile=\""
-        << xml_escape(source_path.filename().string())
+        << xml_escape(source_path.filename().u8string())
         << "\" sampleRate=\"" << sample_rate
         << "\" sourceLayout=\""
         << xml_escape(source_layout[0] ? source_layout : "custom")
@@ -385,7 +402,7 @@ bool write_channel_mapping_xml(
     }
     out << "</channelMapping>\n";
     if (!out) {
-        error_out = "failed to write channel mapping XML: " + xml_path.string();
+        error_out = "failed to write channel mapping XML: " + xml_path.u8string();
         return false;
     }
     return true;
@@ -724,7 +741,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
 
 } // namespace
 
-int main(int argc, char** argv) {
+int app_main(int argc, char** argv) {
     configure_console_encoding();
 
     Options opt{};
@@ -1009,8 +1026,8 @@ int main(int argc, char** argv) {
         return 4;
     }
     if (!write_channel_mapping_xml(
-            opt.output,
-            opt.input,
+            std::filesystem::u8path(opt.output),
+            std::filesystem::u8path(opt.input),
             cfg.sample_rate,
             cfg.bits_per_sample,
             cfg.channels,
@@ -1065,3 +1082,22 @@ int main(int argc, char** argv) {
     }
     return 0;
 }
+
+#ifdef _WIN32
+int wmain(int argc, wchar_t** argv) {
+    std::vector<std::string> utf8_args;
+    utf8_args.reserve(static_cast<std::size_t>(argc));
+    for (int i = 0; i < argc; ++i)
+        utf8_args.push_back(wide_to_utf8(argv[i]));
+
+    std::vector<char*> narrow_argv;
+    narrow_argv.reserve(utf8_args.size());
+    for (std::string& arg : utf8_args)
+        narrow_argv.push_back(arg.data());
+    return app_main(argc, narrow_argv.data());
+}
+#else
+int main(int argc, char** argv) {
+    return app_main(argc, argv);
+}
+#endif

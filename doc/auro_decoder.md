@@ -308,6 +308,8 @@ decodes XOR/VLQ blob segment `1` as the schema block.
 The `audio_coding` probe line classifies AWC PDUs from their policy flag as
 `lossless`, `transparent_near_lossless`, or `mixed`; individual AWC PDU lines
 also print the selected coding policy.
+The AuroCX channel-mapping XML records the same classification in the root
+`audioCoding` attribute.
 
 ### Confirmed schema syntax (segment 1)
 

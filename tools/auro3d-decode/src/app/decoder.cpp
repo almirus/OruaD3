@@ -14,15 +14,42 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <filesystem>
 #include <limits>
 #include <sstream>
 #include <string>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 #ifndef AURO3DENG_ENABLE_NATIVE_IMAGE_PRESET_POINTERS
 #define AURO3DENG_ENABLE_NATIVE_IMAGE_PRESET_POINTERS 0
 #endif
 
 namespace {
+
+#ifdef _WIN32
+std::wstring utf8_to_wide(const std::string& value) {
+    if (value.empty())
+        return {};
+    const int size = MultiByteToWideChar(
+        CP_UTF8, MB_ERR_INVALID_CHARS, value.data(),
+        static_cast<int>(value.size()), nullptr, 0);
+    if (size <= 0)
+        return {};
+    std::wstring result(static_cast<std::size_t>(size), L'\0');
+    if (MultiByteToWideChar(
+            CP_UTF8, MB_ERR_INVALID_CHARS, value.data(),
+            static_cast<int>(value.size()), result.data(), size) != size) {
+        return {};
+    }
+    return result;
+}
+#endif
 
 constexpr std::uint32_t kProcessorDescSampleBitsS24 = 24u;
 constexpr std::uint32_t kProcessorDescInputLayout = 1u;
@@ -2032,7 +2059,7 @@ bool try_parse_wav_s24le(
 bool read_file_bytes(const std::string& path, std::vector<std::uint8_t>& bytes, std::string& err) {
     err.clear();
     bytes.clear();
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(std::filesystem::u8path(path), std::ios::binary);
     if (!in) {
         err = "cannot open file";
         return false;
@@ -2059,7 +2086,7 @@ bool read_file_prefix(
     std::string& err) {
     err.clear();
     bytes.clear();
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(std::filesystem::u8path(path), std::ios::binary);
     if (!in) {
         err = "cannot open file";
         return false;
@@ -2129,7 +2156,8 @@ std::string temp_wav_path() {
 bool run_command_capture_stdout(const std::string& command, std::string& output) {
     output.clear();
 #ifdef _WIN32
-    FILE* pipe = _popen(command.c_str(), "r");
+    const std::wstring wide_command = utf8_to_wide(command);
+    FILE* pipe = wide_command.empty() ? nullptr : _wpopen(wide_command.c_str(), L"r");
 #else
     FILE* pipe = popen(command.c_str(), "r");
 #endif
@@ -2144,6 +2172,15 @@ bool run_command_capture_stdout(const std::string& command, std::string& output)
     return _pclose(pipe) == 0;
 #else
     return pclose(pipe) == 0;
+#endif
+}
+
+int run_command(const std::string& command) {
+#ifdef _WIN32
+    const std::wstring wide_command = utf8_to_wide(command);
+    return wide_command.empty() ? -1 : _wsystem(wide_command.c_str());
+#else
+    return std::system(command.c_str());
 #endif
 }
 
@@ -2164,7 +2201,7 @@ unsigned parse_probe_unsigned(const std::string& value) {
 
 bool find_supported_audio_stream(const std::string& path, unsigned& stream_index, std::string& err) {
     const std::string command =
-        "ffprobe -v error -select_streams a "
+        "ffprobe -v error -probesize 32M -analyzeduration 20M -select_streams a "
         "-show_entries stream=index,codec_name,profile,bits_per_sample,bits_per_raw_sample "
         "-of compact=p=0:nk=0 " + shell_quote_path(path);
     std::string probe_output;
@@ -2232,14 +2269,14 @@ bool decode_supported_audio_to_pcm24_wav_bytes(
 
     const std::string tmp_wav = temp_wav_path();
     const std::string cmd =
-        "ffmpeg -y -v error -i " + shell_quote_path(path)
+        "ffmpeg -y -v error -probesize 32M -analyzeduration 20M -i " + shell_quote_path(path)
         + " -map 0:" + std::to_string(stream_index)
         + " -c:a pcm_s24le"
         + (target_sample_rate != 0u
             ? " -ar " + std::to_string(target_sample_rate)
             : std::string())
         + " -f wav " + shell_quote_path(tmp_wav);
-    const int rc = std::system(cmd.c_str());
+    const int rc = run_command(cmd);
     if (rc != 0) {
         std::remove(tmp_wav.c_str());
         err = "ffmpeg failed to decode selected audio stream to PCM24 WAV";
@@ -3561,7 +3598,7 @@ bool probe_wav_pcm_s24le(
     channels = 0;
     std::uint32_t channel_mask = 0;
 
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(std::filesystem::u8path(path), std::ios::binary);
     if (!in) {
         err = "cannot open file";
         return false;
@@ -3615,7 +3652,7 @@ bool resolve_s24le_interleaved_pcm_region(
             err = "raw stream needs --rate and --channels";
             return false;
         }
-        std::ifstream in(path, std::ios::binary);
+        std::ifstream in(std::filesystem::u8path(path), std::ios::binary);
         if (!in) {
             err = "cannot open file";
             return false;
@@ -3680,7 +3717,7 @@ bool read_pcm24_interleaved_frames_i32(
     }
     const std::size_t need = static_cast<std::size_t>(need_u64);
 
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(std::filesystem::u8path(path), std::ios::binary);
     if (!in) {
         err = "cannot open file";
         return false;

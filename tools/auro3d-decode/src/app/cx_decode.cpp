@@ -290,6 +290,7 @@ bool write_channel_mapping_xml(
     const std::filesystem::path& source_path,
     std::uint32_t sample_rate,
     const OutputMapping& mapping,
+    const char* audio_coding,
     bool binaural,
     std::string& error) {
     if (!binaural && (mapping.channel_id_for_output_channel.size() != mapping.channels ||
@@ -310,7 +311,8 @@ bool write_channel_mapping_xml(
         << xml_escape(audio_path.filename().string())
         << "\" sourceFile=\""
         << xml_escape(source_path.filename().string())
-        << "\" decoder=\"AuroCX\" sampleRate=\"" << sample_rate
+        << "\" decoder=\"AuroCX\" audioCoding=\"" << audio_coding
+        << "\" sampleRate=\"" << sample_rate
         << "\" sourceLayout=\"" << cx_layout_name(source_layout)
         << "\" sourceLayoutMask=\"0x" << std::hex << source_layout << std::dec
         << "\" bitsPerSample=\"24\" channelCount=\"" << (binaural ? 2u : mapping.channels)
@@ -518,6 +520,8 @@ bool decode_auro_cx_mp4(
     BinauralStreamRenderer binaural_renderer;
     std::vector<std::uint8_t> au_pcm;
     std::vector<std::uint8_t> binaural_pcm;
+    bool saw_lossless_awc = false;
+    bool saw_transparent_awc = false;
 
     const auto bed_stream_count = [&](const CxSchemaParseResult& schema) -> std::uint32_t {
         std::uint32_t count = 0;
@@ -947,6 +951,10 @@ bool decode_auro_cx_mp4(
                 }
                 continue;
             }
+            if (pdu.header_flag0)
+                saw_lossless_awc = true;
+            else
+                saw_transparent_awc = true;
             if (!pdu.audio_stream_count)
                 continue;
 
@@ -1160,7 +1168,15 @@ bool decode_auro_cx_mp4(
 
     if (!wav_writer.close(error))
         return false;
-    if (!write_channel_mapping_xml(out_wav, path, track.rate, mapping, binaural, error))
+    const char* audio_coding = saw_lossless_awc && saw_transparent_awc
+        ? "mixed"
+        : saw_lossless_awc
+            ? "lossless"
+            : saw_transparent_awc
+                ? "transparent_near_lossless"
+                : "unknown";
+    if (!write_channel_mapping_xml(
+            out_wav, path, track.rate, mapping, audio_coding, binaural, error))
         return false;
     return true;
 }
