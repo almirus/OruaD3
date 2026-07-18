@@ -360,6 +360,10 @@ private:
     std::vector<float> native_xinn_float_span_storage_;
     std::vector<float> native_xinn_process_scratch_storage_;
     std::vector<std::uint8_t> native_xinn_block_records_storage_;
+    std::vector<float> native_xinn_tail_input_storage_;
+    std::vector<std::uint8_t> native_xinn_state_before_tail_;
+    std::vector<float> native_xinn_scratch_before_tail_;
+    std::uint32_t native_xinn_tail_samples_ = 0;
     bool native_xinn_partial_ready_ = false;
     std::uint32_t native_xinn_partial_input_mask_ = 0;
     std::uint32_t native_xinn_partial_output_mask_ = 0;

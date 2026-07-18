@@ -2768,8 +2768,14 @@ void format_detector_process(
     if (state->blocks_per_call == 0)
         return;
 
-    const std::uint64_t sample_span = 32ull * static_cast<std::uint64_t>(state->blocks_per_call);
-    for (std::uint64_t sample_off = 0; sample_off < sample_span; sample_off += 32ull) {
+    // Prefer the real host sample count so unit-block 1000 is fully scanned
+    // (32*floor(1000/32) would drop the last 8 LSB samples).
+    const std::uint64_t sample_span = input_desc->total_samples != 0u
+        ? static_cast<std::uint64_t>(input_desc->total_samples)
+        : 32ull * static_cast<std::uint64_t>(state->blocks_per_call);
+    for (std::uint64_t sample_off = 0; sample_off < sample_span; ) {
+        const std::uint32_t chunk = static_cast<std::uint32_t>(
+            std::min<std::uint64_t>(32ull, sample_span - sample_off));
         std::uint64_t block_ptrs[kCodecV3ChannelCount]{};
         for (std::uint32_t ch = 0; ch < kCodecV3ChannelCount; ++ch) {
             if (((state->layout >> ch) & 1u) == 0)
@@ -2780,9 +2786,17 @@ void format_detector_process(
             block_ptrs[ch] = base + 4ull * sample_off;
         }
 
-        if (process_block)
-            process_block(sync_user, block_ptrs);
-        state->processed_samples += 32ull;
+        if (chunk == 32u) {
+            if (process_block)
+                process_block(sync_user, block_ptrs);
+        } else if (sync_user) {
+            sync_detector_process_block(
+                reinterpret_cast<SyncDetectorState105ee0*>(sync_user),
+                block_ptrs,
+                chunk);
+        }
+        state->processed_samples += chunk;
+        sample_off += chunk;
         // IDA: timeout unlock clears sync_state only; expected_frame_end stays until next push.
         if (state->sync_state != 0u) {
             const auto remaining = static_cast<std::int64_t>(
@@ -2839,9 +2853,14 @@ void sync_detector_set_layout(SyncDetectorState105ee0* state, std::uint32_t layo
 // Mirrors `auro_codec_v3_decoder_SyncDetector_process_block` @ 0x52C680 (libauro.so idb).
 void sync_detector_process_block(
     SyncDetectorState105ee0* state,
-    const std::uint64_t* channel_ptrs_27) {
+    const std::uint64_t* channel_ptrs_27,
+    std::uint32_t sample_count) {
     if (!state || !channel_ptrs_27 || state->enabled == 0)
         return;
+    if (sample_count == 0u)
+        return;
+    if (sample_count > 32u)
+        sample_count = 32u;
 
     auto merge_sync_window16 = [](std::uint32_t old_hist, std::uint32_t new_hist, std::uint32_t sample_idx) {
         const std::uint32_t carry_bits = (sample_idx <= 15u) ? (16u - sample_idx) : 0u;
@@ -2871,7 +2890,7 @@ void sync_detector_process_block(
 
         std::uint32_t packed_bit1 = 0;
         std::uint32_t packed_bit2 = 0;
-        for (std::uint32_t j = 0; j < 32u; ++j) {
+        for (std::uint32_t j = 0; j < sample_count; ++j) {
             const std::uint32_t sample =
                 static_cast<std::uint32_t>(*reinterpret_cast<const std::int32_t*>(src + 4ull * j));
             const std::uint32_t sample_lsb = (sample & 1u) + 1u;
@@ -2881,11 +2900,16 @@ void sync_detector_process_block(
             packed_bit1 = ((sample >> 1) & 1u) + (packed_bit1 << 1);
             packed_bit2 = ((sample & 4u) >> 2) + (packed_bit2 << 1);
         }
+        // Keep history packing left-aligned in the 32-bit word like a full block.
+        if (sample_count < 32u) {
+            packed_bit1 <<= (32u - sample_count);
+            packed_bit2 <<= (32u - sample_count);
+        }
         hist_bit1[i] = packed_bit1;
         hist_bit2[i] = packed_bit2;
     }
 
-    for (std::uint32_t j = 0; j < 32u; ++j) {
+    for (std::uint32_t j = 0; j < sample_count; ++j) {
         const std::uint32_t lsb_flags = any_lsb[j];
         const std::uint32_t bit2_flags = any_bit2[j];
 

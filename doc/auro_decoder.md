@@ -27,13 +27,18 @@ The decoder has two layouts:
 - `carrier_layout`: the physical PCM channels present in the WAV carrier.
 - `decoded_layout`: the logical AURO output layout signaled by metadata.
 
+For 7.1 WAV/FLAC carriers decoded through FFmpeg, physical PCM planes follow
+WAVEFORMATEXTENSIBLE order (`BL,BR` before `SL,SR`). The input mapper preserves
+that order whenever the WAVE mask matches the signaled AURO carrier mask; using
+AURO bit order here swaps LS/RS with LB/RB.
+
 Examples:
 
 - Auro 2D test stream: carrier `2.1`, decoded layout `5.1`.
 - Auro 9.1 stream: carrier `5.1`, decoded layout `5.1 + 4H`.
-- `7.1_5H1_1T`: metadata says `7.1 + 5H + T`, but current native export keeps
-  the direct native subset (`7.1 + 2H`) because the remaining expansion depends
-  on the excluded Auro-Matic/XinN branch.
+- `7.1_5H1_1T`: the codec-v3 mix3 path reconstructs the complete native
+  `7.1 + 5H + T` layout. HC, T, HLS and HRS are codec outputs, not XinN
+  expansion.
 
 The output channel mode is printed once after `open()`:
 
@@ -52,10 +57,15 @@ paired height is emitted as `native_auro`.
 Example for `7.1_5H1_1T` (`--channel-diagram`):
 
 ```text
-carrier LS + codec -> LS [dematrix bed; may be silent], HL [native AURO]
-carrier RS + codec -> RS [dematrix bed; may be silent], HR [native AURO]
-decoded bed -> HC [Auro-Matic/XinN]
+carrier FL + codec -> FL [dematrix bed; may be silent], HL [native AURO]
+carrier FR + codec -> FR [dematrix bed; may be silent], HR [native AURO]
+carrier C + codec -> C [dematrix bed], HC/T [native AURO]
+carrier LS + codec -> LS [dematrix bed], HLS [native AURO]
+carrier RS + codec -> RS [dematrix bed], HRS [native AURO]
 ```
+
+Do not copy raw LS/RS back after mix3. Identification streams confirm that this
+would leave the encoded "height surround" announcements in the bed channels.
 
 ## Metadata storage
 
@@ -146,10 +156,19 @@ Metadata sync can start inside a PCM block. For example:
 
 - Auro 2D test: `sync_sample = 512` with block size `1024`.
 - `7.1_5H1_1T`: `sync_sample = 256`.
+- DTS-HD carriers (e.g. Amplitude16): unit frames `metadata_block = 1000`,
+  `sync_sample = 1024`. Host block is also `1000` (native unit size); PCM is
+  advanced to `sync_sample` so each host block is exactly one unit frame.
+  Using host `960` here drifted 40 samples per frame and blew mix3 dematrix
+  into long −FS plateaus. Processor IO modulo-32 is waived for size `1000`.
+  XinN remains a 32-sample processor: its 8/16/24-sample tails are checkpointed
+  and reprocessed with the following unit frame, so no samples are discarded
+  and its filter state advances on one continuous 32-sample timeline.
 
 The output generator cannot simply decode at block-aligned timeline positions.
 It must line up its timeline with codec frame starts. Current code derives an
-output timeline delay from `sync_sample`:
+output timeline delay from `sync_sample` (skipped when PCM was already aligned
+to the first sync for 1000-sample unit frames):
 
 ```text
 sync_offset = sync_sample % block_size

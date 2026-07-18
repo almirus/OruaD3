@@ -4697,7 +4697,10 @@ std::int32_t processor_process_validate_da9ae0(
     if (!(ex.in_layout == 0 || (ex.in_layout == 1 && static_cast<std::int32_t>(in_desc->field_8) == ex.in_field8_when_layout1)))
         return kErrInField8Mismatch;
     const std::uint32_t in_unit = static_cast<std::uint32_t>(32 * ex.in_bytes_unit);
-    if (in_unit != 0 && (in_desc->total_size_bytes % in_unit) != 0)
+    // Native unit-block size 1000 is explicitly supported; waive the generic
+    // A3DENG modulo-32 IO check for that host size.
+    const bool in_unit_block_1000 = in_desc->total_size_bytes == 1000u;
+    if (in_unit != 0 && !in_unit_block_1000 && (in_desc->total_size_bytes % in_unit) != 0)
         return kErrInSizeModulo;
     if (static_cast<std::int32_t>(in_desc->field_4) != ex.in_field4)
         return kErrInField4Mismatch;
@@ -4709,7 +4712,8 @@ std::int32_t processor_process_validate_da9ae0(
     if (!(ex.out_layout == 0 || (ex.out_layout == 1 && static_cast<std::int32_t>(out_desc->field_8) == ex.out_field8_when_layout1)))
         return kErrOutField8Mismatch;
     const std::uint32_t out_unit = static_cast<std::uint32_t>(32 * ex.out_bytes_unit);
-    if (out_unit != 0 && (out_desc->total_size_bytes % out_unit) != 0)
+    const bool out_unit_block_1000 = out_desc->total_size_bytes == 1000u;
+    if (out_unit != 0 && !out_unit_block_1000 && (out_desc->total_size_bytes % out_unit) != 0)
         return kErrOutSizeModulo;
     if (static_cast<std::int32_t>(out_desc->field_4) != ex.out_field4)
         return kErrOutField4Mismatch;

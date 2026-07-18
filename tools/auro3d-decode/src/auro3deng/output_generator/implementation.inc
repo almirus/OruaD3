@@ -366,9 +366,15 @@ std::int32_t clamp_pcm24_104460(std::int32_t value) {
 }
 
 std::int32_t scale_shift_clamp_pcm24_104460(std::int32_t value, float scale, std::uint32_t shift) {
-    const auto scaled = static_cast<std::int64_t>(
-        static_cast<std::int32_t>(static_cast<float>(value) * scale));
-    const std::int64_t shifted = shift < 31u ? (scaled << shift) : scaled;
+    // IDA 0x52E320/0x52E5C0 uses CVTTSS2SI followed by a 32-bit SHL.  The
+    // shift therefore wraps in 32 bits before the signed PCM24 clamp; widening
+    // it to int64 turns wrapped reconstruction values into long full-scale
+    // plateaus.
+    const std::int32_t scaled =
+        static_cast<std::int32_t>(static_cast<float>(value) * scale);
+    const std::int32_t shifted = shift < 32u
+        ? static_cast<std::int32_t>(static_cast<std::uint32_t>(scaled) << shift)
+        : 0;
     if (shifted >= kPcm24Max_104460)
         return kPcm24Max_104460;
     if (shifted < kPcm24Min_104460)
@@ -888,8 +894,13 @@ std::uint64_t raw_get_delay_line_channel(void* user, std::uint32_t channel, std:
     const std::uint64_t direct = c->fns.delay_line_get_channel(c->delay_line_buffer, channel, adjusted_start);
     if (direct == 0u)
         return 0;
-    const std::uint64_t requested = c->total_samples != 0u ? c->total_samples : state->samples_per_block;
-    if (adjusted_start + requested <= state->samples_per_block)
+    // Unit Auro frames can outlive one host DelayLine slot (e.g. 1000 vs 960).
+    // Always gather up to two host slots so decode can read a full unit frame.
+    const std::uint64_t host_block = state->samples_per_block;
+    std::uint64_t requested = c->total_samples != 0u ? c->total_samples : host_block;
+    if (requested < host_block * 2u)
+        requested = host_block * 2u;
+    if (adjusted_start + requested <= host_block)
         return direct;
 
     auto& window = c->delay_windows[channel];

@@ -791,7 +791,8 @@ sync_detector_set_layout(SyncDetectorState105ee0* state, std::uint32_t layout_ma
 void /* Decompiled name: sync_detector_process_block */
 sync_detector_process_block(
     SyncDetectorState105ee0* state,
-    const std::uint64_t* channel_ptrs_27);
+    const std::uint64_t* channel_ptrs_27,
+    std::uint32_t sample_count = 32u);
 
 void /* Decompiled name: format_detector_t_construct */
 format_detector_t_construct(

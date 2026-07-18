@@ -155,14 +155,16 @@ struct DematrixRouteMap {
     }
 };
 
-// Default vertical folds. For 7.1 -> native HL/HR (13.1 direct subset) the
-// encoder keeps the fold in LS/RS; FL/FR stay near-passthrough (confirmed on
-// test_files/7.1_5H1_1T.wav).
+// Default vertical folds. Native HL/HR from a 7.1 carrier use FL/FR (confirmed
+// on Amplitude16 DTS-HD @~23.6s: HL == inFL-outFL exactly while carrier SL is
+// silent). Do not assume LS/RS folds for layout 7.1_5H_1T.
 DematrixRouteMap build_dematrix_route_map(
     std::uint32_t input_mask,
     std::uint32_t native_mask,
     std::uint32_t layout_id,
     std::uint32_t carrier_layout_id) {
+    (void)layout_id;
+    (void)carrier_layout_id;
     static constexpr DematrixPair kDefaultPairs[] = {
         {9u, 0u},   // HL <- FL
         {10u, 1u},  // HR <- FR
@@ -174,28 +176,11 @@ DematrixRouteMap build_dematrix_route_map(
         {16u, 7u},  // HLB <- LB
         {17u, 8u},  // HRB <- RB
     };
-    static constexpr DematrixPair kPairs7_1NativeHlHr[] = {
-        {9u, 4u},   // HL <- LS
-        {10u, 5u},  // HR <- RS
-    };
-    constexpr std::uint32_t kLayout7_1_5H_1T = 0x7FBFu;
-    constexpr std::uint32_t kCarrier7_1 = 0x01BFu;
-    constexpr std::uint32_t kHlHrMask = (1u << 9) | (1u << 10);
-
-    const DematrixPair* pairs = kDefaultPairs;
-    std::size_t pair_count = sizeof(kDefaultPairs) / sizeof(kDefaultPairs[0]);
-    if (layout_id == kLayout7_1_5H_1T
-        && carrier_layout_id == kCarrier7_1
-        && (native_mask & kHlHrMask) != 0u
-        && (native_mask & ~kHlHrMask) == 0u) {
-        pairs = kPairs7_1NativeHlHr;
-        pair_count = sizeof(kPairs7_1NativeHlHr) / sizeof(kPairs7_1NativeHlHr[0]);
-    }
 
     DematrixRouteMap map;
-    for (std::size_t i = 0; i < pair_count; ++i) {
-        const std::uint32_t height = pairs[i].height_slot;
-        const std::uint32_t bed = pairs[i].bed_slot;
+    for (const auto& pair : kDefaultPairs) {
+        const std::uint32_t height = pair.height_slot;
+        const std::uint32_t bed = pair.bed_slot;
         if (height >= 27u || bed >= 27u)
             continue;
         if (((native_mask >> height) & 1u) == 0u)
@@ -368,7 +353,7 @@ bool write_channel_mapping_xml(
                 const std::uint32_t height = dematrix.bed_to_height[slot];
                 if (height < 27u)
                     dematrix_height = auro_slot_name(height);
-                note = "bed recovered by dematrix; may be silent";
+                note = "bed recovered by dematrix";
             } else {
                 source = "carrier_passthrough";
             }
@@ -432,7 +417,7 @@ void print_channel_diagram(
             if (slot < 27u && ((dematrix.bed_mask >> slot) & 1u) != 0u) {
                 const std::uint32_t height = dematrix.bed_to_height[slot];
                 std::cerr << "  carrier " << name << " + codec -> " << name
-                          << " [dematrix bed; may be silent]";
+                          << " [dematrix bed]";
                 if (height < 27u)
                     std::cerr << ", " << auro_slot_name(height) << " [native AURO]";
                 std::cerr << "\n";
@@ -821,21 +806,11 @@ int main(int argc, char** argv) {
     const auro3d::NativeA3dengRenderState render_cfg = dec.native_a3deng_render_state();
     const auro3d::AuroMetadataInfo auro_meta = dec.auro_metadata();
     std::vector<std::uint32_t> output_slots = dec.output_channel_slot_map();
-    constexpr std::uint32_t kLayout7_1_5H_1T = 0x7FBFu;
-    constexpr std::uint32_t kCarrier7_1 = 0x01BFu;
-    constexpr std::uint32_t kDirect7_1_2H = 0x07BFu;
     std::uint32_t native_mask = native_cfg.requested_output_mask & ~native_cfg.input_mask;
     std::uint32_t auromatic_mask = 0u;
     if (!auro_meta.found) {
         auromatic_mask = native_mask;
         native_mask = 0u;
-    } else if (auro_meta.found
-        && auro_meta.layout_id == kLayout7_1_5H_1T
-        && auro_meta.carrier_layout_id == kCarrier7_1) {
-        native_mask &= kDirect7_1_2H;
-        auromatic_mask = native_cfg.requested_output_mask
-            & ~native_cfg.input_mask
-            & ~native_mask;
     }
     const DematrixRouteMap dematrix_routes = build_dematrix_route_map(
         native_cfg.input_mask,
