@@ -1,10 +1,12 @@
 #include "wav_writer.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <vector>
 
 namespace wav {
 
@@ -18,6 +20,78 @@ std::string shell_quote(const std::string& path) {
         quoted += c;
     }
     return quoted + "\"";
+}
+
+void write_le32(std::ostream& out, std::uint32_t value) {
+    const unsigned char b[4] = {
+        static_cast<unsigned char>(value & 0xFFu),
+        static_cast<unsigned char>((value >> 8) & 0xFFu),
+        static_cast<unsigned char>((value >> 16) & 0xFFu),
+        static_cast<unsigned char>((value >> 24) & 0xFFu),
+    };
+    out.write(reinterpret_cast<const char*>(b), 4);
+}
+
+bool write_list_info(std::ostream& out, const OutputMetadata& metadata, std::string& error_out) {
+    if (metadata.empty())
+        return true;
+    // LIST size = 4 ("INFO") + sum of padded subchunks; computed after building payload.
+    std::string payload;
+    {
+        // Build into a temporary stream buffer via string assembly.
+        std::vector<char> buf;
+        auto append_chunk = [&](const char id[4], const std::string& text) {
+            if (text.empty())
+                return;
+            const std::uint32_t raw_size = static_cast<std::uint32_t>(text.size() + 1u);
+            const std::size_t pad = (raw_size & 1u) ? 1u : 0u;
+            const std::size_t old = buf.size();
+            buf.resize(old + 8u + raw_size + pad);
+            char* p = buf.data() + old;
+            p[0] = id[0]; p[1] = id[1]; p[2] = id[2]; p[3] = id[3];
+            p[4] = static_cast<char>(raw_size & 0xFF);
+            p[5] = static_cast<char>((raw_size >> 8) & 0xFF);
+            p[6] = static_cast<char>((raw_size >> 16) & 0xFF);
+            p[7] = static_cast<char>((raw_size >> 24) & 0xFF);
+            std::copy(text.begin(), text.end(), p + 8);
+            p[8 + text.size()] = '\0';
+            if (pad)
+                p[8 + raw_size] = '\0';
+        };
+        // comment -> ICMT, channel list -> IKEY (keywords)
+        append_chunk("ICMT", metadata.comment);
+        append_chunk("IKEY", metadata.channel_names);
+        payload.assign(buf.begin(), buf.end());
+    }
+    if (payload.empty())
+        return true;
+
+    out.write("LIST", 4);
+    write_le32(out, static_cast<std::uint32_t>(4u + payload.size()));
+    out.write("INFO", 4);
+    out.write(payload.data(), static_cast<std::streamsize>(payload.size()));
+    if (!out) {
+        error_out = "failed to write WAV LIST/INFO metadata";
+        return false;
+    }
+    return true;
+}
+
+bool patch_riff_size(std::fstream& file, std::string& error_out) {
+    file.seekp(0, std::ios::end);
+    const auto end = file.tellp();
+    if (end < 8) {
+        error_out = "WAV file too small to patch RIFF size";
+        return false;
+    }
+    const auto riff_size = static_cast<std::uint32_t>(static_cast<std::uint64_t>(end) - 8ull);
+    file.seekp(4, std::ios::beg);
+    write_le32(file, riff_size);
+    if (!file) {
+        error_out = "failed to patch WAV RIFF size";
+        return false;
+    }
+    return true;
 }
 
 #pragma pack(push, 1)
@@ -68,7 +142,8 @@ bool write_pcm16_le(
     uint32_t sample_rate,
     uint16_t channels,
     const std::vector<std::uint8_t>& interleaved_pcm,
-    std::string& error_out) {
+    std::string& error_out,
+    const OutputMetadata& metadata) {
     if (channels == 0 || sample_rate == 0) {
         error_out = "invalid channels or sample_rate";
         return false;
@@ -119,9 +194,17 @@ bool write_pcm16_le(
     if (!interleaved_pcm.empty())
         out.write(reinterpret_cast<const char*>(interleaved_pcm.data()),
                   static_cast<std::streamsize>(interleaved_pcm.size()));
+    if (!write_list_info(out, metadata, error_out))
+        return false;
     if (!out) {
         error_out = "write failed";
         return false;
+    }
+    out.close();
+    if (!metadata.empty()) {
+        std::fstream patch(path, std::ios::binary | std::ios::in | std::ios::out);
+        if (!patch || !patch_riff_size(patch, error_out))
+            return false;
     }
     return true;
 }
@@ -132,7 +215,8 @@ bool write_pcm24_le(
     uint16_t channels,
     const std::vector<std::uint8_t>& interleaved_pcm,
     std::string& error_out,
-    std::uint32_t channel_mask) {
+    std::uint32_t channel_mask,
+    const OutputMetadata& metadata) {
     if (channels == 0 || sample_rate == 0) {
         error_out = "invalid channels or sample_rate";
         return false;
@@ -143,6 +227,7 @@ bool write_pcm24_le(
     }
 
     Pcm24StreamWriter writer;
+    writer.set_metadata(metadata);
     const std::uint64_t frame_count = interleaved_pcm.size() /
         (static_cast<std::size_t>(channels) * 3u);
     if (!writer.open(path, sample_rate, channels, frame_count, error_out, channel_mask))
@@ -155,9 +240,14 @@ bool write_pcm24_le(
 bool encode_wav_to_flac(
     const std::string& wav_path,
     const std::string& flac_path,
-    std::string& error_out) {
-    const std::string command = "ffmpeg -y -v error -i " + shell_quote(wav_path)
-        + " -map 0:a:0 -c:a flac " + shell_quote(flac_path);
+    std::string& error_out,
+    const OutputMetadata& metadata) {
+    std::string command = "ffmpeg -y -v error -i " + shell_quote(wav_path);
+    if (!metadata.comment.empty())
+        command += " -metadata comment=" + shell_quote(metadata.comment);
+    if (!metadata.channel_names.empty())
+        command += " -metadata keywords=" + shell_quote(metadata.channel_names);
+    command += " -map 0:a:0 -c:a flac " + shell_quote(flac_path);
     if (std::system(command.c_str()) != 0) {
         error_out = "ffmpeg failed to encode FLAC (is ffmpeg available in PATH?)";
         return false;
@@ -264,6 +354,19 @@ bool Pcm24StreamWriter::close(std::string& error_out) {
         error_out = "PCM24 stream ended before the declared frame count";
         out_.close();
         return false;
+    }
+    if (!write_list_info(out_, metadata_, error_out)) {
+        out_.close();
+        return false;
+    }
+    out_.flush();
+    // Patch RIFF chunk size now that LIST/INFO may have been appended.
+    out_.seekp(0, std::ios::end);
+    const auto end = out_.tellp();
+    if (end >= 8) {
+        const auto riff_size = static_cast<std::uint32_t>(static_cast<std::uint64_t>(end) - 8ull);
+        out_.seekp(4, std::ios::beg);
+        write_le32(out_, riff_size);
     }
     out_.close();
     if (out_.fail()) {

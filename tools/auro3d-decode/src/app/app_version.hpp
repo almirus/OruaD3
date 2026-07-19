@@ -21,4 +21,8 @@ inline std::string make_author() {
     return out;
 }
 
+inline std::string make_decode_comment() {
+    return std::string("Decoded by ") + kName + " " + kVersion + ", author " + make_author();
+}
+
 } // namespace auro3d_decode

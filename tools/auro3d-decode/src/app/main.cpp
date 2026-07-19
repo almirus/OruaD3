@@ -3,6 +3,7 @@
 #include "cx_decode.hpp"
 #include "decoder.hpp"
 #include "progress.hpp"
+#include "restore_lfe.hpp"
 #include "../io/wav_writer.hpp"
 #include "../render/binaural_renderer.hpp"
 #include "../util/auro3deng_strength.hpp"
@@ -16,6 +17,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #ifdef _WIN32
@@ -32,6 +34,7 @@ struct Options {
     bool mono_tracks = false;
     bool channel_diagram = false;
     bool binaural = false;
+    bool restore_lfe = false;
     bool help_only = false;
     bool version_only = false;
     bool probe = false;
@@ -62,7 +65,7 @@ bool console_color() {
     return auro3d::console_style::color_enabled_for_stderr();
 }
 
-void print_banner_line_rainbow(const char* line, bool color) {
+void print_banner_line_rainbow(const char* line, bool color, bool newline = true) {
     // Rainbow cycle: R Y G C B M
     static constexpr const char* kRainbow[] = {
         "\033[91m",
@@ -73,11 +76,16 @@ void print_banner_line_rainbow(const char* line, bool color) {
         "\033[95m",
     };
     if (!color) {
-        std::cerr << line << '\n';
+        std::cerr << '\r' << line << "\033[K";
+        if (newline)
+            std::cerr << '\n';
+        else
+            std::cerr << std::flush;
         return;
     }
     constexpr std::size_t n = sizeof(kRainbow) / sizeof(kRainbow[0]);
     std::size_t hue = 0;
+    std::cerr << '\r';
     for (const unsigned char* p = reinterpret_cast<const unsigned char*>(line); *p;) {
         if (*p == ' ') {
             std::cerr << ' ';
@@ -101,22 +109,69 @@ void print_banner_line_rainbow(const char* line, bool color) {
             static_cast<std::streamsize>(p - start));
         ++hue;
     }
-    std::cerr << auro3d::console_style::kReset << '\n';
+    std::cerr << auro3d::console_style::kReset << "\033[K";
+    if (newline)
+        std::cerr << '\n';
+    else
+        std::cerr << std::flush;
 }
 
 void print_banner() {
-    // Middle line is 15 columns; pad waves so their glyph clusters are centered on it.
-    static constexpr const char* kLines[] = {
+    static constexpr const char* kTop[] = {
         "       ⏝⏝",
         "      ⏝⏝⏝",
-        "    ORUA:3D    ",
+    };
+    static constexpr const char* kBottom[] = {
         "      ⏜⏜⏜",
         "       ⏜⏜",
     };
+    // ₃ᴅ → 3D → ³ᴰ → 3D → …
+    static constexpr const char* kThreeDFrames[] = {
+        "₃ᴅ",
+        "3D",
+        "³ᴰ",
+        "3D",
+    };
+    constexpr int kLogoLines = 5;
+    constexpr int kCycles = 2;
+    constexpr auto kFrameDelay = std::chrono::milliseconds(140);
+
     const bool color = console_color();
+    const bool animate = auro3d::console_style::stderr_is_tty();
+    auto middle = [](const char* three_d) {
+        // Pad so glyph-width changes do not leave leftovers or wrap unevenly.
+        std::string line = std::string("))) ORUA:") + three_d + " (((";
+        while (line.size() < 20)
+            line.push_back(' ');
+        return line;
+    };
+    auto draw_logo = [&](const char* three_d) {
+        for (const char* line : kTop)
+            print_banner_line_rainbow(line, color);
+        print_banner_line_rainbow(middle(three_d).c_str(), color);
+        for (const char* line : kBottom)
+            print_banner_line_rainbow(line, color);
+        std::cerr << std::flush;
+    };
+
     std::cerr << "\n\n";
-    for (const char* line : kLines)
-        print_banner_line_rainbow(line, color);
+    if (!animate) {
+        draw_logo("3D");
+    } else {
+        std::cerr << auro3d::console_style::hide_cursor << std::flush;
+        const int frame_count =
+            static_cast<int>(sizeof(kThreeDFrames) / sizeof(kThreeDFrames[0]));
+        const int total_frames = kCycles * frame_count;
+        for (int n = 0; n < total_frames; ++n) {
+            if (n > 0)
+                std::cerr << "\033[" << kLogoLines << "A";
+            draw_logo(kThreeDFrames[n % frame_count]);
+            std::this_thread::sleep_for(kFrameDelay);
+        }
+        std::cerr << "\033[" << kLogoLines << "A";
+        draw_logo("3D");
+        std::cerr << auro3d::console_style::show_cursor << std::flush;
+    }
     std::cerr << "\n\n";
 }
 
@@ -382,6 +437,23 @@ bool require_ffmpeg_tools() {
     return false;
 }
 
+std::string channel_names_csv(const std::vector<std::uint32_t>& slots) {
+    std::string csv;
+    for (std::size_t i = 0; i < slots.size(); ++i) {
+        if (i)
+            csv += ',';
+        csv += auro_slot_name(slots[i]);
+    }
+    return csv;
+}
+
+wav::OutputMetadata make_output_metadata(const std::vector<std::uint32_t>& slots) {
+    wav::OutputMetadata meta;
+    meta.comment = auro3d_decode::make_decode_comment();
+    meta.channel_names = channel_names_csv(slots);
+    return meta;
+}
+
 bool write_audio_file(
     const std::filesystem::path& output,
     const std::string& format,
@@ -391,14 +463,17 @@ bool write_audio_file(
     std::uint32_t channel_mask,
     const std::vector<std::uint8_t>& pcm,
     std::string& error_out,
-    const auro3d::ProgressFn& progress = {}) {
+    const auro3d::ProgressFn& progress = {},
+    const wav::OutputMetadata& metadata = {}) {
     const char* save_stage = format == "flac" ? "save flac" : "save wav";
     if (format == "wav") {
         if (progress)
             progress(save_stage, -1);
         const bool ok = bits == 24
-            ? wav::write_pcm24_le(output.string(), sample_rate, channels, pcm, error_out, channel_mask)
-            : wav::write_pcm16_le(output.string(), sample_rate, channels, pcm, error_out);
+            ? wav::write_pcm24_le(
+                  output.string(), sample_rate, channels, pcm, error_out, channel_mask, metadata)
+            : wav::write_pcm16_le(
+                  output.string(), sample_rate, channels, pcm, error_out, metadata);
         if (ok && progress)
             progress(save_stage, 100);
         return ok;
@@ -410,12 +485,14 @@ bool write_audio_file(
     std::filesystem::path temp = std::filesystem::temp_directory_path()
         / ("orua3d-decode-" + std::to_string(stamp) + ".wav");
     const bool wav_ok = bits == 24
-        ? wav::write_pcm24_le(temp.string(), sample_rate, channels, pcm, error_out, channel_mask)
-        : wav::write_pcm16_le(temp.string(), sample_rate, channels, pcm, error_out);
+        ? wav::write_pcm24_le(
+              temp.string(), sample_rate, channels, pcm, error_out, channel_mask, metadata)
+        : wav::write_pcm16_le(temp.string(), sample_rate, channels, pcm, error_out, metadata);
     if (!wav_ok)
         return false;
 
-    const bool flac_ok = wav::encode_wav_to_flac(temp.string(), output.string(), error_out);
+    const bool flac_ok =
+        wav::encode_wav_to_flac(temp.string(), output.string(), error_out, metadata);
     std::error_code remove_error;
     std::filesystem::remove(temp, remove_error);
     if (!flac_ok)
@@ -455,6 +532,7 @@ bool write_channel_mapping_xml(
     std::uint32_t auromatic_mask,
     const DematrixRouteMap& dematrix,
     bool binaural,
+    bool auro_codec_present,
     std::string& error_out) {
     std::filesystem::path xml_path = audio_path;
     xml_path.replace_extension(".xml");
@@ -464,16 +542,22 @@ bool write_channel_mapping_xml(
         return false;
     }
 
-    const char* embedded_layout = auro3d::auro_channel_layout_to_string(source_layout_mask);
+    const char* output_layout = auro3d::auro_channel_layout_to_string(source_layout_mask);
     const char* carrier_layout = auro3d::auro_channel_layout_to_string(
         carrier_layout_mask != 0u ? carrier_layout_mask : input_mask);
-    const std::string embedded_name = embedded_layout[0] ? embedded_layout : "custom";
+    const std::string output_name = output_layout[0] ? output_layout : "custom";
     const std::string carrier_name = carrier_layout[0] ? carrier_layout : "";
-    std::string source_layout = embedded_name;
-    if (!carrier_name.empty() && carrier_name != embedded_name)
-        source_layout = carrier_name + " embedded " + embedded_name;
-    else if (!carrier_name.empty())
+    std::string source_layout = output_name;
+    if (!carrier_name.empty() && carrier_name != output_name) {
+        // Auro-Codec: carrier embeds a larger discrete layout.
+        // Non-encoded Orua-Matic/XinN expansion is an upmix, not embedding.
+        if (auro_codec_present)
+            source_layout = carrier_name + " embedded " + output_name;
+        else
+            source_layout = carrier_name + " upmixed " + output_name;
+    } else if (!carrier_name.empty()) {
         source_layout = carrier_name;
+    }
 
     out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         << "<channelMapping audioFile=\""
@@ -659,18 +743,20 @@ void print_usage() {
         << "  --raw                input is raw interleaved s24le (requires --rate and --channels)\n"
         << "  --rate HZ            sample rate for --raw\n"
         << "  --channels N         channel count for --raw\n"
-        << "  --block N            internal block size; default aligns complete ORUA frames (832 fallback)\n"
+        << "  --block N            internal block size; default aligns complete frames (832 fallback)\n"
         << "  --dsp-strength N     decoder/render strength (0..15; default: 12)\n"
-        << "  --dsp-output-channels N  output channels; 0/omitted = auto from Orua metadata; native decode with Orua-Matic/XinN height fallback, up to "
+        << "  --dsp-output-channels N  output channels; 0/omitted = auto from metadata; native decode with Orua-Matic/XinN height fallback, up to "
         << auro3d::kCurrentNativeExportChannelLimit << "\n"
-        << "                           legacy PCM without ORUA metadata: 6=5.1, 10=5.1.4, 12=7.1.4\n"
+        << "                           legacy PCM without metadata: 6=5.1, 10=5.1.4, 12=7.1.4\n"
         << "  --output-bits N      output PCM depth: 16 or 24; default: 24\n"
         << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac, etc.\n"
         << "  --channel-diagram    print structural input-to-output channel diagram\n"
         << "  --probe              print format diagnostics without decoding to a file; -o is not required\n"
         << "  --binaural           render decoded channels to HRTF stereo (force 48 kHz)\n"
+        << "  --restore-lfe        (!)experimental: if reconstructed LFE is silent/absent,\n"
+        << "                       synthesize LFE from bed channels (mono sum + 120 Hz LPF, −10 dB);\n"
         << "  --dsp-headroom-db X  headroom in dB (0..24; default: 0)\n"
-        << "  --room-preset N      room preset ORUA (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
+        << "  --room-preset N      room preset 0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
         << "  --hrtf-preset N      HRTF preset (0=HPV2,1=GENERIC_1,2=GENERIC_2,3=GENERIC_3)\n"
         << "  --virtualizer-mode N virtualization mode (0=ENABLED,1=DISABLED)\n"
         // Disabled until headphone/stereo-device state affects the PCM path.
@@ -742,6 +828,10 @@ bool parse_args(int argc, char** argv, Options& opt) {
         }
         if (a == "--binaural") {
             opt.binaural = true;
+            continue;
+        }
+        if (a == "--restore-lfe") {
+            opt.restore_lfe = true;
             continue;
         }
         if (a == "--raw") {
@@ -1203,6 +1293,30 @@ int app_main(int argc, char** argv) {
     }
 
     std::string err;
+    if (opt.restore_lfe) {
+        progress.update("restore lfe", -1);
+        bool applied = false;
+        if (!auro3d::restore_lfe_if_silent(
+                pcm_all,
+                cfg.bits_per_sample,
+                cfg.sample_rate,
+                cfg.channels,
+                output_slots,
+                err,
+                &applied)) {
+            progress.finish();
+            print_error("restore-lfe: " + err);
+            return 4;
+        }
+        progress.done("restore lfe");
+        if (opt.verbose) {
+            std::cerr << "restore_lfe=" << (applied ? "synthesized" : "skipped_lfe_present")
+                      << " (experimental: bed mono + 120 Hz LPF, -10 dB)\n";
+        } else if (applied) {
+            print_ok("restore-lfe: synthesized experimental LFE from bed channels");
+        }
+    }
+
     if (opt.binaural) {
         if (cfg.sample_rate != 48000u) {
             std::vector<std::uint8_t> resampled;
@@ -1248,9 +1362,10 @@ int app_main(int argc, char** argv) {
     }
     const std::uint32_t output_wav_channel_mask =
         wav_channel_mask_from_slots(output_slots, cfg.channels);
+    const wav::OutputMetadata output_meta = make_output_metadata(output_slots);
     const bool ok = write_audio_file(
         opt.output, output_format, cfg.bits_per_sample, cfg.sample_rate, cfg.channels,
-        output_wav_channel_mask, pcm_all, err, progress.callback());
+        output_wav_channel_mask, pcm_all, err, progress.callback(), output_meta);
     if (!ok) {
         progress.finish();
         print_error(std::string(output_format == "flac" ? "FLAC: " : "WAV: ") + err);
@@ -1271,6 +1386,7 @@ int app_main(int argc, char** argv) {
             auromatic_mask,
             dematrix_routes,
             opt.binaural,
+            auro_meta.found,
             err)) {
         progress.finish();
         print_error("XML: " + err);
@@ -1298,9 +1414,12 @@ int app_main(int argc, char** argv) {
                 mono_channel_output_path(opt.output, channel_name, output_format == "flac" ? ".flac" : ".wav");
             const std::vector<std::uint8_t> mono_pcm =
                 extract_mono_channel_pcm(pcm_all, cfg.channels, ch, bytes_per_sample);
+            wav::OutputMetadata mono_meta;
+            mono_meta.comment = auro3d_decode::make_decode_comment();
+            mono_meta.channel_names = channel_name;
             const bool mono_ok = write_audio_file(
                 mono_path, output_format, cfg.bits_per_sample, cfg.sample_rate, 1,
-                0u, mono_pcm, err);
+                0u, mono_pcm, err, {}, mono_meta);
             if (!mono_ok) {
                 progress.finish();
                 print_error(

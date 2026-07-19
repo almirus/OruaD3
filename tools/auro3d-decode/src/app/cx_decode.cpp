@@ -9,6 +9,7 @@
 #include "sasc_plan.hpp"
 #include "sasc_resample.hpp"
 
+#include "app_version.hpp"
 #include "../io/wav_writer.hpp"
 #include "../render/binaural_renderer.hpp"
 
@@ -252,6 +253,24 @@ const char* cx_channel_name(std::uint32_t channel_id) {
         "RB", "HL", "HR", "HC", "T", "HLS", "HRS", "HCS"
     };
     return channel_id < sizeof(names) / sizeof(names[0]) ? names[channel_id] : nullptr;
+}
+
+std::string cx_channel_names_csv(const OutputMapping& mapping, bool binaural) {
+    if (binaural)
+        return "FL,FR";
+    std::string csv;
+    for (std::uint32_t index = 0; index < mapping.channels; ++index) {
+        if (index)
+            csv += ',';
+        const std::uint32_t channel_id = index < mapping.channel_id_for_output_channel.size()
+            ? mapping.channel_id_for_output_channel[index]
+            : index;
+        if (const char* name = cx_channel_name(channel_id))
+            csv += name;
+        else
+            csv += "ch" + std::to_string(channel_id);
+    }
+    return csv;
 }
 
 const char* cx_layout_name(std::uint32_t layout) {
@@ -518,11 +537,13 @@ bool decode_auro_cx_mp4(
         std::error_code remove_error;
         std::filesystem::remove(temp_wav_path, remove_error);
     };
+    wav::OutputMetadata output_meta;
+    output_meta.comment = auro3d_decode::make_decode_comment();
     const auto finalize_output = [&]() -> bool {
         if (want_flac) {
             if (progress)
                 progress("encode flac", -1);
-            if (!wav::encode_wav_to_flac(pcm_path, out_wav, error)) {
+            if (!wav::encode_wav_to_flac(pcm_path, out_wav, error, output_meta)) {
                 remove_temp_wav();
                 return false;
             }
@@ -864,18 +885,22 @@ bool decode_auro_cx_mp4(
                     samples_per_au,
                     error))
                 return false;
+            output_meta.channel_names = cx_channel_names_csv(mapping, binaural);
             if (binaural_needs_resample) {
                 deferred_multichannel_pcm.reserve(
                     static_cast<std::size_t>(frame_count)
                     * static_cast<std::size_t>(mapping.channels) * 3u);
-            } else if (!wav_writer.open(
-                    pcm_path,
-                    track.rate,
-                    binaural ? 2u : mapping.channels,
-                    frame_count,
-                    error,
-                    binaural ? 3u : mapping.channel_mask))
-                return false;
+            } else {
+                wav_writer.set_metadata(output_meta);
+                if (!wav_writer.open(
+                        pcm_path,
+                        track.rate,
+                        binaural ? 2u : mapping.channels,
+                        frame_count,
+                        error,
+                        binaural ? 3u : mapping.channel_mask))
+                    return false;
+            }
             au_pcm.reserve(static_cast<std::size_t>(mapping.channels) * samples_per_au * 3u);
             continue;
         }
@@ -1286,13 +1311,15 @@ bool decode_auro_cx_mp4(
         }
         if (!want_flac && progress)
             progress("save wav", -1);
+        output_meta.channel_names = "FL,FR";
         if (!wav::write_pcm24_le(
                 pcm_path,
                 48000u,
                 2u,
                 stereo,
                 error,
-                3u)) {
+                3u,
+                output_meta)) {
             remove_temp_wav();
             return false;
         }
