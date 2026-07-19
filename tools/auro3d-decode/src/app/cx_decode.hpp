@@ -1,5 +1,7 @@
 #pragma once
 
+#include "progress.hpp"
+
 #include <string>
 
 namespace auro3d {
@@ -15,6 +17,7 @@ bool decode_auro_cx_mp4(
     float headroom_db = 0.0f,
     bool binaural = false,
     unsigned room_preset = 0,
-    unsigned hrtf_preset = 0);
+    unsigned hrtf_preset = 0,
+    const ProgressFn& progress = {});
 
 } // namespace auro3d

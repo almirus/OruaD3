@@ -2253,9 +2253,12 @@ bool decode_supported_audio_to_pcm24_wav_bytes(
     const std::string& path,
     std::vector<std::uint8_t>& wav_bytes,
     std::string& err,
-    std::uint32_t target_sample_rate = 0u) {
+    std::uint32_t target_sample_rate = 0u,
+    const auro3d::ProgressFn& progress = {}) {
     err.clear();
     wav_bytes.clear();
+    if (progress)
+        progress(target_sample_rate != 0u ? "resampling" : "demux", -1);
     unsigned stream_index = 0u;
     if (!find_supported_audio_stream(path, stream_index, err))
         return false;
@@ -2283,6 +2286,8 @@ bool decode_supported_audio_to_pcm24_wav_bytes(
         err = "ffmpeg did not produce WAV";
         return false;
     }
+    if (progress)
+        progress(target_sample_rate != 0u ? "resampling" : "demux", 100);
     return true;
 }
 
@@ -2293,7 +2298,8 @@ bool resample_interleaved_pcm_bytes(
     unsigned sample_rate_in,
     unsigned sample_rate_out,
     std::vector<std::uint8_t>& pcm_out,
-    std::string& err) {
+    std::string& err,
+    const auro3d::ProgressFn& progress = {}) {
     err.clear();
     pcm_out.clear();
     if (!channels || (bits_per_sample != 16u && bits_per_sample != 24u) || !sample_rate_in
@@ -2303,8 +2309,12 @@ bool resample_interleaved_pcm_bytes(
     }
     if (sample_rate_in == sample_rate_out) {
         pcm_out = pcm_in;
+        if (progress)
+            progress("resampling", 100);
         return true;
     }
+    if (progress)
+        progress("resampling", -1);
     const unsigned bytes_per_sample = bits_per_sample / 8u;
     const std::size_t frame_bytes = static_cast<std::size_t>(channels) * bytes_per_sample;
     if (!frame_bytes || pcm_in.size() % frame_bytes != 0u) {
@@ -2363,6 +2373,8 @@ bool resample_interleaved_pcm_bytes(
     pcm_out.assign(
         wav_bytes.begin() + static_cast<std::ptrdiff_t>(pcm_begin),
         wav_bytes.begin() + static_cast<std::ptrdiff_t>(pcm_begin + pcm_length));
+    if (progress)
+        progress("resampling", 100);
     return true;
 }
 
@@ -2377,7 +2389,8 @@ bool resample_interleaved_pcm_to_rate(
     unsigned sample_rate_in,
     unsigned sample_rate_out,
     std::vector<std::uint8_t>& pcm_out,
-    std::string& err) {
+    std::string& err,
+    const ProgressFn& progress) {
     return resample_interleaved_pcm_bytes(
         pcm_in,
         bits_per_sample,
@@ -2385,7 +2398,8 @@ bool resample_interleaved_pcm_to_rate(
         sample_rate_in,
         sample_rate_out,
         pcm_out,
-        err);
+        err,
+        progress);
 }
 
 const char* auro_channel_layout_to_string(std::uint32_t layout) {
@@ -3914,7 +3928,7 @@ DecodeError Decoder::open(const std::string& path) {
     if (raw_forced_ && is_ffmpeg_audio_input(prefix))
         return DecodeError::BadInput;
     if (!raw_forced_ && is_ffmpeg_audio_input(prefix)) {
-        if (!decode_supported_audio_to_pcm24_wav_bytes(path, file_bytes_, input_err))
+        if (!decode_supported_audio_to_pcm24_wav_bytes(path, file_bytes_, input_err, 0u, progress_))
             return DecodeError::BadInput;
     } else {
         if (!read_file_bytes(path, file_bytes_, input_err))
@@ -3992,7 +4006,7 @@ DecodeError Decoder::open(const std::string& path) {
             && is_ffmpeg_audio_input(prefix)) {
             std::vector<std::uint8_t> resampled;
             if (!decode_supported_audio_to_pcm24_wav_bytes(
-                    path, resampled, input_err, 48000u)) {
+                    path, resampled, input_err, 48000u, progress_)) {
                 opened_ = false;
                 return DecodeError::BadInput;
             }
@@ -4131,6 +4145,7 @@ DecodeError Decoder::open(const std::string& path) {
     codec_v3_drain_blocks_remaining_ = codec_v3_latency_samples_ != 0u
         ? native_config_state_.stage1_count
         : 0u;
+    codec_v3_drain_blocks_total_ = codec_v3_drain_blocks_remaining_;
     native_runtime_configuration_ = {};
     native_a3deng_static_configuration_ = {};
     native_dynamic_parameters_ = {};
@@ -4346,6 +4361,25 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
     return DecodeError::Ok;
 }
 
+int Decoder::decode_percent() const {
+    if (!opened_)
+        return 0;
+    const std::uint64_t stream_total = input_padding_samples_ + source_sample_count_;
+    const std::uint64_t drain_total =
+        static_cast<std::uint64_t>(codec_v3_drain_blocks_total_) * block_size_;
+    const std::uint64_t total = stream_total + drain_total;
+    if (total == 0u)
+        return 100;
+    std::uint64_t done = std::min(input_stream_cursor_, stream_total);
+    if (input_stream_cursor_ >= stream_total && codec_v3_drain_blocks_total_ != 0u) {
+        const std::uint32_t drained =
+            codec_v3_drain_blocks_total_ - codec_v3_drain_blocks_remaining_;
+        done = stream_total
+            + static_cast<std::uint64_t>(drained) * block_size_;
+    }
+    return progress_percent(done, total);
+}
+
 bool Decoder::exhausted() const {
     if (!opened_)
         return true;
@@ -4373,6 +4407,7 @@ void Decoder::close() {
     source_sample_count_ = 0;
     codec_v3_latency_samples_ = 0;
     codec_v3_drain_blocks_remaining_ = 0;
+    codec_v3_drain_blocks_total_ = 0;
     sample_rate_ = 0;
     channel_count_ = 0;
     block_size_ = 0;

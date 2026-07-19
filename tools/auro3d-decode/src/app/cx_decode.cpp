@@ -468,12 +468,15 @@ bool decode_auro_cx_mp4(
     float headroom_db,
     bool binaural,
     unsigned room_preset,
-    unsigned hrtf_preset) {
+    unsigned hrtf_preset,
+    const ProgressFn& progress) {
     if (!std::isfinite(headroom_db) || headroom_db < 0.0f) {
         error = "invalid output headroom";
         return false;
     }
     const float headroom_gain = std::pow(10.0f, -headroom_db / 20.0f);
+    if (progress)
+        progress("demux", -1);
     std::ifstream file(path, std::ios::binary);
     if (!file) {
         error = "cannot open input";
@@ -481,6 +484,8 @@ bool decode_auro_cx_mp4(
     }
     const std::vector<std::uint8_t> mp4(
         (std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    if (progress)
+        progress("demux", 100);
 
     CxTrack track{};
     if (!find_track(mp4, track)) {
@@ -689,6 +694,8 @@ bool decode_auro_cx_mp4(
     };
 
     for (std::size_t au = 0; au < track.offsets.size(); ++au) {
+        if (progress)
+            progress("decode", progress_percent(au, track.offsets.size()));
         const std::uint64_t offset = track.offsets[au];
         const std::uint32_t size = track.sizes[au];
         if (offset + size > mp4.size()) {
@@ -1173,6 +1180,11 @@ bool decode_auro_cx_mp4(
         if (!wav_writer.write(*output_pcm, error))
             return false;
     }
+    if (progress)
+        progress("decode", 100);
+    // 48 kHz path applies HRTF inline per AU; report the stage once decode finishes.
+    if (progress && binaural && !binaural_needs_resample)
+        progress("encode binaural", 100);
 
     if (stream_buffers.empty()) {
         error = "no decoded audio streams";
@@ -1189,7 +1201,8 @@ bool decode_auro_cx_mp4(
                 track.rate,
                 48000u,
                 resampled,
-                error))
+                error,
+                progress))
             return false;
         std::vector<std::uint8_t> stereo;
         if (!render_binaural_from_embedded_ir(
@@ -1201,13 +1214,16 @@ bool decode_auro_cx_mp4(
                 room_preset,
                 hrtf_preset,
                 stereo,
-                error))
+                error,
+                progress))
             return false;
         const std::size_t frame_bytes = 2u * 3u;
         if (!frame_bytes || stereo.size() % frame_bytes != 0u) {
             error = "binaural resample produced incomplete frames";
             return false;
         }
+        if (progress)
+            progress("save wav", -1);
         if (!wav::write_pcm24_le(
                 out_wav,
                 48000u,
@@ -1216,9 +1232,13 @@ bool decode_auro_cx_mp4(
                 error,
                 3u))
             return false;
+        if (progress)
+            progress("save wav", 100);
         xml_rate = 48000u;
     } else if (!wav_writer.close(error)) {
         return false;
+    } else if (progress) {
+        progress("save wav", 100);
     }
     const char* audio_coding = saw_lossless_awc && saw_transparent_awc
         ? "mixed"

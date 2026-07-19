@@ -3,6 +3,8 @@
 #include "../auro3deng/detail/runtime_api.hpp"
 #include "../auro3deng/detail/processor_io.hpp"
 
+#include "progress.hpp"
+
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -209,7 +211,8 @@ bool resample_interleaved_pcm_to_rate(
     unsigned sample_rate_in,
     unsigned sample_rate_out,
     std::vector<std::uint8_t>& pcm_out,
-    std::string& err);
+    std::string& err,
+    const ProgressFn& progress = {});
 
 /// Весь PCM s24le из WAV (или сырой файл при raw: нужны sample_rate и channel_count) → interleaved int32 (24-bit sign-extended).
 bool load_all_pcm_s24le_interleaved_i32(
@@ -261,6 +264,11 @@ public:
 
     /// Override the metadata-aligned internal block size (JNI fallback is 832).
     void set_block_size(unsigned block_size) { block_request_ = block_size; }
+
+    void set_progress_callback(ProgressFn callback) { progress_ = std::move(callback); }
+
+    /// 0..100 decode progress across input stream + latency drain.
+    int decode_percent() const;
 
     /// Сила рендера baseline AURO-DSP (0..15, таблица strength_translate).
     void set_dsp_strength(unsigned strength) { dsp_strength_ = strength; }
@@ -346,6 +354,8 @@ private:
     std::uint64_t source_sample_count_ = 0;
     std::uint64_t codec_v3_latency_samples_ = 0;
     std::uint32_t codec_v3_drain_blocks_remaining_ = 0;
+    std::uint32_t codec_v3_drain_blocks_total_ = 0;
+    ProgressFn progress_;
 
     uint32_t sample_rate_ = 0;
     unsigned channel_count_ = 0;

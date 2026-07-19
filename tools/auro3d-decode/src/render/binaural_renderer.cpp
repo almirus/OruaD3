@@ -188,15 +188,35 @@ bool render_binaural_from_embedded_ir(
     unsigned room,
     unsigned hrtf,
     std::vector<std::uint8_t>& out,
-    std::string& err) {
+    std::string& err,
+    const ProgressFn& progress) {
     const unsigned bytes_per_sample = bits / 8u;
     if (!bytes_per_sample || !channels || pcm.size() % (channels * bytes_per_sample)) {
         err = "unsupported PCM format";
         return false;
     }
     const std::size_t frames = pcm.size() / (channels * bytes_per_sample);
+    constexpr std::size_t kBlockFrames = 4096u;
+    const std::size_t block_frames = std::min(kBlockFrames, frames ? frames : kBlockFrames);
     BinauralStreamRenderer renderer;
-    return renderer.initialize(bits, rate, channels, channel_slots, room, hrtf, frames, err)
-        && renderer.process(pcm, out, err);
+    if (!renderer.initialize(bits, rate, channels, channel_slots, room, hrtf, block_frames, err))
+        return false;
+    out.clear();
+    out.reserve(frames * 2u * bytes_per_sample);
+    const std::size_t in_frame_bytes = static_cast<std::size_t>(channels) * bytes_per_sample;
+    std::vector<std::uint8_t> block_out;
+    for (std::size_t frame = 0; frame < frames; frame += block_frames) {
+        const std::size_t count = std::min(block_frames, frames - frame);
+        const std::uint8_t* begin = pcm.data() + frame * in_frame_bytes;
+        const std::vector<std::uint8_t> block_in(begin, begin + count * in_frame_bytes);
+        if (!renderer.process(block_in, block_out, err))
+            return false;
+        out.insert(out.end(), block_out.begin(), block_out.end());
+        if (progress)
+            progress("encode binaural", progress_percent(frame + count, frames));
+    }
+    if (progress)
+        progress("encode binaural", 100);
+    return true;
 }
 }

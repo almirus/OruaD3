@@ -2,6 +2,7 @@
 #include "cx_probe.hpp"
 #include "cx_decode.hpp"
 #include "decoder.hpp"
+#include "progress.hpp"
 #include "../io/wav_writer.hpp"
 #include "../render/binaural_renderer.hpp"
 #include "../util/auro3deng_strength.hpp"
@@ -299,13 +300,22 @@ bool write_audio_file(
     unsigned channels,
     std::uint32_t channel_mask,
     const std::vector<std::uint8_t>& pcm,
-    std::string& error_out) {
+    std::string& error_out,
+    const auro3d::ProgressFn& progress = {}) {
+    const char* save_stage = format == "flac" ? "save flac" : "save wav";
     if (format == "wav") {
-        return bits == 24
+        if (progress)
+            progress(save_stage, -1);
+        const bool ok = bits == 24
             ? wav::write_pcm24_le(output.string(), sample_rate, channels, pcm, error_out, channel_mask)
             : wav::write_pcm16_le(output.string(), sample_rate, channels, pcm, error_out);
+        if (ok && progress)
+            progress(save_stage, 100);
+        return ok;
     }
 
+    if (progress)
+        progress("encode flac", -1);
     const auto stamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
     std::filesystem::path temp = std::filesystem::temp_directory_path()
         / ("auro3d-decode-" + std::to_string(stamp) + ".wav");
@@ -324,6 +334,8 @@ bool write_audio_file(
         error_out = "ffmpeg failed to encode FLAC (is ffmpeg available in PATH?)";
         return false;
     }
+    if (progress)
+        progress("encode flac", 100);
     return true;
 }
 
@@ -776,6 +788,25 @@ int app_main(int argc, char** argv) {
     // Auto path: MP4 a3ds (AuroCX) wins over classic/native. Do not fall through
     // to auro_native if CX was selected but decode fails.
     if (!opt.probe && !opt.raw && auro3d::mp4_has_auro_cx_a3ds(opt.input)) {
+        if (opt.verbose) {
+            auro3d::AuroCxProbeInfo info{};
+            if (!auro3d::probe_auro_cx_mp4(opt.input, info)) {
+                std::cerr << "AuroCX probe: " << info.error << '\n';
+                return 2;
+            }
+            auro3d::print_auro_cx_probe(info);
+            std::cerr << "dsp_headroom_db=" << opt.dsp_headroom_db << "\n";
+            std::cerr << "binaural=" << (opt.binaural ? 1 : 0)
+                      << " room_preset=" << opt.room_preset
+                      << " hrtf_preset=" << opt.hrtf_preset << "\n";
+            if (opt.binaural) {
+                std::cerr << "binaural_renderer=original_auro_ahp_ir"
+                          << " room_preset=" << opt.room_preset
+                          << " hrtf_bank=" << (opt.hrtf_preset == 0 ? "HPv2" : "Generic2")
+                          << "\n";
+            }
+        }
+        auro3d::ProgressReporter progress;
         std::string err;
         const bool ok = auro3d::decode_auro_cx_mp4(
             opt.input,
@@ -784,7 +815,9 @@ int app_main(int argc, char** argv) {
             opt.dsp_headroom_db,
             opt.binaural,
             opt.room_preset,
-            opt.hrtf_preset);
+            opt.hrtf_preset,
+            progress.callback());
+        progress.finish();
         if (!ok) {
             std::cerr << "AuroCX decode: " << err << '\n';
             return 2;
@@ -794,7 +827,9 @@ int app_main(int argc, char** argv) {
         return 0;
     }
 
+    auro3d::ProgressReporter progress;
     auro3d::Decoder dec;
+    dec.set_progress_callback(progress.callback());
     dec.set_dsp_strength(opt.dsp_strength);
     dec.set_dsp_output_channels(opt.dsp_output_channels);
     dec.set_output_bits(opt.output_bits);
@@ -811,6 +846,7 @@ int app_main(int argc, char** argv) {
 
     auro3d::DecodeError e = dec.open(opt.input);
     if (e != auro3d::DecodeError::Ok) {
+        progress.finish();
         std::cerr << "open: " << auro3d::decode_error_message(e) << "\n";
         dec.close();
         return 2;
@@ -819,6 +855,7 @@ int app_main(int argc, char** argv) {
     const auro3d::DecoderConfig cfg_open = dec.config();
     const std::string output_format = selected_output_format(opt);
     if (output_format == "flac" && cfg_open.channels > 8u) {
+        progress.finish();
         std::cerr << "FLAC: format supports at most 8 channels; use a .wav output for "
                   << cfg_open.channels << " channels\n";
         dec.close();
@@ -980,21 +1017,26 @@ int app_main(int argc, char** argv) {
     }
 
     if (opt.probe) {
+        progress.finish();
         dec.close();
         return 0;
     }
 
     std::vector<std::uint8_t> pcm_all;
     std::vector<std::uint8_t> chunk;
+    progress.update("decode", 0);
     while (!dec.exhausted()) {
         e = dec.decode_next(chunk);
         if (e != auro3d::DecodeError::Ok) {
+            progress.finish();
             std::cerr << "decode: " << auro3d::decode_error_message(e) << "\n";
             dec.close();
             return 3;
         }
         pcm_all.insert(pcm_all.end(), chunk.begin(), chunk.end());
+        progress.update("decode", dec.decode_percent());
     }
+    progress.done("decode");
 
     auro3d::DecoderConfig cfg = dec.config();
     const std::uint64_t dsp_clipped = dec.dsp_clipped_samples();
@@ -1009,6 +1051,7 @@ int app_main(int argc, char** argv) {
         const std::uint64_t trim_size_u64 = source_sample_count * bytes_per_frame;
         if (trim_begin_u64 > pcm_all.size()
             || trim_size_u64 > pcm_all.size() - static_cast<std::size_t>(trim_begin_u64)) {
+            progress.finish();
             std::cerr << "decode: native latency drain produced insufficient PCM\n";
             return 3;
         }
@@ -1021,6 +1064,7 @@ int app_main(int argc, char** argv) {
     }
 
     if (pcm_all.empty()) {
+        progress.finish();
         std::cerr << "No PCM data.\n";
         return 3;
     }
@@ -1036,7 +1080,9 @@ int app_main(int argc, char** argv) {
                     cfg.sample_rate,
                     48000u,
                     resampled,
-                    err)) {
+                    err,
+                    progress.callback())) {
+                progress.finish();
                 std::cerr << "Binaural: " << err << "\n";
                 return 4;
             }
@@ -1051,7 +1097,9 @@ int app_main(int argc, char** argv) {
         std::vector<std::uint8_t> stereo;
         if (!auro3d::render_binaural_from_embedded_ir(
                 pcm_all, cfg.bits_per_sample, cfg.sample_rate, cfg.channels,
-                output_slots, opt.room_preset, opt.hrtf_preset, stereo, err)) {
+                output_slots, opt.room_preset, opt.hrtf_preset, stereo, err,
+                progress.callback())) {
+            progress.finish();
             std::cerr << "Binaural: " << err << "\n";
             return 4;
         }
@@ -1069,8 +1117,9 @@ int app_main(int argc, char** argv) {
         wav_channel_mask_from_slots(output_slots, cfg.channels);
     const bool ok = write_audio_file(
         opt.output, output_format, cfg.bits_per_sample, cfg.sample_rate, cfg.channels,
-        output_wav_channel_mask, pcm_all, err);
+        output_wav_channel_mask, pcm_all, err, progress.callback());
     if (!ok) {
+        progress.finish();
         std::cerr << (output_format == "flac" ? "FLAC: " : "WAV: ") << err << "\n";
         return 4;
     }
@@ -1088,6 +1137,7 @@ int app_main(int argc, char** argv) {
             dematrix_routes,
             opt.binaural,
             err)) {
+        progress.finish();
         std::cerr << "XML: " << err << "\n";
         return 4;
     }
@@ -1117,6 +1167,7 @@ int app_main(int argc, char** argv) {
                 mono_path, output_format, cfg.bits_per_sample, cfg.sample_rate, 1,
                 0u, mono_pcm, err);
             if (!mono_ok) {
+                progress.finish();
                 std::cerr << (output_format == "flac" ? "FLAC mono " : "WAV mono ")
                           << mono_path.string() << ": " << err << "\n";
                 return 4;
@@ -1124,6 +1175,7 @@ int app_main(int argc, char** argv) {
         }
     }
 
+    progress.finish();
     if (opt.verbose) {
         std::cerr << "bits_per_sample=" << cfg.bits_per_sample << "\n";
         std::cerr << "dsp_clipped_samples=" << dsp_clipped << "\n";

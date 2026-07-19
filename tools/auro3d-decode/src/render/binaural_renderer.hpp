@@ -1,4 +1,5 @@
 #pragma once
+#include "../app/progress.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -43,5 +44,6 @@ bool render_binaural_from_embedded_ir(
     unsigned room_preset,
     unsigned hrtf_preset,
     std::vector<std::uint8_t>& stereo_pcm,
-    std::string& error);
+    std::string& error,
+    const ProgressFn& progress = {});
 }
