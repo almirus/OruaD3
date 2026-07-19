@@ -296,7 +296,7 @@ bool write_channel_mapping_xml(
     std::string& error) {
     if (!binaural && (mapping.channel_id_for_output_channel.size() != mapping.channels ||
         mapping.stream_for_output_channel.size() != mapping.channels)) {
-        error = "AuroCX output mapping is incomplete";
+        error = "OruaCX output mapping is incomplete";
         return false;
     }
     std::filesystem::path xml_path = audio_path;
@@ -489,7 +489,7 @@ bool decode_auro_cx_mp4(
 
     CxTrack track{};
     if (!find_track(mp4, track)) {
-        error = "AuroCX a3ds audio track not found";
+        error = "OruaCX a3ds audio track not found";
         return false;
     }
     if (track.offsets.empty() || track.sizes.empty() || !track.duration) {

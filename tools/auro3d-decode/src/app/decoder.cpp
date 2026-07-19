@@ -2413,7 +2413,7 @@ const char* decode_error_message(DecodeError e) {
     case DecodeError::BadInput: return "invalid or unsupported input";
     case DecodeError::IoError: return "I/O error";
     case DecodeError::NotImplemented:
-        return "unsupported AURO layout or legacy input needs --dsp-output-channels 6, 8, 10, or 12";
+        return "unsupported ORUA layout or legacy input needs --dsp-output-channels 6, 8, 10, or 12";
     default: return "unknown error";
     }
 }

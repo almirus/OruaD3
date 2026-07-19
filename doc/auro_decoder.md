@@ -94,10 +94,10 @@ Important fields are stored in `AuroMetadataInfo`:
 
 The metadata scanner is only used to choose layout and boot parameters. The
 actual channel payload is decoded later by the codec-v3 parser/output generator.
-Decoded output is trimmed to the number of real input frames. If the source ends
-inside an Auro block, the final partial block has its PCM LSB cleared on export:
-the incomplete embedded payload cannot be consumed and must not leave a valid
-ADOL sync that makes downstream hardware decode the PCM a second time.
+At end of input the decoder feeds zero host blocks through the pipeline for its
+configured stage-1 latency, removes the initial latency, and retains exactly the
+number of PCM frames reported by the source container. No input frames are
+discarded and no final partial block is treated as a complete codec frame.
 
 Legacy XinN accepts 32/44.1/48 kHz. A 96 kHz decoded PCM input is converted to
 48 kHz at the 1fs boundary before XinN, matching the resampler position in the
@@ -115,13 +115,13 @@ The input channel slot map is chosen from the WAV channel count plus metadata:
   carrier layout is used;
 - otherwise the decoder falls back to the WAV/native channel mask.
 
-Carrier planes whose complete PCM payload contains only the three embedded
-metadata bits (`-7..7`) are treated as silent padding and removed from the
-effective codec-v3 input mask. They remain container channels, but must not
-create inactive frame slots that overwrite an Extrapolate destination. This is
-required by the 8-channel `5.1+2H` carrier: logical channels 4/5 reconstruct
-native destinations 7/8, while the physical padding planes for 7/8 contain no
-audio.
+The per-call input mask may be a subset of the configured carrier layout
+(`auro_codec_v3_Decoder_process`, `0x52AD60`). A completely zero padding plane
+is omitted from that mask, while a metadata-only plane is retained.
+`SyncDetector_process_block` (`0x52C680`) combines the low bits of every plane
+present in the mask, so including a zero padding plane prevents the common
+16-bit sync preamble from locking. Every bit that remains in the per-call mask
+still has a valid non-null PCM pointer, as required by `Decoder_process`.
 
 The requested output layout is chosen from the decoded AURO layout. For the
 special `7.1_5H1_1T` stream the current native path selects the closest direct
@@ -154,36 +154,44 @@ The codec-v3 state is split into these main pieces:
 
 Metadata sync can start inside a PCM block. For example:
 
-- Auro 2D test: `sync_sample = 512` with block size `1024`.
+- Auro 2D test: `sync_sample = 0`, `metadata_block = 1024`.
 - `7.1_5H1_1T`: `sync_sample = 256`.
-- DTS-HD carriers (e.g. Amplitude16): unit frames `metadata_block = 1000`,
-  `sync_sample = 1024`. Host block is also `1000` (native unit size); PCM is
-  advanced to `sync_sample` so each host block is exactly one unit frame.
-  Using host `960` here drifted 40 samples per frame and blew mix3 dematrix
-  into long −FS plateaus. Processor IO modulo-32 is waived for size `1000`.
-  XinN remains a 32-sample processor: its 8/16/24-sample tails are checkpointed
-  and reprocessed with the following unit frame, so no samples are discarded
-  and its filter state advances on one continuous 32-sample timeline.
+- DTS-HD carriers (e.g. Amplitude16): `metadata_block = 1000`,
+  `sync_sample = 1024`.
 
-The output generator cannot simply decode at block-aligned timeline positions.
-It must line up its timeline with codec frame starts. Current code derives an
-output timeline delay from `sync_sample` (skipped when PCM was already aligned
-to the first sync for 1000-sample unit frames):
+Host block size, embedded codec frame size, and initial sync position are three
+independent quantities. The codec frame size is read by
+`SyncDetector_process_block` from the carrier (`0x3d0` means 1000); it is not
+derived from sample rate or container type. `Config_initialize` (`0x52D7B0`)
+requires the host block to be divisible by 32, and `FormatDetector_process`
+(`0x52D060`) feeds the sync detector in fixed 32-sample chunks.
+
+The file decoder chooses `lcm(metadata_block, 32)` as its internal host block:
+1024-sample codec frames use 1024 and 1000-sample codec frames use 4000. If the
+first sync is not already on a host boundary, zero input is prefixed so that it
+is; this prefix is removed together with pipeline latency on export. Thus every
+embedded codec frame is processed whole without dropping or shifting source
+samples. This scheduling is independent of sample rate and container type.
+
+The three consumers keep independent absolute cursors initialized exactly as in
+the constructors (the missing x86 call arguments are visible in the ARM build):
 
 ```text
-sync_offset = sync_sample % block_size
-delay = sync_offset ? (2 * block_size - sync_offset) : block_size
-og_cursor = parser_cursor - delay
+FormatDetector = DelayLine_stream_index(delay, 0)
+Parser         = DelayLine_stream_index(delay, stage0)
+OutputGenerator= DelayLine_stream_index(delay, stage1)
 ```
 
-This makes output segments match full codec frames instead of decoding only the
-tail of each frame.
+Every host call follows `Decoder_process` (`0x52AD60`) literally:
+`DelayLine_write_buffer`, format detector, parser, output generator, then
+`DelayLine_advance`. There is no fractional frame scheduler or sync pre-skip.
+`calculate_latency` (`0x531200`) reports `host_block_size * stage1`; file output
+drains that latency, removes the alignment prefix, and trims back to the exact
+source frame count.
 
-The `DelayLine_get_buffer()` result also returns an internal offset into the
-selected ring slot. When the requested source range crosses a ring-slot boundary,
-the decoder builds a contiguous temporary window before passing samples into
-Extrapolate. Without this, generated channels read samples from the wrong memory
-area and become wideband noise.
+The selected host size keeps an embedded frame inside one delay-line block.
+`DelayLine_get_buffer()` and `Buffer_get_channel()` can therefore use the native
+ring-slot pointer and offset directly when passing carrier samples to Extrapolate.
 
 ## Channel reconstruction
 

@@ -152,7 +152,7 @@ Treat `RC1109` for `xinn_presets.res` as a failed build even if an older EXE
 exists. The binary is:
 
 ```text
-C:\Users\USER\IdeaProjects\Orua D3\bin\Release\auro3d-decode.exe
+C:\Users\USER\IdeaProjects\Orua D3\bin\Release\orua3d-decode.exe
 ```
 
 After every decoder edit:

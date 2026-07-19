@@ -32,8 +32,8 @@ cl /nologo /std:c++17 /utf-8 /EHsc /O2 /D_CRT_SECURE_NO_WARNINGS /I. /Isrc ^
   src\auro3deng\asc4he\asc4he.cpp ^
   "..\..\bin\obj\auro3d-decode\xinn_presets.res" ^
   /Fo:"..\..\bin\obj\auro3d-decode\\" ^
-  /Fe:"..\..\bin\Release\auro3d-decode.exe"
+  /Fe:"..\..\bin\Release\orua3d-decode.exe"
 if errorlevel 1 exit /b 1
 
-echo Сборка: ..\..\bin\Release\auro3d-decode.exe
+echo Сборка: ..\..\bin\Release\orua3d-decode.exe
 exit /b 0

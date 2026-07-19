@@ -1,5 +1,5 @@
 {
-  "decoder": "bin/Release/auro3d-decode.exe",
+  "decoder": "bin/Release/orua3d-decode.exe",
   "output_dir": "tmp/regression_outputs",
   "cases": [
     {

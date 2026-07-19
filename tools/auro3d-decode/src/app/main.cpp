@@ -470,7 +470,7 @@ void print_channel_diagram(
                 std::cerr << "  carrier " << name << " + codec -> " << name
                           << " [dematrix bed]";
                 if (height < 27u)
-                    std::cerr << ", " << auro_slot_name(height) << " [native AURO]";
+                    std::cerr << ", " << auro_slot_name(height) << " [native ORUA]";
                 std::cerr << "\n";
             } else {
                 std::cerr << "  carrier " << name << " -> " << name
@@ -484,15 +484,15 @@ void print_channel_diagram(
                 (slot < 27u) ? dematrix.height_to_bed[slot] : 0xFFFFFFFFu;
             if (bed < 27u) {
                 std::cerr << "  carrier " << auro_slot_name(bed)
-                          << " + codec -> " << name << " [native AURO dematrix]\n";
+                          << " + codec -> " << name << " [native ORUA dematrix]\n";
             } else {
-                std::cerr << "  codec dematrix -> " << name << " [native AURO]\n";
+                std::cerr << "  codec dematrix -> " << name << " [native ORUA]\n";
             }
             continue;
         }
 
         if (slot < 31u && ((auromatic_mask >> slot) & 1u) != 0u) {
-            std::cerr << "  decoded bed -> " << name << " [Auro-Matic/XinN]\n";
+            std::cerr << "  decoded bed -> " << name << " [Orua-Matic/XinN]\n";
             continue;
         }
 
@@ -523,7 +523,7 @@ std::vector<std::uint8_t> extract_mono_channel_pcm(
 
 void print_usage() {
     std::cerr
-        << auro3d_decode::kName << " " << auro3d_decode::kVersion << " — AURO command-line decoder.\n\n"
+        << auro3d_decode::kName << " " << auro3d_decode::kVersion << " — ORUA command-line decoder.\n\n"
         << "Usage:\n"
         << "  " << auro3d_decode::kName << " -i <input.wav|input.flac|input.mkv|input.mp4|input.s24le> -o <output.wav|output.flac> [options]\n"
         << "  " << auro3d_decode::kName << " --probe -i <input>   # inspect without -o\n"
@@ -534,18 +534,18 @@ void print_usage() {
         << "  --raw                input is raw interleaved s24le (requires --rate and --channels)\n"
         << "  --rate HZ            sample rate for --raw\n"
         << "  --channels N         channel count for --raw\n"
-        << "  --block N            internal block size; default aligns complete AURO frames (832 fallback)\n"
+        << "  --block N            internal block size; default aligns complete ORUA frames (832 fallback)\n"
         << "  --dsp-strength N     decoder/render strength (0..15; default: 12)\n"
-        << "  --dsp-output-channels N  output channels; 0/omitted = auto from Auro metadata; native decode with Auro-Matic/XinN height fallback, up to "
+        << "  --dsp-output-channels N  output channels; 0/omitted = auto from Orua metadata; native decode with Orua-Matic/XinN height fallback, up to "
         << auro3d::kCurrentNativeExportChannelLimit << "\n"
-        << "                           legacy PCM without AURO metadata: 6=5.1, 10=5.1.4, 12=7.1.4\n"
+        << "                           legacy PCM without ORUA metadata: 6=5.1, 10=5.1.4, 12=7.1.4\n"
         << "  --output-bits N      output PCM depth: 16 or 24; default: 24\n"
         << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac, etc.\n"
         << "  --channel-diagram    print structural input-to-output channel diagram\n"
         << "  --probe              print format diagnostics without decoding to a file; -o is not required\n"
         << "  --binaural           render decoded channels to HRTF stereo (force 48 kHz)\n"
         << "  --dsp-headroom-db X  headroom in dB (0..24; default: 0)\n"
-        << "  --room-preset N      room preset AURO (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
+        << "  --room-preset N      room preset ORUA (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
         << "  --hrtf-preset N      HRTF preset (0=HPV2,1=GENERIC_1,2=GENERIC_2,3=GENERIC_3)\n"
         << "  --virtualizer-mode N virtualization mode (0=ENABLED,1=DISABLED)\n"
         // Disabled until headphone/stereo-device state affects the PCM path.
@@ -791,7 +791,7 @@ int app_main(int argc, char** argv) {
         if (opt.verbose) {
             auro3d::AuroCxProbeInfo info{};
             if (!auro3d::probe_auro_cx_mp4(opt.input, info)) {
-                std::cerr << "AuroCX probe: " << info.error << '\n';
+                std::cerr << "OruaCX probe: " << info.error << '\n';
                 return 2;
             }
             auro3d::print_auro_cx_probe(info);
@@ -819,11 +819,11 @@ int app_main(int argc, char** argv) {
             progress.callback());
         progress.finish();
         if (!ok) {
-            std::cerr << "AuroCX decode: " << err << '\n';
+            std::cerr << "OruaCX decode: " << err << '\n';
             return 2;
         }
         if (opt.verbose)
-            std::cerr << "Done (AuroCX): " << opt.output << '\n';
+            std::cerr << "Done (OruaCX): " << opt.output << '\n';
         return 0;
     }
 
