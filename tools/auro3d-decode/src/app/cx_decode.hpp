@@ -18,6 +18,7 @@ bool decode_auro_cx_mp4(
     bool binaural = false,
     unsigned room_preset = 0,
     unsigned hrtf_preset = 0,
+    const std::string& output_format = "wav",
     const ProgressFn& progress = {});
 
 } // namespace auro3d

@@ -1,12 +1,24 @@
 #include "wav_writer.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <iterator>
+#include <string>
 
 namespace wav {
 
 namespace {
+
+std::string shell_quote(const std::string& path) {
+    std::string quoted = "\"";
+    for (char c : path) {
+        if (c == '\"')
+            quoted += '\\';
+        quoted += c;
+    }
+    return quoted + "\"";
+}
 
 #pragma pack(push, 1)
 struct WavHeader {
@@ -138,6 +150,19 @@ bool write_pcm24_le(
     if (!writer.write(interleaved_pcm, error_out))
         return false;
     return writer.close(error_out);
+}
+
+bool encode_wav_to_flac(
+    const std::string& wav_path,
+    const std::string& flac_path,
+    std::string& error_out) {
+    const std::string command = "ffmpeg -y -v error -i " + shell_quote(wav_path)
+        + " -map 0:a:0 -c:a flac " + shell_quote(flac_path);
+    if (std::system(command.c_str()) != 0) {
+        error_out = "ffmpeg failed to encode FLAC (is ffmpeg available in PATH?)";
+        return false;
+    }
+    return true;
 }
 
 bool Pcm24StreamWriter::open(

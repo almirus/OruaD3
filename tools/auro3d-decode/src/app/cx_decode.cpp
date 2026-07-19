@@ -13,7 +13,9 @@
 #include "../render/binaural_renderer.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -290,9 +292,12 @@ bool write_channel_mapping_xml(
     const std::filesystem::path& audio_path,
     const std::filesystem::path& source_path,
     std::uint32_t sample_rate,
+    std::uint32_t source_sample_rate,
     const OutputMapping& mapping,
     const char* audio_coding,
     bool binaural,
+    std::uint16_t container_channels,
+    const std::string& declared_layout_name,
     std::string& error) {
     if (!binaural && (mapping.channel_id_for_output_channel.size() != mapping.channels ||
         mapping.stream_for_output_channel.size() != mapping.channels)) {
@@ -307,14 +312,37 @@ bool write_channel_mapping_xml(
         return false;
     }
     const std::uint32_t source_layout = cx_layout_from_mapping(mapping);
+    const char* embedded = !declared_layout_name.empty()
+        ? declared_layout_name.c_str()
+        : cx_layout_name(source_layout);
+    const char* container = nullptr;
+    switch (container_channels) {
+    case 2: container = "2.0"; break;
+    case 3: container = "2.1"; break;
+    case 4: container = "4.0"; break;
+    case 6: container = "5.1"; break;
+    case 8: container = "7.1"; break;
+    default: break;
+    }
+    const std::uint32_t layout_channels = binaural
+        ? (mapping.channels != 0u ? mapping.channels : static_cast<std::uint32_t>(container_channels))
+        : mapping.channels;
+    std::string source_layout_text = embedded && embedded[0] ? embedded : "";
+    if (source_layout_text.empty() || source_layout_text == "custom")
+        source_layout_text = std::to_string(layout_channels) + "ch";
+    if (container && source_layout_text != container)
+        source_layout_text = std::string(container) + " embedded " + source_layout_text;
+
     out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         << "<channelMapping audioFile=\""
         << xml_escape(audio_path.filename().string())
         << "\" sourceFile=\""
         << xml_escape(source_path.filename().string())
-        << "\" decoder=\"AuroCX\" audioCoding=\"" << audio_coding
+        << "\" decoder=\"OruaCX\" audioCoding=\"" << audio_coding
         << "\" sampleRate=\"" << sample_rate
-        << "\" sourceLayout=\"" << cx_layout_name(source_layout)
+        << "\" sourceSampleRate=\""
+        << (source_sample_rate != 0u ? source_sample_rate : sample_rate)
+        << "\" sourceLayout=\"" << xml_escape(source_layout_text)
         << "\" sourceLayoutMask=\"0x" << std::hex << source_layout << std::dec
         << "\" bitsPerSample=\"24\" channelCount=\"" << (binaural ? 2u : mapping.channels)
         << "\">\n";
@@ -469,11 +497,44 @@ bool decode_auro_cx_mp4(
     bool binaural,
     unsigned room_preset,
     unsigned hrtf_preset,
+    const std::string& output_format,
     const ProgressFn& progress) {
     if (!std::isfinite(headroom_db) || headroom_db < 0.0f) {
         error = "invalid output headroom";
         return false;
     }
+    const bool want_flac = output_format == "flac";
+    std::filesystem::path temp_wav_path;
+    std::string pcm_path = out_wav;
+    if (want_flac) {
+        const auto stamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+        temp_wav_path = std::filesystem::temp_directory_path()
+            / ("orua3d-decode-" + std::to_string(stamp) + ".wav");
+        pcm_path = temp_wav_path.string();
+    }
+    const auto remove_temp_wav = [&]() {
+        if (temp_wav_path.empty())
+            return;
+        std::error_code remove_error;
+        std::filesystem::remove(temp_wav_path, remove_error);
+    };
+    const auto finalize_output = [&]() -> bool {
+        if (want_flac) {
+            if (progress)
+                progress("encode flac", -1);
+            if (!wav::encode_wav_to_flac(pcm_path, out_wav, error)) {
+                remove_temp_wav();
+                return false;
+            }
+            remove_temp_wav();
+            if (progress)
+                progress("encode flac", 100);
+            return true;
+        }
+        if (progress)
+            progress("save wav", 100);
+        return true;
+    };
     const float headroom_gain = std::pow(10.0f, -headroom_db / 20.0f);
     if (progress)
         progress("demux", -1);
@@ -808,7 +869,7 @@ bool decode_auro_cx_mp4(
                     static_cast<std::size_t>(frame_count)
                     * static_cast<std::size_t>(mapping.channels) * 3u);
             } else if (!wav_writer.open(
-                    out_wav,
+                    pcm_path,
                     track.rate,
                     binaural ? 2u : mapping.channels,
                     frame_count,
@@ -1220,25 +1281,29 @@ bool decode_auro_cx_mp4(
         const std::size_t frame_bytes = 2u * 3u;
         if (!frame_bytes || stereo.size() % frame_bytes != 0u) {
             error = "binaural resample produced incomplete frames";
+            remove_temp_wav();
             return false;
         }
-        if (progress)
+        if (!want_flac && progress)
             progress("save wav", -1);
         if (!wav::write_pcm24_le(
-                out_wav,
+                pcm_path,
                 48000u,
                 2u,
                 stereo,
                 error,
-                3u))
+                3u)) {
+            remove_temp_wav();
             return false;
-        if (progress)
-            progress("save wav", 100);
+        }
+        if (!finalize_output())
+            return false;
         xml_rate = 48000u;
     } else if (!wav_writer.close(error)) {
+        remove_temp_wav();
         return false;
-    } else if (progress) {
-        progress("save wav", 100);
+    } else if (!finalize_output()) {
+        return false;
     }
     const char* audio_coding = saw_lossless_awc && saw_transparent_awc
         ? "mixed"
@@ -1247,8 +1312,30 @@ bool decode_auro_cx_mp4(
             : saw_transparent_awc
                 ? "transparent_near_lossless"
                 : "unknown";
+    std::string declared_layout_name;
+    if (has_declared_layout) {
+        if (declared_layout == 0x7FBFu)
+            declared_layout_name = "7.1+5H+T (13.1)";
+        else if (declared_layout == 0x663Fu)
+            declared_layout_name = "5.1+4H (9.1)";
+        else if (declared_layout == 0x67BFu)
+            declared_layout_name = "7.1+4H (11.1)";
+        else if (declared_layout == 0x01BFu)
+            declared_layout_name = "7.1";
+        else
+            declared_layout_name = cx_layout_name(declared_layout);
+    }
     if (!write_channel_mapping_xml(
-            out_wav, path, xml_rate, mapping, audio_coding, binaural, error))
+            out_wav,
+            path,
+            xml_rate,
+            track.rate,
+            mapping,
+            audio_coding,
+            binaural,
+            track.channels,
+            declared_layout_name,
+            error))
         return false;
     return true;
 }

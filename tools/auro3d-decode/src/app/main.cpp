@@ -55,6 +55,85 @@ void configure_console_encoding() {
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 #endif
+    auro3d::console_style::enable_virtual_terminal();
+}
+
+bool console_color() {
+    return auro3d::console_style::color_enabled_for_stderr();
+}
+
+void print_banner_line_rainbow(const char* line, bool color) {
+    // Rainbow cycle: R Y G C B M
+    static constexpr const char* kRainbow[] = {
+        "\033[91m",
+        "\033[93m",
+        "\033[92m",
+        "\033[96m",
+        "\033[94m",
+        "\033[95m",
+    };
+    if (!color) {
+        std::cerr << line << '\n';
+        return;
+    }
+    constexpr std::size_t n = sizeof(kRainbow) / sizeof(kRainbow[0]);
+    std::size_t hue = 0;
+    for (const unsigned char* p = reinterpret_cast<const unsigned char*>(line); *p;) {
+        if (*p == ' ') {
+            std::cerr << ' ';
+            ++p;
+            continue;
+        }
+        // Advance one UTF-8 code point so multi-byte glyphs stay intact.
+        const unsigned char* start = p;
+        if ((*p & 0x80u) == 0)
+            ++p;
+        else if ((*p & 0xE0u) == 0xC0u)
+            p += 2;
+        else if ((*p & 0xF0u) == 0xE0u)
+            p += 3;
+        else if ((*p & 0xF8u) == 0xF0u)
+            p += 4;
+        else
+            ++p;
+        std::cerr << kRainbow[hue % n];
+        std::cerr.write(reinterpret_cast<const char*>(start),
+            static_cast<std::streamsize>(p - start));
+        ++hue;
+    }
+    std::cerr << auro3d::console_style::kReset << '\n';
+}
+
+void print_banner() {
+    // Middle line is 15 columns; pad waves so their glyph clusters are centered on it.
+    static constexpr const char* kLines[] = {
+        "       ⏝⏝",
+        "      ⏝⏝⏝",
+        "    ORUA:3D    ",
+        "      ⏜⏜⏜",
+        "       ⏜⏜",
+    };
+    const bool color = console_color();
+    std::cerr << "\n\n";
+    for (const char* line : kLines)
+        print_banner_line_rainbow(line, color);
+    std::cerr << "\n\n";
+}
+
+void print_status(const char* icon_color, const char* icon, const std::string& message) {
+    const bool color = console_color();
+    auro3d::console_style::paint(std::cerr, color, icon_color) << icon;
+    auro3d::console_style::paint_reset(std::cerr, color) << ' ';
+    auro3d::console_style::paint(std::cerr, color, auro3d::console_style::white) << message;
+    auro3d::console_style::paint_reset(std::cerr, color) << '\n';
+}
+
+void print_error(const std::string& message) {
+    print_status(auro3d::console_style::red, "✖", message);
+}
+
+void print_ok(const std::string& message) {
+    print_status(auro3d::console_style::bright_green, "✔", message);
 }
 
 #ifdef _WIN32
@@ -259,6 +338,17 @@ std::string selected_output_format(const Options& opt) {
         ? "flac" : "wav";
 }
 
+std::string default_output_path(const Options& opt) {
+    const std::filesystem::path input = std::filesystem::u8path(opt.input);
+    const std::string stem = input.stem().string();
+    const std::string tag = opt.binaural ? "_decoded_binaural" : "_decoded";
+    const std::string ext =
+        (!opt.output_format.empty() && opt.output_format == "flac") ? ".flac" : ".wav";
+    const std::filesystem::path name = stem + tag + ext;
+    const std::filesystem::path parent = input.parent_path();
+    return (parent.empty() ? name : (parent / name)).string();
+}
+
 std::string shell_quote(const std::filesystem::path& path) {
     std::string value = path.string();
     std::string quoted = "\"";
@@ -285,10 +375,10 @@ bool require_ffmpeg_tools() {
     if (ffmpeg_ok && ffprobe_ok)
         return true;
     if (!ffmpeg_ok)
-        std::cerr << "ffmpeg not found in PATH (or failed to run)\n";
+        print_error("ffmpeg not found in PATH (or failed to run)");
     if (!ffprobe_ok)
-        std::cerr << "ffprobe not found in PATH (or failed to run)\n";
-    std::cerr << "Install FFmpeg and ensure ffmpeg/ffprobe are available in PATH.\n";
+        print_error("ffprobe not found in PATH (or failed to run)");
+    print_error("Install FFmpeg and ensure ffmpeg/ffprobe are available in PATH.");
     return false;
 }
 
@@ -318,22 +408,18 @@ bool write_audio_file(
         progress("encode flac", -1);
     const auto stamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
     std::filesystem::path temp = std::filesystem::temp_directory_path()
-        / ("auro3d-decode-" + std::to_string(stamp) + ".wav");
+        / ("orua3d-decode-" + std::to_string(stamp) + ".wav");
     const bool wav_ok = bits == 24
         ? wav::write_pcm24_le(temp.string(), sample_rate, channels, pcm, error_out, channel_mask)
         : wav::write_pcm16_le(temp.string(), sample_rate, channels, pcm, error_out);
     if (!wav_ok)
         return false;
 
-    const std::string command = "ffmpeg -y -v error -i " + shell_quote(temp)
-        + " -map 0:a:0 -c:a flac " + shell_quote(output);
-    const int status = std::system(command.c_str());
+    const bool flac_ok = wav::encode_wav_to_flac(temp.string(), output.string(), error_out);
     std::error_code remove_error;
     std::filesystem::remove(temp, remove_error);
-    if (status != 0) {
-        error_out = "ffmpeg failed to encode FLAC (is ffmpeg available in PATH?)";
+    if (!flac_ok)
         return false;
-    }
     if (progress)
         progress("encode flac", 100);
     return true;
@@ -358,9 +444,11 @@ bool write_channel_mapping_xml(
     const std::filesystem::path& audio_path,
     const std::filesystem::path& source_path,
     unsigned sample_rate,
+    unsigned source_sample_rate,
     unsigned bits_per_sample,
     unsigned channel_count,
     std::uint32_t source_layout_mask,
+    std::uint32_t carrier_layout_mask,
     const std::vector<std::uint32_t>& slots,
     std::uint32_t input_mask,
     std::uint32_t native_mask,
@@ -376,15 +464,26 @@ bool write_channel_mapping_xml(
         return false;
     }
 
-    const char* source_layout = auro3d::auro_channel_layout_to_string(source_layout_mask);
+    const char* embedded_layout = auro3d::auro_channel_layout_to_string(source_layout_mask);
+    const char* carrier_layout = auro3d::auro_channel_layout_to_string(
+        carrier_layout_mask != 0u ? carrier_layout_mask : input_mask);
+    const std::string embedded_name = embedded_layout[0] ? embedded_layout : "custom";
+    const std::string carrier_name = carrier_layout[0] ? carrier_layout : "";
+    std::string source_layout = embedded_name;
+    if (!carrier_name.empty() && carrier_name != embedded_name)
+        source_layout = carrier_name + " embedded " + embedded_name;
+    else if (!carrier_name.empty())
+        source_layout = carrier_name;
+
     out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         << "<channelMapping audioFile=\""
         << xml_escape(audio_path.filename().u8string())
         << "\" sourceFile=\""
         << xml_escape(source_path.filename().u8string())
         << "\" sampleRate=\"" << sample_rate
+        << "\" sourceSampleRate=\"" << (source_sample_rate != 0u ? source_sample_rate : sample_rate)
         << "\" sourceLayout=\""
-        << xml_escape(source_layout[0] ? source_layout : "custom")
+        << xml_escape(source_layout)
         << "\" sourceLayoutMask=\"0x" << std::hex << source_layout_mask << std::dec
         << "\" bitsPerSample=\"" << bits_per_sample
         << "\" channelCount=\"" << channel_count << "\">\n";
@@ -522,14 +621,40 @@ std::vector<std::uint8_t> extract_mono_channel_pcm(
 }
 
 void print_usage() {
+    const bool color = console_color();
+    auto accent = [&](const char* text) -> std::string {
+        if (!color)
+            return text;
+        return std::string(auro3d::console_style::bright_cyan) + text
+            + auro3d::console_style::kReset;
+    };
+    auto author = [&](const std::string& text) -> std::string {
+        if (!color)
+            return text;
+        return std::string(auro3d::console_style::bright_magenta) + text
+            + auro3d::console_style::kReset;
+    };
+    auto dim = [&](const char* text) -> std::string {
+        if (!color)
+            return text;
+        return std::string(auro3d::console_style::dim) + text
+            + auro3d::console_style::kReset;
+    };
     std::cerr
-        << auro3d_decode::kName << " " << auro3d_decode::kVersion << " — ORUA command-line decoder.\n\n"
-        << "Usage:\n"
-        << "  " << auro3d_decode::kName << " -i <input.wav|input.flac|input.mkv|input.mp4|input.s24le> -o <output.wav|output.flac> [options]\n"
-        << "  " << auro3d_decode::kName << " --probe -i <input>   # inspect without -o\n"
-        << "Options:\n"
+        << '\n'
+        << accent(auro3d_decode::kName) << ' '
+        << author(auro3d_decode::make_author()) << ' '
+        << dim(auro3d_decode::kVersion) << " — ORUA command-line decoder.\n\n"
+        << accent("Usage") << ":\n"
+        << "  " << auro3d_decode::kName
+        << " -i <input.wav|input.flac|input.mkv|input.mp4|input.s24le>"
+        << " [-o <output.wav|output.flac>] [options]\n"
+        << "  " << auro3d_decode::kName << " --probe -i <input>\n"
+        << accent("Options") << ":\n"
         << "  -i, --input FILE\n"
-        << "  -o, --output FILE\n"
+        << "  -o, --output FILE    output path; default: <input>_decoded.wav"
+           " or <input>_decoded_binaural.wav with --binaural"
+           " (use --output-format flac for .flac)\n"
         << "  --output-format FMT  output format: wav or flac\n"
         << "  --raw                input is raw interleaved s24le (requires --rate and --channels)\n"
         << "  --rate HZ            sample rate for --raw\n"
@@ -552,9 +677,8 @@ void print_usage() {
         // << "  --headphone N        headphone connected (0/1; default: 1)\n"
         // << "  --stereo-device N    stereo device connected (0/1; default: 1)\n"
         << "  -v, --verbose\n"
-        << "  --version\n"
         << "  -h, --help\n\n"
-        << "Requires ffmpeg and ffprobe in PATH.\n";
+        << dim("Requires ffmpeg and ffprobe in PATH.") << "\n";
 }
 
 bool parse_unsigned_arg(const char* text, unsigned* out, const char* name) {
@@ -745,10 +869,12 @@ bool parse_args(int argc, char** argv, Options& opt) {
         return false;
     }
 
-    if (opt.input.empty() || (!opt.probe && opt.output.empty())) {
-        std::cerr << "--input and --output are required\n";
+    if (opt.input.empty()) {
+        std::cerr << "--input is required\n";
         return false;
     }
+    if (!opt.probe && opt.output.empty())
+        opt.output = default_output_path(opt);
     if (opt.raw && (opt.sample_rate == 0 || opt.channels == 0)) {
         std::cerr << "--raw requires --rate and --channels\n";
         return false;
@@ -763,10 +889,12 @@ int app_main(int argc, char** argv) {
 
     Options opt{};
     if (!parse_args(argc, argv, opt)) {
+        print_banner();
         print_usage();
         return 1;
     }
     if (opt.help_only) {
+        print_banner();
         print_usage();
         return 0;
     }
@@ -774,6 +902,7 @@ int app_main(int argc, char** argv) {
         std::cout << auro3d_decode::kVersion << '\n';
         return 0;
     }
+    print_banner();
     if (!require_ffmpeg_tools())
         return 1;
     if (opt.probe && !opt.raw && auro3d::mp4_has_auro_cx_a3ds(opt.input)) {
@@ -791,7 +920,7 @@ int app_main(int argc, char** argv) {
         if (opt.verbose) {
             auro3d::AuroCxProbeInfo info{};
             if (!auro3d::probe_auro_cx_mp4(opt.input, info)) {
-                std::cerr << "OruaCX probe: " << info.error << '\n';
+                print_error("OruaCX probe: " + info.error);
                 return 2;
             }
             auro3d::print_auro_cx_probe(info);
@@ -808,6 +937,7 @@ int app_main(int argc, char** argv) {
         }
         auro3d::ProgressReporter progress;
         std::string err;
+        const std::string output_format = selected_output_format(opt);
         const bool ok = auro3d::decode_auro_cx_mp4(
             opt.input,
             opt.output,
@@ -816,14 +946,15 @@ int app_main(int argc, char** argv) {
             opt.binaural,
             opt.room_preset,
             opt.hrtf_preset,
+            output_format,
             progress.callback());
         progress.finish();
         if (!ok) {
-            std::cerr << "OruaCX decode: " << err << '\n';
+            print_error("OruaCX decode: " + err);
             return 2;
         }
         if (opt.verbose)
-            std::cerr << "Done (OruaCX): " << opt.output << '\n';
+            print_ok("Done (OruaCX): " + opt.output);
         return 0;
     }
 
@@ -847,7 +978,7 @@ int app_main(int argc, char** argv) {
     auro3d::DecodeError e = dec.open(opt.input);
     if (e != auro3d::DecodeError::Ok) {
         progress.finish();
-        std::cerr << "open: " << auro3d::decode_error_message(e) << "\n";
+        print_error(std::string("open: ") + auro3d::decode_error_message(e));
         dec.close();
         return 2;
     }
@@ -856,8 +987,9 @@ int app_main(int argc, char** argv) {
     const std::string output_format = selected_output_format(opt);
     if (output_format == "flac" && cfg_open.channels > 8u) {
         progress.finish();
-        std::cerr << "FLAC: format supports at most 8 channels; use a .wav output for "
-                  << cfg_open.channels << " channels\n";
+        print_error(
+            "FLAC: format supports at most 8 channels; use a .wav output for "
+            + std::to_string(cfg_open.channels) + " channels");
         dec.close();
         return 4;
     }
@@ -1029,7 +1161,7 @@ int app_main(int argc, char** argv) {
         e = dec.decode_next(chunk);
         if (e != auro3d::DecodeError::Ok) {
             progress.finish();
-            std::cerr << "decode: " << auro3d::decode_error_message(e) << "\n";
+            print_error(std::string("decode: ") + auro3d::decode_error_message(e));
             dec.close();
             return 3;
         }
@@ -1042,6 +1174,7 @@ int app_main(int argc, char** argv) {
     const std::uint64_t dsp_clipped = dec.dsp_clipped_samples();
     const std::uint64_t latency_samples = dec.latency_samples();
     const std::uint64_t source_sample_count = dec.source_sample_count();
+    const unsigned source_sample_rate = cfg.sample_rate;
     dec.close();
 
     if (latency_samples != 0u) {
@@ -1052,7 +1185,7 @@ int app_main(int argc, char** argv) {
         if (trim_begin_u64 > pcm_all.size()
             || trim_size_u64 > pcm_all.size() - static_cast<std::size_t>(trim_begin_u64)) {
             progress.finish();
-            std::cerr << "decode: native latency drain produced insufficient PCM\n";
+            print_error("decode: native latency drain produced insufficient PCM");
             return 3;
         }
         const std::size_t trim_begin = static_cast<std::size_t>(trim_begin_u64);
@@ -1065,7 +1198,7 @@ int app_main(int argc, char** argv) {
 
     if (pcm_all.empty()) {
         progress.finish();
-        std::cerr << "No PCM data.\n";
+        print_error("No PCM data.");
         return 3;
     }
 
@@ -1083,7 +1216,7 @@ int app_main(int argc, char** argv) {
                     err,
                     progress.callback())) {
                 progress.finish();
-                std::cerr << "Binaural: " << err << "\n";
+                print_error("Binaural: " + err);
                 return 4;
             }
             if (opt.verbose) {
@@ -1100,7 +1233,7 @@ int app_main(int argc, char** argv) {
                 output_slots, opt.room_preset, opt.hrtf_preset, stereo, err,
                 progress.callback())) {
             progress.finish();
-            std::cerr << "Binaural: " << err << "\n";
+            print_error("Binaural: " + err);
             return 4;
         }
         pcm_all.swap(stereo);
@@ -1120,16 +1253,18 @@ int app_main(int argc, char** argv) {
         output_wav_channel_mask, pcm_all, err, progress.callback());
     if (!ok) {
         progress.finish();
-        std::cerr << (output_format == "flac" ? "FLAC: " : "WAV: ") << err << "\n";
+        print_error(std::string(output_format == "flac" ? "FLAC: " : "WAV: ") + err);
         return 4;
     }
     if (!write_channel_mapping_xml(
             std::filesystem::u8path(opt.output),
             std::filesystem::u8path(opt.input),
             cfg.sample_rate,
+            source_sample_rate,
             cfg.bits_per_sample,
             cfg.channels,
             native_cfg.requested_output_mask,
+            auro_meta.found ? auro_meta.carrier_layout_id : native_cfg.input_mask,
             output_slots,
             native_cfg.input_mask,
             native_mask,
@@ -1138,7 +1273,7 @@ int app_main(int argc, char** argv) {
             opt.binaural,
             err)) {
         progress.finish();
-        std::cerr << "XML: " << err << "\n";
+        print_error("XML: " + err);
         return 4;
     }
     if (opt.channel_diagram) {
@@ -1168,8 +1303,9 @@ int app_main(int argc, char** argv) {
                 0u, mono_pcm, err);
             if (!mono_ok) {
                 progress.finish();
-                std::cerr << (output_format == "flac" ? "FLAC mono " : "WAV mono ")
-                          << mono_path.string() << ": " << err << "\n";
+                print_error(
+                    std::string(output_format == "flac" ? "FLAC mono " : "WAV mono ")
+                    + mono_path.string() + ": " + err);
                 return 4;
             }
         }
@@ -1179,7 +1315,7 @@ int app_main(int argc, char** argv) {
     if (opt.verbose) {
         std::cerr << "bits_per_sample=" << cfg.bits_per_sample << "\n";
         std::cerr << "dsp_clipped_samples=" << dsp_clipped << "\n";
-        std::cerr << "Done: " << opt.output << "\n";
+        print_ok("Done: " + opt.output);
     }
     return 0;
 }

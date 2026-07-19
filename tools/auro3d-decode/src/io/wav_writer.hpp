@@ -24,6 +24,12 @@ bool write_pcm24_le(
     std::string& error_out,
     std::uint32_t channel_mask = 0);
 
+/// Encode an existing WAV file to FLAC via ffmpeg (PATH).
+bool encode_wav_to_flac(
+    const std::string& wav_path,
+    const std::string& flac_path,
+    std::string& error_out);
+
 class Pcm24StreamWriter {
 public:
     bool open(
