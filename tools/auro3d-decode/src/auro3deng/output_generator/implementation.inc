@@ -282,7 +282,6 @@ struct OgRawRuntimeCtx {
     const CodecV3IoBufferDescEb5a0* input_desc = nullptr;
     std::uint32_t input_mask = 0;
     OutputGeneratorRuntimeFns1024a9 fns{};
-    std::array<std::vector<std::int32_t>, kCodecV3ChannelCount> delay_windows{};
 };
 
 std::uint32_t raw_get_frame_channel_count(void*, std::uint64_t frame_ptr) {
@@ -888,54 +887,9 @@ std::uint64_t raw_get_delay_line_channel(void* user, std::uint32_t channel, std:
     const auto adjusted_start = static_cast<std::uint64_t>(adjusted_start_i64);
     const auto* state = reinterpret_cast<const DelayLineState106b40*>(
         static_cast<std::uintptr_t>(c->delay_line_ptr));
-    if (!state || state->samples_per_block == 0 || adjusted_start >= state->samples_per_block) {
-        return c->fns.delay_line_get_channel(c->delay_line_buffer, channel, adjusted_start);
-    }
-    const std::uint64_t direct = c->fns.delay_line_get_channel(c->delay_line_buffer, channel, adjusted_start);
-    if (direct == 0u)
+    if (!state || state->samples_per_block == 0 || adjusted_start >= state->samples_per_block)
         return 0;
-    // Unit Auro frames can outlive one host DelayLine slot (e.g. 1000 vs 960).
-    // Always gather up to two host slots so decode can read a full unit frame.
-    const std::uint64_t host_block = state->samples_per_block;
-    std::uint64_t requested = c->total_samples != 0u ? c->total_samples : host_block;
-    if (requested < host_block * 2u)
-        requested = host_block * 2u;
-    if (adjusted_start + requested <= host_block)
-        return direct;
-
-    auto& window = c->delay_windows[channel];
-    if (window.size() < requested)
-        window.assign(static_cast<std::size_t>(requested), 0);
-    else
-        std::fill(window.begin(), window.begin() + static_cast<std::ptrdiff_t>(requested), 0);
-
-    std::uint64_t copied = 0;
-    std::uint64_t slot_ptr = c->delay_line_buffer;
-    std::uint64_t slot_start = adjusted_start;
-    while (copied < requested && slot_ptr != 0u) {
-        const std::uint64_t src = c->fns.delay_line_get_channel(slot_ptr, channel, slot_start);
-        const std::uint64_t avail = state->samples_per_block - slot_start;
-        const std::uint64_t take = std::min<std::uint64_t>(requested - copied, avail);
-        if (src != 0u && take != 0u) {
-            std::memcpy(
-                window.data() + copied,
-                reinterpret_cast<const void*>(static_cast<std::uintptr_t>(src)),
-                static_cast<std::size_t>(take) * sizeof(std::int32_t));
-        }
-        copied += take;
-        slot_start = 0;
-        const auto* slot = reinterpret_cast<const DelayLineBufferSlot106b40*>(
-            static_cast<std::uintptr_t>(slot_ptr));
-        const std::uint64_t slot_index =
-            (slot_ptr - state->ring_storage_base) / kDelayLineBufferSlotStrideBytes;
-        const std::uint64_t next_slot = (slot_index + 1u) % state->ring_slot_count;
-        slot_ptr = state->ring_storage_base + next_slot * kDelayLineBufferSlotStrideBytes;
-        if (slot == reinterpret_cast<const DelayLineBufferSlot106b40*>(
-                static_cast<std::uintptr_t>(slot_ptr))) {
-            break;
-        }
-    }
-    return reinterpret_cast<std::uint64_t>(window.data());
+    return c->fns.delay_line_get_channel(c->delay_line_buffer, channel, adjusted_start);
 }
 
 std::uint64_t raw_get_input_channel_base(void* user, std::uint32_t channel) {
@@ -1260,10 +1214,8 @@ std::int64_t raw_decode_channel_segment(
     bool slot_active = false;
     if (extrap_sources && extrap_sources->frame_slot_index != 0xFFFFFFFFu && seg->frame_ptr != 0) {
         slot_idx = extrap_sources->frame_slot_index;
-        const std::uint32_t n = *reinterpret_cast<const std::uint32_t*>(seg->frame_ptr + kFrameOff_channel_count_dword);
         const std::uintptr_t slot =
             seg->frame_ptr + kFrameOff_channel_slot_base + static_cast<std::uintptr_t>(slot_idx) * kFrameStride_channel_slot;
-        const std::uint32_t out_ch = *reinterpret_cast<const std::uint32_t*>(slot + kFrameChSlotOff_channel_index);
         slot_active = (*reinterpret_cast<const std::uint32_t*>(slot + kFrameChSlotOff_active_flag) != 0);
         frame_ch = *reinterpret_cast<const std::uint64_t*>(slot + kFrameChSlotOff_channel_ptr_qword);
     } else if (!raw_find_frame_channel_slot(seg, channel, &slot_idx, &frame_ch, &slot_active)) {
@@ -1277,20 +1229,6 @@ std::int64_t raw_decode_channel_segment(
     const std::uint64_t ex_state =
         reinterpret_cast<std::uint64_t>(c->og + kOgOff_ex_state_base + static_cast<std::uintptr_t>(slot_idx) * kOgStride_ex_state);
     const std::uint64_t errors_buf = *reinterpret_cast<std::uint64_t*>(c->og + kOgOff_errors_buf);
-    if (seg != nullptr && seg->frame_ptr != 0u) {
-        static std::unordered_map<std::uint64_t, std::uint32_t> last_frame_start_by_gr_state;
-        const std::uint32_t frame_start =
-            *reinterpret_cast<const std::uint32_t*>(seg->frame_ptr + 0u);
-        auto it = last_frame_start_by_gr_state.find(gr_state);
-        if (it == last_frame_start_by_gr_state.end() || it->second != frame_start) {
-            last_frame_start_by_gr_state[gr_state] = frame_start;
-            auto* words_ptr = reinterpret_cast<std::uint32_t*>(frame_ch + kFrameChannelOff_stream_words);
-            const std::uint64_t ctx_ptr = frame_ch + kFrameChannelOff_ctx_words;
-            (void)raw_gr_initialize(user, gr_state, words_ptr, ctx_ptr);
-            (void)raw_ex_initialize(user, ex_state, frame_ch);
-        }
-    }
-
     // IDA 0x1025F0 / 0x10299A: return value is data-flow, not an error code for OutputGenerator_process.
     if (c->fns.golombrice_get_errors) {
         (void)c->fns.golombrice_get_errors(gr_state, frame_ch, errors_buf, sample_count);

@@ -201,6 +201,16 @@ enum class DecodeError {
 
 const char* decode_error_message(DecodeError e);
 
+/// Resample interleaved PCM via FFmpeg. Output is always PCM24 LE at target_sample_rate.
+bool resample_interleaved_pcm_to_rate(
+    const std::vector<std::uint8_t>& pcm_in,
+    unsigned bits_per_sample,
+    unsigned channels,
+    unsigned sample_rate_in,
+    unsigned sample_rate_out,
+    std::vector<std::uint8_t>& pcm_out,
+    std::string& err);
+
 /// Весь PCM s24le из WAV (или сырой файл при raw: нужны sample_rate и channel_count) → interleaved int32 (24-bit sign-extended).
 bool load_all_pcm_s24le_interleaved_i32(
     const std::string& path,
@@ -249,7 +259,7 @@ public:
     /// Для сырого s24le без WAV: частота, каналы, размер блока (как в Java Initialize).
     void set_raw_pcm24_params(uint32_t sample_rate_hz, unsigned channel_count, unsigned block_size);
 
-    /// Переопределить размер блока (новый auroenginev4/JADX использует JNI block_size = 832).
+    /// Override the metadata-aligned internal block size (JNI fallback is 832).
     void set_block_size(unsigned block_size) { block_request_ = block_size; }
 
     /// Сила рендера baseline AURO-DSP (0..15, таблица strength_translate).
@@ -280,6 +290,8 @@ public:
     const AuroMetadataInfo& auro_metadata() const { return auro_metadata_; }
     const std::vector<std::uint32_t>& output_channel_slot_map() const { return output_channel_slot_map_; }
     std::uint64_t dsp_clipped_samples() const { return dsp_clipped_samples_; }
+    std::uint64_t latency_samples() const { return codec_v3_latency_samples_; }
+    std::uint64_t source_sample_count() const { return source_sample_count_; }
     void close();
 
 private:
@@ -329,6 +341,11 @@ private:
     std::size_t pcm_begin_ = 0;
     std::size_t pcm_length_ = 0;
     std::size_t read_pos_ = 0;
+    std::uint64_t input_padding_samples_ = 0;
+    std::uint64_t input_stream_cursor_ = 0;
+    std::uint64_t source_sample_count_ = 0;
+    std::uint64_t codec_v3_latency_samples_ = 0;
+    std::uint32_t codec_v3_drain_blocks_remaining_ = 0;
 
     uint32_t sample_rate_ = 0;
     unsigned channel_count_ = 0;
@@ -419,7 +436,6 @@ private:
     std::vector<std::uint8_t> codec_v3_fake_frame_channel_ctx_storage_;
     std::vector<std::uint8_t> codec_v3_fake_parse_result_pool_state_;
     std::vector<std::uint8_t> codec_v3_fake_parse_result_pool_storage_;
-    std::vector<std::uint8_t> codec_v3_ready_parse_result_storage_;
     std::vector<std::uint8_t> codec_v3_channel_parser_storage_;
     std::uint32_t codec_v3_active_decode_probe_slots_ = 31u;
     std::vector<std::int32_t> codec_v3_output_errors_storage_;
@@ -427,7 +443,6 @@ private:
     std::uint64_t codec_v3_parser_timeline_cursor_ = 0;
     std::uint64_t codec_v3_og_timeline_cursor_ = 0;
     std::uint32_t codec_v3_parser_state_ = 0;
-    bool codec_v3_requested_layout_ever_satisfied_ = false;
     std::uint32_t input_signal_channel_mask_ = 0x7FFFFFFu;
 };
 

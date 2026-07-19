@@ -1797,7 +1797,9 @@ std::int64_t decoder_run_step(DecoderStepRunContext101800* ctx) {
     if (ctx->run_output_stage) {
         (void)ctx->run_output_stage(ctx->output_user);
     }
-    // DelayLine_advance is performed in codec_v3_process_partial_eb5a0 after write+FD.
+    // Decoder_process @ 0x52AD60 advances only after OutputGenerator_process.
+    if (ctx->dispatch_ctx && ctx->dispatch_ctx->delay_line)
+        (void)delay_line_advance_106b20(ctx->dispatch_ctx->delay_line);
     return 0;
 }
 

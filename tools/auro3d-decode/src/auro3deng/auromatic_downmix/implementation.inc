@@ -2075,12 +2075,6 @@ std::int64_t codec_v3_process_partial_eb5a0(
         // IDA: FormatDetector owns +308; propagate to dispatch (not the reverse).
         if (runtime->dispatch)
             runtime->dispatch->sync_state = runtime->format_detector->sync_state;
-        // Commit the just-written ring slot before Parser/OG.
-        // DelayLine_get_buffer always returns write_slot-1 (previous slot); without an
-        // early advance the first parse reads an empty slot and CRC-drops the sync frame.
-        // Native Decoder_process advances after OG; host commits after write+FD so parser
-        // sees the block that FormatDetector just scanned.
-        (void)delay_line_advance_106b20(runtime->delay_line);
     }
 
     *io_status = input_mask;
@@ -2639,10 +2633,8 @@ void format_detector_t_construct(
     region->tail.allow_low_9bits = *reinterpret_cast<const std::uint32_t*>(
         decoder_base + auro_codec_v3_ida::kDecoderConfig_off_extra_flags);
     const auto* delay_line = reinterpret_cast<const DelayLineState106b40*>(memory_base);
-    const std::uint32_t stage0_count = *reinterpret_cast<const std::uint32_t*>(
-        decoder_base + auro_codec_v3_ida::kDecoderConfig_off_stage0_count);
     region->tail.processed_samples =
-        delay_line_stream_index(delay_line, stage0_count);
+        delay_line_stream_index(delay_line, 0u);
     sync_detector_t_construct(&region->sync);
     sync_detector_set_callback(
         &region->sync,

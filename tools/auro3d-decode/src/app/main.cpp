@@ -518,7 +518,7 @@ void print_usage() {
         << "Options:\n"
         << "  -i, --input FILE\n"
         << "  -o, --output FILE\n"
-        << "  --output-format FMT  output format: wav or flac; default is inferred from .flac extension\n"
+        << "  --output-format FMT  output format: wav or flac\n"
         << "  --raw                input is raw interleaved s24le (requires --rate and --channels)\n"
         << "  --rate HZ            sample rate for --raw\n"
         << "  --channels N         channel count for --raw\n"

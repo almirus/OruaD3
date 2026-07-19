@@ -2,6 +2,7 @@
 
 #include "../auro3deng/detail/codec_v3_ida.hpp"
 #include "../auro3deng/detail/runtime_api.hpp"
+#include "../io/wav_writer.hpp"
 #include "../render/java_auro_decode_pcm.hpp"
 #include "../util/auro3deng_strength.hpp"
 
@@ -16,6 +17,7 @@
 #include <fstream>
 #include <filesystem>
 #include <limits>
+#include <numeric>
 #include <sstream>
 #include <string>
 
@@ -398,6 +400,16 @@ void sync_detector_notify_105ee0_bridge(void* ctx, std::int64_t kind, std::uint6
     auro3deng::codec_v3_sync_callback_eb840(dispatch, kind == 0 ? 1 : 0);
 }
 
+void sync_detector_process_block_32_bridge(
+    void* ctx,
+    const std::uint64_t* channel_ptrs_27) {
+    // FormatDetector_process @ 0x52D060 advances in fixed 32-sample chunks.
+    auro3deng::sync_detector_process_block(
+        reinterpret_cast<auro3deng::SyncDetectorState105ee0*>(ctx),
+        channel_ptrs_27,
+        32u);
+}
+
 void codec_v3_frame_deque_pop_front_keep_frame_13d670_bridge(std::uint64_t frame_deque_ptr) {
     // Path where mark_as_unused is done by caller (e.g. IDA 0x103063/0x10306F).
     (void)auro3deng::frame_deque_pop_front_keep_frame(frame_deque_ptr);
@@ -437,8 +449,6 @@ struct DecoderStepBridgeCtx {
     std::uint64_t block_size = 0;
     std::uint64_t* parser_timeline_cursor_ptr = nullptr;
     std::uint64_t* og_timeline_cursor_ptr = nullptr;
-    std::uint64_t output_timeline_delay = 0;
-    bool defer_output_until_timeline_ready = false;
     std::uint32_t* parser_state_ptr = nullptr;
     std::uint32_t* produced_output_mask = nullptr;
 };
@@ -660,26 +670,9 @@ std::int64_t run_output_stage_1024a9_bridge(void* user) {
     auto* step = reinterpret_cast<DecoderStepBridgeCtx*>(user);
     if (!step || !step->output_generator_base || !step->output_table_base || !step->output_channel_ptrs_27)
         return 0;
-    if (step->defer_output_until_timeline_ready
-        && step->parser_timeline_cursor_ptr
-        && *step->parser_timeline_cursor_ptr < step->output_timeline_delay) {
-        return 0;
-    }
-    // IDA keeps OG timeline independent of parser (stage1 vs stage0 latency).
-    // Seed OG object from host OG cursor; do not overwrite from parser cursor.
+    // OutputGenerator_t_construct @ 0x52AF10 initializes its own absolute
+    // stream index. It is independent of the Parser cursor.
     if (step->og_timeline_cursor_ptr) {
-        const bool seed_from_parser =
-            !step->defer_output_until_timeline_ready
-            || *step->og_timeline_cursor_ptr == 0u;
-        if (seed_from_parser
-            && step->parser_timeline_cursor_ptr
-            && step->output_timeline_delay != 0u) {
-            const std::uint64_t parser_cursor = *step->parser_timeline_cursor_ptr;
-            *step->og_timeline_cursor_ptr =
-                parser_cursor > step->output_timeline_delay
-                    ? (parser_cursor - step->output_timeline_delay)
-                    : 0u;
-        }
         *reinterpret_cast<std::uint64_t*>(
             step->output_generator_base + kCodecV3OgOffTimelineCursor) =
             *step->og_timeline_cursor_ptr;
@@ -2293,9 +2286,107 @@ bool decode_supported_audio_to_pcm24_wav_bytes(
     return true;
 }
 
+bool resample_interleaved_pcm_bytes(
+    const std::vector<std::uint8_t>& pcm_in,
+    unsigned bits_per_sample,
+    unsigned channels,
+    unsigned sample_rate_in,
+    unsigned sample_rate_out,
+    std::vector<std::uint8_t>& pcm_out,
+    std::string& err) {
+    err.clear();
+    pcm_out.clear();
+    if (!channels || (bits_per_sample != 16u && bits_per_sample != 24u) || !sample_rate_in
+        || !sample_rate_out) {
+        err = "unsupported PCM format for resample";
+        return false;
+    }
+    if (sample_rate_in == sample_rate_out) {
+        pcm_out = pcm_in;
+        return true;
+    }
+    const unsigned bytes_per_sample = bits_per_sample / 8u;
+    const std::size_t frame_bytes = static_cast<std::size_t>(channels) * bytes_per_sample;
+    if (!frame_bytes || pcm_in.size() % frame_bytes != 0u) {
+        err = "PCM size is not an integer number of frames";
+        return false;
+    }
+
+    const std::string in_wav = temp_wav_path();
+    const std::string out_wav = temp_wav_path();
+    const bool wrote = bits_per_sample == 24u
+        ? wav::write_pcm24_le(in_wav, sample_rate_in, static_cast<std::uint16_t>(channels), pcm_in, err)
+        : wav::write_pcm16_le(in_wav, sample_rate_in, static_cast<std::uint16_t>(channels), pcm_in, err);
+    if (!wrote) {
+        std::remove(in_wav.c_str());
+        return false;
+    }
+
+    const std::string cmd =
+        "ffmpeg -y -v error -i " + shell_quote_path(in_wav)
+        + " -ar " + std::to_string(sample_rate_out)
+        + " -c:a pcm_s24le -f wav " + shell_quote_path(out_wav);
+    const int rc = run_command(cmd);
+    std::remove(in_wav.c_str());
+    if (rc != 0) {
+        std::remove(out_wav.c_str());
+        err = "ffmpeg failed to resample PCM to " + std::to_string(sample_rate_out) + " Hz";
+        return false;
+    }
+
+    std::vector<std::uint8_t> wav_bytes;
+    if (!read_file_bytes(out_wav, wav_bytes, err)) {
+        std::remove(out_wav.c_str());
+        return false;
+    }
+    std::remove(out_wav.c_str());
+
+    std::size_t pcm_begin = 0u;
+    std::size_t pcm_length = 0u;
+    std::uint16_t out_channels = 0u;
+    std::uint32_t out_rate = 0u;
+    std::uint32_t out_mask = 0u;
+    if (!try_parse_wav_s24le(
+            wav_bytes.data(),
+            wav_bytes.size(),
+            pcm_begin,
+            pcm_length,
+            out_channels,
+            out_rate,
+            out_mask,
+            err)
+        || out_channels != channels
+        || out_rate != sample_rate_out) {
+        err = "resampled WAV parse failed";
+        return false;
+    }
+    pcm_out.assign(
+        wav_bytes.begin() + static_cast<std::ptrdiff_t>(pcm_begin),
+        wav_bytes.begin() + static_cast<std::ptrdiff_t>(pcm_begin + pcm_length));
+    return true;
+}
+
 } // namespace
 
 namespace auro3d {
+
+bool resample_interleaved_pcm_to_rate(
+    const std::vector<std::uint8_t>& pcm_in,
+    unsigned bits_per_sample,
+    unsigned channels,
+    unsigned sample_rate_in,
+    unsigned sample_rate_out,
+    std::vector<std::uint8_t>& pcm_out,
+    std::string& err) {
+    return resample_interleaved_pcm_bytes(
+        pcm_in,
+        bits_per_sample,
+        channels,
+        sample_rate_in,
+        sample_rate_out,
+        pcm_out,
+        err);
+}
 
 const char* auro_channel_layout_to_string(std::uint32_t layout) {
     return ::auro_channel_layout_to_string(layout);
@@ -3006,7 +3097,6 @@ void Decoder::rebuild_native_asc4he_partial_state() {
 
 void Decoder::rebuild_codec_v3_partial_state() {
     codec_v3_dispatch_ = {};
-    codec_v3_requested_layout_ever_satisfied_ = false;
     codec_v3_dispatch_.format_word0 = native_config_state_.input_mask & kCodecV3ChannelMask;
     codec_v3_dispatch_.sample_rate = sample_rate_;
     codec_v3_dispatch_.block_size = static_cast<std::uint32_t>(block_size_);
@@ -3027,9 +3117,10 @@ void Decoder::rebuild_codec_v3_partial_state() {
 
     codec_v3_delay_line_ = {};
     codec_v3_delay_line_.samples_per_block = block_size_;
-    // With host early DelayLine_advance after write, timelines start at 0 (not
-    // stream_index(stage0) which underflows when absolute_cursor is still 0).
-    codec_v3_format_detector_.processed_samples = 0;
+    // ARM decompile of the same FormatDetector_t_construct shows the missing
+    // x86 argument explicitly: DelayLine_stream_index(delay, 0).
+    codec_v3_format_detector_.processed_samples = auro3deng::delay_line_stream_index(
+        &codec_v3_delay_line_, 0u);
 
     const std::uint32_t slot_count =
         std::max<std::uint32_t>(2u, static_cast<std::uint32_t>(native_config_state_.buffer_count));
@@ -3104,18 +3195,15 @@ void Decoder::rebuild_codec_v3_output_generator_state() {
         auro3deng::parse_result_pool_required_additional_memory(
             parse_pool_count));
     codec_v3_fake_parse_result_pool_storage_.assign(parse_pool_bytes, 0);
-    codec_v3_ready_parse_result_storage_.assign(
-        static_cast<std::size_t>(ready_deque_capacity * kCodecV3FrameDequeCopiedSlotCapacity) * kCodecV3ParseResultBytes,
-        0u);
     codec_v3_channel_parser_storage_.assign(kCodecV3ChannelCount * kCodecV3ChannelParserBytes, 0u);
     codec_v3_output_errors_storage_.assign(2u * block_size_, 0);
     codec_v3_output_scratch_storage_.assign(3u * block_size_, 0);
-    // Host early-advance path: parser/OG cursors start at 0 and track committed
-    // samples. Keep them as separate host fields (do not force equal each step).
     const std::uint32_t og_latency_blocks =
         std::max<std::uint32_t>(1u, native_config_state_.stage1_count);
-    codec_v3_parser_timeline_cursor_ = 0;
-    codec_v3_og_timeline_cursor_ = 0;
+    codec_v3_parser_timeline_cursor_ = auro3deng::delay_line_stream_index(
+        &codec_v3_delay_line_, native_config_state_.stage0_count);
+    codec_v3_og_timeline_cursor_ = auro3deng::delay_line_stream_index(
+        &codec_v3_delay_line_, og_latency_blocks);
 
     auto* og = codec_v3_output_generator_state_.data();
     auto* seg_ctx = codec_v3_segment_ctx_storage_.data();
@@ -3420,33 +3508,6 @@ void Decoder::run_codec_v3_partial_step() {
         codec_v3_input_channel_ptrs[ch] = input_desc_.channel_ptr[ch];
         codec_v3_output_channel_ptrs[ch] = output_desc_.channel_ptr[ch];
     }
-    // SyncDetector ORs LSBs across every non-null channel. Permanent silent pads
-    // (e.g. zero LFE in 2.1/3ch mix3 WAV) must be null, not a zeroed buffer.
-    // Also drop those bits from the FormatDetector/SyncDetector layout so frames
-    // are not built with empty LFE slots that later CRC-fail in the parser.
-    std::uint32_t live_input_mask = input_mask;
-    for (std::uint32_t ch = 0; ch < auro_codec_v3_ida::kAuroProcessorIoChannelPtrCount; ++ch) {
-        if (((live_input_mask >> ch) & 1u) == 0u)
-            continue;
-        const std::uint64_t ptr = codec_v3_input_channel_ptrs[ch];
-        if (ptr == 0u) {
-            live_input_mask &= ~(1u << ch);
-            continue;
-        }
-        const auto* samples = reinterpret_cast<const std::int32_t*>(static_cast<std::uintptr_t>(ptr));
-        bool any_nonzero = false;
-        for (unsigned s = 0; s < block_size_; ++s) {
-            if (samples[s] != 0) {
-                any_nonzero = true;
-                break;
-            }
-        }
-        if (!any_nonzero) {
-            codec_v3_input_channel_ptrs[ch] = 0u;
-            live_input_mask &= ~(1u << ch);
-        }
-    }
-
     auro3deng::DecoderDispatchRunContextEb5a0 dispatch_ctx{};
     dispatch_ctx.dispatch = &codec_v3_dispatch_;
     dispatch_ctx.format_detector = &codec_v3_format_detector_;
@@ -3454,12 +3515,14 @@ void Decoder::run_codec_v3_partial_step() {
     dispatch_ctx.delay_line = &codec_v3_delay_line_;
     dispatch_ctx.sample_rate = sample_rate_;
     dispatch_ctx.block_size = static_cast<std::uint32_t>(block_size_);
-    dispatch_ctx.input_mask = live_input_mask;
+    // Decoder_process @ 0x52AD60 consumes the caller's per-call mask and
+    // requires a non-null plane for every bit that remains set.
+    dispatch_ctx.input_mask = input_mask;
     dispatch_ctx.output_mask = native_config_state_.effective_output_mask & kCodecV3ChannelMask;
     dispatch_ctx.input_channel_ptrs_27 = codec_v3_input_channel_ptrs;
     dispatch_ctx.output_channel_ptrs_27 = codec_v3_output_channel_ptrs;
     dispatch_ctx.set_layout = reinterpret_cast<void (*)(void*, std::uint32_t)>(auro3deng::sync_detector_set_layout);
-    dispatch_ctx.process_block = reinterpret_cast<void (*)(void*, const std::uint64_t*)>(auro3deng::sync_detector_process_block);
+    dispatch_ctx.process_block = sync_detector_process_block_32_bridge;
     dispatch_ctx.sync_user = &codec_v3_sync_detector_;
 
     SyncDetectorNotifyBridgeCtx sync_notify_ctx{};
@@ -3484,14 +3547,6 @@ void Decoder::run_codec_v3_partial_step() {
     payload_ctx.frame_deque_ptr = codec_v3_fake_frame_deque_storage_.empty()
         ? 0u
         : reinterpret_cast<std::uint64_t>(codec_v3_fake_frame_deque_storage_.data());
-    // Fractional scheduling is only needed when the host block cannot hold an
-    // integer number of unit frames (legacy host-960 path). Aligned host-1000
-    // blocks start at sync_sample and do not need it.
-    const bool needs_fractional_frame_scheduler =
-        auro_metadata_.found
-        && auro_metadata_.block_size == 1000u
-        && block_size_ != 0u
-        && (block_size_ % auro_metadata_.block_size) != 0u;
     payload_ctx.output_generator_base = codec_v3_output_generator_state_.empty()
         ? 0u
         : reinterpret_cast<std::uint64_t>(codec_v3_output_generator_state_.data());
@@ -3524,32 +3579,14 @@ void Decoder::run_codec_v3_partial_step() {
         : codec_v3_fake_parse_result_pool_state_.data();
     step_bridge.parser_slots_base = codec_v3_channel_parser_storage_.data();
     step_bridge.parser_slots_size = codec_v3_channel_parser_storage_.size();
-    step_bridge.ready_parse_result_base = codec_v3_ready_parse_result_storage_.data();
-    step_bridge.ready_parse_result_size = codec_v3_ready_parse_result_storage_.size();
+    // Native FrameDeque_push_back copies only the Frame.  Its ParseResult
+    // pointers continue to reference the parser pool until OutputGenerator
+    // consumes the frame; the pool size is derived from the pipeline depth.
+    step_bridge.ready_parse_result_base = nullptr;
+    step_bridge.ready_parse_result_size = 0u;
     step_bridge.block_size = static_cast<std::uint64_t>(block_size_);
     step_bridge.parser_timeline_cursor_ptr = &codec_v3_parser_timeline_cursor_;
     step_bridge.og_timeline_cursor_ptr = &codec_v3_og_timeline_cursor_;
-    if (needs_fractional_frame_scheduler) {
-        step_bridge.output_timeline_delay =
-            2u * static_cast<std::uint64_t>(block_size_);
-        step_bridge.defer_output_until_timeline_ready = true;
-    } else {
-        // PCM was aligned to sync_sample for 1000-sample unit frames; treat the
-        // stream as starting on a frame boundary (sync_offset = 0).
-        const bool sync_aligned_unit_frames =
-            auro_metadata_.found
-            && auro_metadata_.block_size == 1000u
-            && block_size_ != 0u
-            && (block_size_ % auro_metadata_.block_size) == 0u;
-        const std::uint64_t sync_offset =
-            (auro_metadata_.found && block_size_ != 0u && !sync_aligned_unit_frames)
-                ? (auro_metadata_.sync_sample % block_size_)
-                : 0u;
-        step_bridge.output_timeline_delay =
-            sync_offset != 0u
-                ? (2u * static_cast<std::uint64_t>(block_size_) - sync_offset)
-                : static_cast<std::uint64_t>(block_size_);
-    }
     step_bridge.parser_state_ptr = &codec_v3_parser_state_;
     step_bridge.produced_output_mask = &codec_v3_dispatch_.produced_output_mask;
 
@@ -3840,6 +3877,8 @@ DecodeError Decoder::open(const std::string& path) {
     pcm_begin_ = 0;
     pcm_length_ = 0;
     read_pos_ = 0;
+    input_padding_samples_ = 0u;
+    input_stream_cursor_ = 0u;
     opened_ = false;
     planar_scratch_.clear();
     native_xinn_step_state_.clear();
@@ -3898,9 +3937,8 @@ DecodeError Decoder::open(const std::string& path) {
         sample_rate_ = wav_rate;
         channel_count_ = wav_ch;
         input_wav_channel_mask_ = wav_channel_mask;
-        // APK/JADX auroenginev4 and live Frida/Kahlo on libauro.so:
-        // AuroInitialize uses 832-frame blocks; AuroPush carries
-        // 832 * channels * 3 bytes for s24le input, not 1024-frame legacy blocks.
+        // JNI uses 832 when no codec frame metadata is available. Embedded
+        // AURO below replaces this with an aligned internal host block.
         block_size_ = block_request_ != 0 ? block_request_ : kDefaultJniBlockSize;
     } else if (raw_forced_) {
         pcm_begin_ = 0;
@@ -3922,25 +3960,19 @@ DecodeError Decoder::open(const std::string& path) {
     // По умолчанию (как JNI путь из libauro3d.so) используем stereo.
     // При явном запросе разрешаем multichannel export через native slot layout.
     auro_metadata_ = scan_auro_metadata_pcm24(file_bytes_, pcm_begin_, pcm_length_, channel_count_);
-    if (block_request_ == 0 && auro_metadata_.found) {
-        if (auro_metadata_.block_size == 1000u) {
-            block_size_ = 1000u;
-        } else if (auro_metadata_.block_size != 0u
-            && (auro_metadata_.block_size % 32u) == 0u) {
-            block_size_ = auro_metadata_.block_size;
+    if (block_request_ == 0u && auro_metadata_.found && auro_metadata_.block_size != 0u) {
+        // Config_initialize @ 0x52D7B0 requires a host block divisible by 32.
+        // A whole number of embedded frames prevents GR/Extrapolate state from
+        // being split between host calls: 1024 -> 1024, 1000 -> 4000.
+        const std::uint64_t aligned_block = std::lcm<std::uint64_t>(
+            auro_metadata_.block_size, 32u);
+        if (aligned_block == 0u || aligned_block > std::numeric_limits<unsigned>::max()) {
+            opened_ = false;
+            return DecodeError::BadInput;
         }
-    }
-    if (auro_metadata_.found
-        && auro_metadata_.block_size == 1000u
-        && auro_metadata_.sync_sample != 0u
-        && sample_frame_b != 0u) {
-        const std::size_t skip_b =
-            static_cast<std::size_t>(auro_metadata_.sync_sample) * sample_frame_b;
-        if (skip_b < pcm_length_) {
-            pcm_begin_ += skip_b;
-            pcm_length_ -= skip_b;
-            read_pos_ = pcm_begin_;
-        }
+        block_size_ = static_cast<unsigned>(aligned_block);
+        const std::uint64_t sync_in_host = auro_metadata_.sync_sample % block_size_;
+        input_padding_samples_ = sync_in_host == 0u ? 0u : block_size_ - sync_in_host;
     }
     if (!auro_metadata_.found) {
         const bool supported_legacy_target =
@@ -4002,7 +4034,8 @@ DecodeError Decoder::open(const std::string& path) {
         return DecodeError::BadInput;
     }
     if (!auro_codec_v3_is_sample_rate_supported(sample_rate_)
-        || !auro_codec_v3_is_unit_block_size_supported(block_size_)) {
+        || (block_size_ & 31u) != 0u
+        || (block_request_ != 0u && !auro_codec_v3_is_unit_block_size_supported(block_size_))) {
         opened_ = false;
         return DecodeError::BadInput;
     }
@@ -4060,18 +4093,25 @@ DecodeError Decoder::open(const std::string& path) {
         return DecodeError::NotImplemented;
     }
     input_signal_channel_mask_ = input_layout.mask;
+    // Decoder_process @ 0x52AD60 accepts a per-call input mask that is a
+    // subset of the configured carrier mask. SyncDetector_process_block
+    // @ 0x52C680 combines the metadata bits of every channel in that mask;
+    // padding planes without the embedded carrier bits must stay outside it.
     const std::size_t total_frames = pcm_length_ / sample_frame_b;
     for (unsigned physical_ch = 0; physical_ch < channel_count_; ++physical_ch) {
-        bool has_audio_bits = false;
-        const std::uint8_t* sample = file_bytes_.data() + pcm_begin_ + static_cast<std::size_t>(physical_ch) * 3u;
-        for (std::size_t frame = 0; frame < total_frames; ++frame, sample += sample_frame_b) {
+        bool carries_pcm_or_metadata = false;
+        const std::uint8_t* sample = file_bytes_.data() + pcm_begin_
+            + static_cast<std::size_t>(physical_ch) * 3u;
+        for (std::size_t frame_index = 0;
+             frame_index < total_frames;
+             ++frame_index, sample += sample_frame_b) {
             const std::int32_t value = decode_pcm24_sample(sample);
-            if (value < -7 || value > 7) {
-                has_audio_bits = true;
+            if (value != 0) {
+                carries_pcm_or_metadata = true;
                 break;
             }
         }
-        if (!has_audio_bits)
+        if (!carries_pcm_or_metadata)
             input_signal_channel_mask_ &= ~(1u << input_layout.slots[physical_ch]);
     }
     if (input_signal_channel_mask_ == 0u)
@@ -4082,6 +4122,15 @@ DecodeError Decoder::open(const std::string& path) {
     native_work_buffer_storage_.assign(static_cast<std::size_t>(native_work_buffer_count_) * block_size_, 0);
     rebuild_native_io_descriptors();
     rebuild_native_config_state();
+    source_sample_count_ = pcm_length_ / sample_frame_b;
+    codec_v3_latency_samples_ = (!legacy_auromatic_upmix_ && auro_metadata_.found)
+        ? static_cast<std::uint64_t>(block_size_)
+            * static_cast<std::uint64_t>(native_config_state_.stage1_count)
+            + input_padding_samples_
+        : 0u;
+    codec_v3_drain_blocks_remaining_ = codec_v3_latency_samples_ != 0u
+        ? native_config_state_.stage1_count
+        : 0u;
     native_runtime_configuration_ = {};
     native_a3deng_static_configuration_ = {};
     native_dynamic_parameters_ = {};
@@ -4101,24 +4150,35 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
         return DecodeError::InitFailed;
 
     const std::size_t sample_frame_b = static_cast<std::size_t>(channel_count_) * 3u;
-    const std::size_t frame_b = static_cast<std::size_t>(block_size_) * sample_frame_b;
-    const std::size_t cur = read_pos_ - pcm_begin_;
-    if (cur >= pcm_length_)
+    const std::uint64_t input_stream_samples = input_padding_samples_ + source_sample_count_;
+    const bool draining = input_stream_cursor_ >= input_stream_samples
+        && codec_v3_drain_blocks_remaining_ != 0u;
+    if (input_stream_cursor_ >= input_stream_samples && !draining)
         return DecodeError::Ok;
-    const std::size_t remaining_b = pcm_length_ - cur;
-    const std::size_t valid_frames = std::min<std::size_t>(block_size_, remaining_b / sample_frame_b);
-    if (valid_frames == 0) {
+    const std::size_t valid_frames = draining
+        ? 0u
+        : static_cast<std::size_t>(std::min<std::uint64_t>(
+            block_size_, input_stream_samples - input_stream_cursor_));
+    if (valid_frames == 0 && !draining) {
         read_pos_ = pcm_begin_ + pcm_length_;
         return DecodeError::Ok;
     }
 
-    const std::uint8_t* frame = file_bytes_.data() + read_pos_;
-    if (valid_frames == block_size_) {
+    const bool block_has_padding = !draining && input_stream_cursor_ < input_padding_samples_;
+    const std::uint8_t* frame = draining || block_has_padding
+        ? nullptr
+        : (file_bytes_.data() + read_pos_);
+    if (!draining && !block_has_padding && valid_frames == block_size_) {
         unpack_exoplayer_s24le_interleaved_to_planar_i32(frame, channel_count_, block_size_, planar_scratch_);
     } else {
         planar_scratch_.assign(static_cast<std::size_t>(channel_count_) * block_size_, 0);
         for (std::size_t s = 0; s < valid_frames; ++s) {
-            const std::uint8_t* sample = frame + s * sample_frame_b;
+            const std::uint64_t stream_sample = input_stream_cursor_ + s;
+            if (stream_sample < input_padding_samples_)
+                continue;
+            const std::uint64_t source_sample = stream_sample - input_padding_samples_;
+            const std::uint8_t* sample = file_bytes_.data() + pcm_begin_
+                + static_cast<std::size_t>(source_sample) * sample_frame_b;
             for (unsigned ch = 0; ch < channel_count_; ++ch) {
                 const std::uint8_t* p = sample + static_cast<std::size_t>(ch) * 3u;
                 int v = static_cast<int>(p[0]) | (static_cast<int>(p[1]) << 8) | (static_cast<int>(p[2]) << 16);
@@ -4190,8 +4250,6 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
     }
     constexpr std::uint32_t kHeightMask = auro_codec_v3_ida::kAuroChannelMaskHeightLayer;
     const std::uint32_t req_height = native_config_state_.requested_output_mask & kHeightMask;
-    const bool height_satisfied_by_input =
-        req_height != 0u && (req_height & ~native_config_state_.input_mask) == 0u;
     const std::uint32_t native_height_mask = produced_mask & kHeightMask;
     const std::uint32_t missing_height_mask =
         req_height & ~(native_config_state_.input_mask | native_height_mask) & kCodecV3ChannelMask;
@@ -4229,27 +4287,6 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
         if ((missing_requested_mask & (1u << kLfe)) != 0u)
             produced_mask |= 1u << kLfe;
     }
-    const std::uint32_t satisfied_mask = produced_mask | input_mask;
-    const bool requested_ok = (requested_mask & ~satisfied_mask) == 0u;
-    const std::uint32_t codec_v3_or_fallback_height = produced_mask & kHeightMask;
-    const bool height_satisfied_after_fallback =
-        req_height != 0u && (req_height & ~codec_v3_or_fallback_height) == 0u;
-    const bool native_height_ok = !native_config_state_.requested_output_has_height_layer
-        || height_satisfied_by_input
-        || height_satisfied_after_fallback;
-    if (requested_ok && native_height_ok)
-        codec_v3_requested_layout_ever_satisfied_ = true;
-    // Sync/parser/OG need DelayLine latency (stage1) and may lock mid-stream
-    // (sync_sample != 0). Do not fail the first warm-up blocks; fail once past
-    // latency if the requested layout (incl. height) was never produced.
-    const std::uint64_t warmup_samples =
-        static_cast<std::uint64_t>(block_size_)
-        * static_cast<std::uint64_t>(std::max<std::uint32_t>(2u, native_config_state_.stage1_count + 1u));
-    const bool past_warmup = legacy_auromatic_upmix_
-        ? read_pos_ > pcm_begin_ + warmup_samples * sample_frame_b
-        : codec_v3_delay_line_.absolute_cursor >= warmup_samples;
-    if (past_warmup && !codec_v3_requested_layout_ever_satisfied_)
-        return DecodeError::NotImplemented;
     // По умолчанию stereo, но при явном запросе рендерим все выходные слоты.
     const float synthesized_gain =
         auro3deng::strength_translate(static_cast<std::uint32_t>(dsp_strength_))
@@ -4266,59 +4303,26 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
     }
 
     const unsigned bytes_per_sample = (output_bits_ == 24u) ? 3u : 2u;
-    const bool deglitch_fractional_frames =
-        auro_metadata_.found
-        && auro_metadata_.block_size == 1000u
-        && block_size_ != 0u
-        && (block_size_ % auro_metadata_.block_size) != 0u;
     std::vector<float> output_channel_gain(out_ch, synthesized_gain);
     for (unsigned ch = 0; ch < out_ch; ++ch) {
         const std::uint32_t logical_slot = output_channel_slot_map_[ch];
         if ((native_config_state_.input_mask & (1u << logical_slot)) != 0u)
             output_channel_gain[ch] = dsp_headroom_gain_;
     }
-    const bool sanitize_partial_auro_tail =
-        auro_metadata_.found && valid_frames < block_size_;
-    pcm_out.resize(valid_frames * out_ch * bytes_per_sample);
+    const std::size_t output_frames = codec_v3_latency_samples_ != 0u
+        ? static_cast<std::size_t>(block_size_)
+        : valid_frames;
+    pcm_out.resize(output_frames * out_ch * bytes_per_sample);
     std::uint8_t* dst = pcm_out.data();
-    for (std::size_t s = 0; s < valid_frames; ++s) {
+    for (std::size_t s = 0; s < output_frames; ++s) {
         for (unsigned ch = 0; ch < out_ch; ++ch) {
             const std::uint32_t logical_slot = output_channel_slot_map_[ch];
             const auto* src_plane = reinterpret_cast<const std::int32_t*>(
                 static_cast<std::uintptr_t>(output_desc_.channel_ptr[logical_slot]));
             std::int32_t v = src_plane[s];
-            // Native clamp uses kPcm24Min=-8388607 / kPcm24Max=0x7FFFFF.
-            if (deglitch_fractional_frames
-                && (v <= -8388607 || v >= 8388607)) {
-                std::int64_t sum = 0;
-                unsigned count = 0;
-                for (unsigned distance = 1; distance <= 16u && count < 2u; ++distance) {
-                    if (s >= distance) {
-                        const std::int32_t candidate = src_plane[s - distance];
-                        if (candidate > -8388608 && candidate < 8388607) {
-                            sum += candidate;
-                            ++count;
-                        }
-                    }
-                    if (s + distance < block_size_ && count < 2u) {
-                        const std::int32_t candidate = src_plane[s + distance];
-                        if (candidate > -8388608 && candidate < 8388607) {
-                            sum += candidate;
-                            ++count;
-                        }
-                    }
-                }
-                if (count != 0u)
-                    v = static_cast<std::int32_t>(sum / count);
-            }
             const float channel_gain = output_channel_gain[ch];
             if (output_bits_ == 24u) {
                 std::int32_t o = i32_sample_to_s24(v, channel_gain, &dsp_clipped_samples_);
-                // An incomplete final codec block cannot consume its embedded
-                // LSB payload. Do not let that residual sync make decoded PCM
-                // look like a fresh Auro carrier to downstream hardware.
-                if (sanitize_partial_auro_tail)
-                    o = static_cast<std::int32_t>(static_cast<std::uint32_t>(o) & ~1u);
                 *dst++ = static_cast<std::uint8_t>(o & 0xFF);
                 *dst++ = static_cast<std::uint8_t>((static_cast<std::uint32_t>(o) >> 8) & 0xFF);
                 *dst++ = static_cast<std::uint8_t>((static_cast<std::uint32_t>(o) >> 16) & 0xFF);
@@ -4329,15 +4333,24 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
             }
         }
     }
-    read_pos_ += valid_frames * sample_frame_b;
+    if (draining) {
+        --codec_v3_drain_blocks_remaining_;
+    } else {
+        input_stream_cursor_ += valid_frames;
+        const std::uint64_t source_consumed = input_stream_cursor_ > input_padding_samples_
+            ? std::min<std::uint64_t>(
+                source_sample_count_, input_stream_cursor_ - input_padding_samples_)
+            : 0u;
+        read_pos_ = pcm_begin_ + static_cast<std::size_t>(source_consumed) * sample_frame_b;
+    }
     return DecodeError::Ok;
 }
 
 bool Decoder::exhausted() const {
     if (!opened_)
         return true;
-    const std::size_t cur = read_pos_ - pcm_begin_;
-    return cur >= pcm_length_;
+    return input_stream_cursor_ >= input_padding_samples_ + source_sample_count_
+        && codec_v3_drain_blocks_remaining_ == 0u;
 }
 
 DecoderConfig Decoder::config() const {
@@ -4355,6 +4368,11 @@ void Decoder::close() {
     pcm_begin_ = 0;
     pcm_length_ = 0;
     read_pos_ = 0;
+    input_padding_samples_ = 0u;
+    input_stream_cursor_ = 0u;
+    source_sample_count_ = 0;
+    codec_v3_latency_samples_ = 0;
+    codec_v3_drain_blocks_remaining_ = 0;
     sample_rate_ = 0;
     channel_count_ = 0;
     block_size_ = 0;
@@ -4428,14 +4446,12 @@ void Decoder::close() {
     codec_v3_fake_frame_channel_ctx_storage_.clear();
     codec_v3_fake_parse_result_pool_state_.clear();
     codec_v3_fake_parse_result_pool_storage_.clear();
-    codec_v3_ready_parse_result_storage_.clear();
     codec_v3_channel_parser_storage_.clear();
     codec_v3_output_errors_storage_.clear();
     codec_v3_output_scratch_storage_.clear();
     codec_v3_parser_timeline_cursor_ = 0;
     codec_v3_og_timeline_cursor_ = 0;
     codec_v3_parser_state_ = 0;
-    codec_v3_requested_layout_ever_satisfied_ = false;
     rebuild_a3deng_partial_blob();
 }
 

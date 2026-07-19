@@ -3,6 +3,7 @@
 #include "cx_bits.hpp"
 #include "awc_lossless.hpp"
 #include "awc_transparent.hpp"
+#include "decoder.hpp"
 #include "lfe_decode.hpp"
 #include "sasc_apply.hpp"
 #include "sasc_plan.hpp"
@@ -520,6 +521,8 @@ bool decode_auro_cx_mp4(
     BinauralStreamRenderer binaural_renderer;
     std::vector<std::uint8_t> au_pcm;
     std::vector<std::uint8_t> binaural_pcm;
+    std::vector<std::uint8_t> deferred_multichannel_pcm;
+    const bool binaural_needs_resample = binaural && track.rate != 48000u;
     bool saw_lossless_awc = false;
     bool saw_transparent_awc = false;
 
@@ -782,7 +785,8 @@ bool decode_auro_cx_mp4(
                 stream_buffers[s].assign(samples_per_au, 0);
             const std::uint64_t frame_count =
                 static_cast<std::uint64_t>(track.offsets.size() - 1u) * samples_per_au;
-            if (binaural && !binaural_renderer.initialize(
+            if (binaural && !binaural_needs_resample
+                && !binaural_renderer.initialize(
                     24u,
                     track.rate,
                     mapping.channels,
@@ -792,7 +796,11 @@ bool decode_auro_cx_mp4(
                     samples_per_au,
                     error))
                 return false;
-            if (!wav_writer.open(
+            if (binaural_needs_resample) {
+                deferred_multichannel_pcm.reserve(
+                    static_cast<std::size_t>(frame_count)
+                    * static_cast<std::size_t>(mapping.channels) * 3u);
+            } else if (!wav_writer.open(
                     out_wav,
                     track.rate,
                     binaural ? 2u : mapping.channels,
@@ -1151,6 +1159,11 @@ bool decode_auro_cx_mp4(
                     static_cast<std::int32_t>(static_cast<float>(sample) * headroom_gain));
             }
         }
+        if (binaural_needs_resample) {
+            deferred_multichannel_pcm.insert(
+                deferred_multichannel_pcm.end(), au_pcm.begin(), au_pcm.end());
+            continue;
+        }
         const std::vector<std::uint8_t>* output_pcm = &au_pcm;
         if (binaural) {
             if (!binaural_renderer.process(au_pcm, binaural_pcm, error))
@@ -1166,8 +1179,47 @@ bool decode_auro_cx_mp4(
         return false;
     }
 
-    if (!wav_writer.close(error))
+    std::uint32_t xml_rate = track.rate;
+    if (binaural_needs_resample) {
+        std::vector<std::uint8_t> resampled;
+        if (!resample_interleaved_pcm_to_rate(
+                deferred_multichannel_pcm,
+                24u,
+                mapping.channels,
+                track.rate,
+                48000u,
+                resampled,
+                error))
+            return false;
+        std::vector<std::uint8_t> stereo;
+        if (!render_binaural_from_embedded_ir(
+                resampled,
+                24u,
+                48000u,
+                mapping.channels,
+                mapping.channel_id_for_output_channel,
+                room_preset,
+                hrtf_preset,
+                stereo,
+                error))
+            return false;
+        const std::size_t frame_bytes = 2u * 3u;
+        if (!frame_bytes || stereo.size() % frame_bytes != 0u) {
+            error = "binaural resample produced incomplete frames";
+            return false;
+        }
+        if (!wav::write_pcm24_le(
+                out_wav,
+                48000u,
+                2u,
+                stereo,
+                error,
+                3u))
+            return false;
+        xml_rate = 48000u;
+    } else if (!wav_writer.close(error)) {
         return false;
+    }
     const char* audio_coding = saw_lossless_awc && saw_transparent_awc
         ? "mixed"
         : saw_lossless_awc
@@ -1176,7 +1228,7 @@ bool decode_auro_cx_mp4(
                 ? "transparent_near_lossless"
                 : "unknown";
     if (!write_channel_mapping_xml(
-            out_wav, path, track.rate, mapping, audio_coding, binaural, error))
+            out_wav, path, xml_rate, mapping, audio_coding, binaural, error))
         return false;
     return true;
 }
