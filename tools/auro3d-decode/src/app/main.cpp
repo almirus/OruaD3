@@ -269,6 +269,28 @@ std::string shell_quote(const std::filesystem::path& path) {
     return quoted + "\"";
 }
 
+bool tool_runs(const char* name) {
+#ifdef _WIN32
+    const std::string command = std::string(name) + " -hide_banner -version >nul 2>&1";
+#else
+    const std::string command = std::string(name) + " -hide_banner -version >/dev/null 2>&1";
+#endif
+    return std::system(command.c_str()) == 0;
+}
+
+bool require_ffmpeg_tools() {
+    const bool ffmpeg_ok = tool_runs("ffmpeg");
+    const bool ffprobe_ok = tool_runs("ffprobe");
+    if (ffmpeg_ok && ffprobe_ok)
+        return true;
+    if (!ffmpeg_ok)
+        std::cerr << "ffmpeg not found in PATH (or failed to run)\n";
+    if (!ffprobe_ok)
+        std::cerr << "ffprobe not found in PATH (or failed to run)\n";
+    std::cerr << "Install FFmpeg and ensure ffmpeg/ffprobe are available in PATH.\n";
+    return false;
+}
+
 bool write_audio_file(
     const std::filesystem::path& output,
     const std::string& format,
@@ -489,39 +511,38 @@ std::vector<std::uint8_t> extract_mono_channel_pcm(
 
 void print_usage() {
     std::cerr
-        << auro3d_decode::kName << " " << auro3d_decode::kVersion << " — консольный декодер AURO.\n\n"
-        << "Использование:\n"
-        << "  " << auro3d_decode::kName << " -i <input.wav|input.flac|input.mkv|input.mp4|input.s24le> -o <output.wav|output.flac> [опции]\n"
-        << "  " << auro3d_decode::kName << " --probe -i <input>   # диагностика без -o\n"
-        << "  Путь декодирования/probe выбирается автоматически: MP4 с a3ds (AuroCX) → CX;\n"
-        << "  иначе → classic auro_native (WAV/codec-v3 и т.п.).\n\n"
-        << "Опции:\n"
+        << auro3d_decode::kName << " " << auro3d_decode::kVersion << " — AURO command-line decoder.\n\n"
+        << "Usage:\n"
+        << "  " << auro3d_decode::kName << " -i <input.wav|input.flac|input.mkv|input.mp4|input.s24le> -o <output.wav|output.flac> [options]\n"
+        << "  " << auro3d_decode::kName << " --probe -i <input>   # inspect without -o\n"
+        << "Options:\n"
         << "  -i, --input FILE\n"
         << "  -o, --output FILE\n"
         << "  --output-format FMT  output format: wav or flac; default is inferred from .flac extension\n"
-        << "  --raw                вход — сырой interleaved s24le (требуются --rate --channels)\n"
-        << "  --rate HZ            sample rate для --raw\n"
-        << "  --channels N         число каналов для --raw\n"
-        << "  --block N            block size в сэмплах; по умолчанию " << auro3d::kDefaultJniBlockSize << "\n"
-        << "  --dsp-strength N     сила декодера/рендера (0..15; по умолчанию 12)\n"
+        << "  --raw                input is raw interleaved s24le (requires --rate and --channels)\n"
+        << "  --rate HZ            sample rate for --raw\n"
+        << "  --channels N         channel count for --raw\n"
+        << "  --block N            internal block size; default aligns complete AURO frames (832 fallback)\n"
+        << "  --dsp-strength N     decoder/render strength (0..15; default: 12)\n"
         << "  --dsp-output-channels N  output channels; 0/omitted = auto from Auro metadata; native decode with Auro-Matic/XinN height fallback, up to "
         << auro3d::kCurrentNativeExportChannelLimit << "\n"
         << "                           legacy PCM without AURO metadata: 6=5.1, 10=5.1.4, 12=7.1.4\n"
-        << "  --output-bits N      output PCM depth: 16 or 24; по умолчанию 24\n"
+        << "  --output-bits N      output PCM depth: 16 or 24; default: 24\n"
         << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac, etc.\n"
         << "  --channel-diagram    print structural input-to-output channel diagram\n"
         << "  --probe              print format diagnostics without decoding to a file; -o is not required\n"
-        << "  --binaural           render decoded channels to HRTF stereo (48 kHz)\n"
-        << "  --dsp-headroom-db X  headroom в dB (0..24; по умолчанию 0)\n"
+        << "  --binaural           render decoded channels to HRTF stereo (force 48 kHz)\n"
+        << "  --dsp-headroom-db X  headroom in dB (0..24; default: 0)\n"
         << "  --room-preset N      room preset AURO (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
         << "  --hrtf-preset N      HRTF preset (0=HPV2,1=GENERIC_1,2=GENERIC_2,3=GENERIC_3)\n"
         << "  --virtualizer-mode N virtualization mode (0=ENABLED,1=DISABLED)\n"
         // Disabled until headphone/stereo-device state affects the PCM path.
-        // << "  --headphone N        headphone connected (0/1; по умолчанию 1)\n"
-        // << "  --stereo-device N    stereo device connected (0/1; по умолчанию 1)\n"
+        // << "  --headphone N        headphone connected (0/1; default: 1)\n"
+        // << "  --stereo-device N    stereo device connected (0/1; default: 1)\n"
         << "  -v, --verbose\n"
         << "  --version\n"
-        << "  -h, --help\n";
+        << "  -h, --help\n\n"
+        << "Requires ffmpeg and ffprobe in PATH.\n";
 }
 
 bool parse_unsigned_arg(const char* text, unsigned* out, const char* name) {
@@ -531,7 +552,7 @@ bool parse_unsigned_arg(const char* text, unsigned* out, const char* name) {
         *out = static_cast<unsigned>(std::stoul(text));
         return true;
     } catch (const std::exception&) {
-        std::cerr << "Некорректное число для " << name << "\n";
+        std::cerr << "Invalid number for " << name << "\n";
         return false;
     }
 }
@@ -543,7 +564,7 @@ bool parse_float_arg(const char* text, float* out, const char* name) {
         *out = std::stof(text);
         return true;
     } catch (const std::exception&) {
-        std::cerr << "Некорректное число для " << name << "\n";
+        std::cerr << "Invalid number for " << name << "\n";
         return false;
     }
 }
@@ -553,7 +574,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
         const std::string a = argv[i];
         auto need = [&](const char* name) -> const char* {
             if (i + 1 >= argc) {
-                std::cerr << "Ожидается значение после " << name << "\n";
+                std::cerr << "Expected a value after " << name << "\n";
                 return nullptr;
             }
             return argv[++i];
@@ -611,7 +632,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
                 return false;
             opt.output_format = lowercase(v);
             if (opt.output_format != "wav" && opt.output_format != "flac") {
-                std::cerr << "--output-format: допустимо wav или flac\n";
+                std::cerr << "--output-format: expected wav or flac\n";
                 return false;
             }
             continue;
@@ -639,7 +660,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
             if (!v || !parse_unsigned_arg(v, &opt.dsp_strength, "--dsp-strength"))
                 return false;
             if (auro3deng::strength_check_range(opt.dsp_strength) != 0) {
-                std::cerr << "--dsp-strength: диапазон 0..15\n";
+                std::cerr << "--dsp-strength: expected range 0..15\n";
                 return false;
             }
             continue;
@@ -649,7 +670,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
             if (!v || !parse_unsigned_arg(v, &opt.dsp_output_channels, "--dsp-output-channels"))
                 return false;
             if (opt.dsp_output_channels > 64) {
-                std::cerr << "--dsp-output-channels: диапазон 0..64\n";
+                std::cerr << "--dsp-output-channels: expected range 0..64\n";
                 return false;
             }
             continue;
@@ -659,7 +680,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
             if (!v || !parse_unsigned_arg(v, &opt.output_bits, "--output-bits"))
                 return false;
             if (opt.output_bits != 16 && opt.output_bits != 24) {
-                std::cerr << "--output-bits: допустимо 16 или 24\n";
+                std::cerr << "--output-bits: expected 16 or 24\n";
                 return false;
             }
             continue;
@@ -669,7 +690,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
             if (!v || !parse_float_arg(v, &opt.dsp_headroom_db, "--dsp-headroom-db"))
                 return false;
             if (opt.dsp_headroom_db < 0.0f || opt.dsp_headroom_db > 24.0f) {
-                std::cerr << "--dsp-headroom-db: диапазон 0..24\n";
+                std::cerr << "--dsp-headroom-db: expected range 0..24\n";
                 return false;
             }
             continue;
@@ -679,7 +700,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
             if (!v || !parse_unsigned_arg(v, &opt.room_preset, "--room-preset"))
                 return false;
             if (opt.room_preset > 3) {
-                std::cerr << "--room-preset: диапазон 0..3\n";
+                std::cerr << "--room-preset: expected range 0..3\n";
                 return false;
             }
             continue;
@@ -689,7 +710,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
             if (!v || !parse_unsigned_arg(v, &opt.hrtf_preset, "--hrtf-preset"))
                 return false;
             if (opt.hrtf_preset > 3) {
-                std::cerr << "--hrtf-preset: диапазон 0..3\n";
+                std::cerr << "--hrtf-preset: expected range 0..3\n";
                 return false;
             }
             continue;
@@ -699,7 +720,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
             if (!v || !parse_unsigned_arg(v, &opt.virtualizer_mode, "--virtualizer-mode"))
                 return false;
             if (opt.virtualizer_mode > 1) {
-                std::cerr << "--virtualizer-mode: диапазон 0..1\n";
+                std::cerr << "--virtualizer-mode: expected range 0..1\n";
                 return false;
             }
             continue;
@@ -708,16 +729,16 @@ bool parse_args(int argc, char** argv, Options& opt) {
         // if (a == "--headphone") { ... }
         // if (a == "--stereo-device") { ... }
 
-        std::cerr << "Неизвестный аргумент: " << a << "\n";
+        std::cerr << "Unknown argument: " << a << "\n";
         return false;
     }
 
     if (opt.input.empty() || (!opt.probe && opt.output.empty())) {
-        std::cerr << "Нужны --input и --output\n";
+        std::cerr << "--input and --output are required\n";
         return false;
     }
     if (opt.raw && (opt.sample_rate == 0 || opt.channels == 0)) {
-        std::cerr << "Для --raw нужны --rate и --channels\n";
+        std::cerr << "--raw requires --rate and --channels\n";
         return false;
     }
     return true;
@@ -741,6 +762,8 @@ int app_main(int argc, char** argv) {
         std::cout << auro3d_decode::kVersion << '\n';
         return 0;
     }
+    if (!require_ffmpeg_tools())
+        return 1;
     if (opt.probe && !opt.raw && auro3d::mp4_has_auro_cx_a3ds(opt.input)) {
         auro3d::AuroCxProbeInfo info{};
         const bool ok = auro3d::probe_auro_cx_mp4(opt.input, info);
@@ -767,7 +790,7 @@ int app_main(int argc, char** argv) {
             return 2;
         }
         if (opt.verbose)
-            std::cerr << "Готово (AuroCX): " << opt.output << '\n';
+            std::cerr << "Done (AuroCX): " << opt.output << '\n';
         return 0;
     }
 
@@ -975,15 +998,56 @@ int app_main(int argc, char** argv) {
 
     auro3d::DecoderConfig cfg = dec.config();
     const std::uint64_t dsp_clipped = dec.dsp_clipped_samples();
+    const std::uint64_t latency_samples = dec.latency_samples();
+    const std::uint64_t source_sample_count = dec.source_sample_count();
     dec.close();
 
+    if (latency_samples != 0u) {
+        const std::size_t bytes_per_sample = cfg.bits_per_sample == 24u ? 3u : 2u;
+        const std::size_t bytes_per_frame = static_cast<std::size_t>(cfg.channels) * bytes_per_sample;
+        const std::uint64_t trim_begin_u64 = latency_samples * bytes_per_frame;
+        const std::uint64_t trim_size_u64 = source_sample_count * bytes_per_frame;
+        if (trim_begin_u64 > pcm_all.size()
+            || trim_size_u64 > pcm_all.size() - static_cast<std::size_t>(trim_begin_u64)) {
+            std::cerr << "decode: native latency drain produced insufficient PCM\n";
+            return 3;
+        }
+        const std::size_t trim_begin = static_cast<std::size_t>(trim_begin_u64);
+        const std::size_t trim_size = static_cast<std::size_t>(trim_size_u64);
+        std::vector<std::uint8_t> latency_compensated(
+            pcm_all.begin() + trim_begin,
+            pcm_all.begin() + trim_begin + trim_size);
+        pcm_all.swap(latency_compensated);
+    }
+
     if (pcm_all.empty()) {
-        std::cerr << "Нет PCM данных.\n";
+        std::cerr << "No PCM data.\n";
         return 3;
     }
 
     std::string err;
     if (opt.binaural) {
+        if (cfg.sample_rate != 48000u) {
+            std::vector<std::uint8_t> resampled;
+            if (!auro3d::resample_interleaved_pcm_to_rate(
+                    pcm_all,
+                    cfg.bits_per_sample,
+                    cfg.channels,
+                    cfg.sample_rate,
+                    48000u,
+                    resampled,
+                    err)) {
+                std::cerr << "Binaural: " << err << "\n";
+                return 4;
+            }
+            if (opt.verbose) {
+                std::cerr << "binaural_resample=" << cfg.sample_rate
+                          << "->" << 48000 << " Hz\n";
+            }
+            pcm_all.swap(resampled);
+            cfg.sample_rate = 48000u;
+            cfg.bits_per_sample = 24u;
+        }
         std::vector<std::uint8_t> stereo;
         if (!auro3d::render_binaural_from_embedded_ir(
                 pcm_all, cfg.bits_per_sample, cfg.sample_rate, cfg.channels,
@@ -1063,7 +1127,7 @@ int app_main(int argc, char** argv) {
     if (opt.verbose) {
         std::cerr << "bits_per_sample=" << cfg.bits_per_sample << "\n";
         std::cerr << "dsp_clipped_samples=" << dsp_clipped << "\n";
-        std::cerr << "Готово: " << opt.output << "\n";
+        std::cerr << "Done: " << opt.output << "\n";
     }
     return 0;
 }
