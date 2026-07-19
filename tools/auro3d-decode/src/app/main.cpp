@@ -516,8 +516,9 @@ void print_usage() {
         << "  --room-preset N      room preset AURO (0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA)\n"
         << "  --hrtf-preset N      HRTF preset (0=HPV2,1=GENERIC_1,2=GENERIC_2,3=GENERIC_3)\n"
         << "  --virtualizer-mode N virtualization mode (0=ENABLED,1=DISABLED)\n"
-        << "  --headphone N        headphone connected (0/1; по умолчанию 1)\n"
-        << "  --stereo-device N    stereo device connected (0/1; по умолчанию 1)\n"
+        // Disabled until headphone/stereo-device state affects the PCM path.
+        // << "  --headphone N        headphone connected (0/1; по умолчанию 1)\n"
+        // << "  --stereo-device N    stereo device connected (0/1; по умолчанию 1)\n"
         << "  -v, --verbose\n"
         << "  --version\n"
         << "  -h, --help\n";
@@ -703,26 +704,9 @@ bool parse_args(int argc, char** argv, Options& opt) {
             }
             continue;
         }
-        if (a == "--headphone") {
-            const char* v = need("--headphone");
-            if (!v || !parse_unsigned_arg(v, &opt.headphone_connected, "--headphone"))
-                return false;
-            if (opt.headphone_connected > 1) {
-                std::cerr << "--headphone: диапазон 0..1\n";
-                return false;
-            }
-            continue;
-        }
-        if (a == "--stereo-device") {
-            const char* v = need("--stereo-device");
-            if (!v || !parse_unsigned_arg(v, &opt.stereo_device_connected, "--stereo-device"))
-                return false;
-            if (opt.stereo_device_connected > 1) {
-                std::cerr << "--stereo-device: диапазон 0..1\n";
-                return false;
-            }
-            continue;
-        }
+        // Disabled until headphone/stereo-device state affects the PCM path.
+        // if (a == "--headphone") { ... }
+        // if (a == "--stereo-device") { ... }
 
         std::cerr << "Неизвестный аргумент: " << a << "\n";
         return false;
@@ -795,7 +779,8 @@ int app_main(int argc, char** argv) {
     dec.set_room_preset(opt.room_preset);
     dec.set_hrtf_preset(opt.hrtf_preset);
     dec.set_virtualizer_mode(opt.virtualizer_mode);
-    dec.set_output_audio_devices(opt.headphone_connected != 0, opt.stereo_device_connected != 0);
+    // Disabled until headphone/stereo-device state affects the PCM path.
+    // dec.set_output_audio_devices(opt.headphone_connected != 0, opt.stereo_device_connected != 0);
     if (opt.block_size != 0)
         dec.set_block_size(opt.block_size);
     if (opt.raw)
