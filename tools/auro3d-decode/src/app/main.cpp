@@ -10,6 +10,7 @@
 
 #include <array>
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -38,6 +39,8 @@ struct Options {
     bool binaural = false;
     bool restore_lfe = false;
     bool wav_standard = false;
+    /// 0 = off; 1..8 = clear that many low PCM bits on export (toward zero).
+    unsigned clear_output_lsb = 0;
     bool help_only = false;
     bool version_only = false;
     bool probe = false;
@@ -400,6 +403,48 @@ std::vector<std::uint8_t> remap_interleaved_pcm(
         }
     }
     return dst;
+}
+
+/// Zero the low `clear_bits` of each PCM sample (toward zero). Export-only:
+/// strips residual Auro sync/ADOL from carrier_passthrough channels.
+void clear_interleaved_pcm_lsbs(
+    std::vector<std::uint8_t>& pcm,
+    unsigned channels,
+    unsigned bytes_per_sample,
+    unsigned clear_bits) {
+    if (clear_bits == 0u || channels == 0u
+        || (bytes_per_sample != 2u && bytes_per_sample != 3u)) {
+        return;
+    }
+    const std::size_t frame_bytes =
+        static_cast<std::size_t>(channels) * bytes_per_sample;
+    if (frame_bytes == 0u || pcm.size() % frame_bytes != 0u)
+        return;
+    const int step = 1 << static_cast<int>(clear_bits);
+    const std::size_t samples = pcm.size() / bytes_per_sample;
+    for (std::size_t i = 0; i < samples; ++i) {
+        std::uint8_t* p = pcm.data() + i * bytes_per_sample;
+        int v = 0;
+        if (bytes_per_sample == 3u) {
+            v = static_cast<int>(p[0])
+                | (static_cast<int>(p[1]) << 8)
+                | (static_cast<int>(p[2]) << 16);
+            if (v & 0x800000)
+                v -= 1 << 24;
+            v = (v / step) * step;
+            const unsigned u = static_cast<unsigned>(v) & 0xFFFFFFu;
+            p[0] = static_cast<std::uint8_t>(u);
+            p[1] = static_cast<std::uint8_t>(u >> 8);
+            p[2] = static_cast<std::uint8_t>(u >> 16);
+        } else {
+            v = static_cast<int>(static_cast<std::int16_t>(
+                static_cast<unsigned>(p[0]) | (static_cast<unsigned>(p[1]) << 8)));
+            v = (v / step) * step;
+            const auto s = static_cast<std::int16_t>(v);
+            p[0] = static_cast<std::uint8_t>(static_cast<std::uint16_t>(s));
+            p[1] = static_cast<std::uint8_t>(static_cast<std::uint16_t>(s) >> 8);
+        }
+    }
 }
 
 // height_slot -> bed carrier used by Auro-Codec dematrix.
@@ -837,11 +882,17 @@ void print_usage() {
         return std::string(auro3d::console_style::dim) + text
             + auro3d::console_style::kReset;
     };
+    auto warn = [&](const char* text) -> std::string {
+        if (!color)
+            return text;
+        return std::string(auro3d::console_style::red) + text
+            + auro3d::console_style::kReset;
+    };
     std::cerr
         << '\n'
         << accent(auro3d_decode::kName) << ' '
         << author(auro3d_decode::make_author()) << ' '
-        << dim(auro3d_decode::kVersion) << " — ORUA command-line decoder.\n\n"
+        << "— ORUA command-line decoder.\n\n"
         << accent("Usage") << ":\n"
         << "  " << auro3d_decode::kName
         << " -i <input.wav|input.flac|input.mkv|input.mp4|input.m2ts|input.dts|input.s24le>"
@@ -853,7 +904,8 @@ void print_usage() {
         << "  -o, --output FILE    output path; default: <input>_decoded.wav"
            " or <input>_decoded_binaural.wav with --binaural"
            " (use --output-format flac for .flac)\n"
-        << "  --output-format FMT  output format: wav or flac\n"
+        << "  --output-format FMT  output format: wav (no channel limit) or flac ("
+        << warn("MAX 8 channel") << ")\n"
         << "  --raw                input is raw interleaved s24le (requires --rate and --channels)\n"
         << "  --rate HZ            sample rate for --raw\n"
         << "  --channels N         channel count for --raw\n"
@@ -865,6 +917,9 @@ void print_usage() {
         << "  --output-bits N      output PCM depth: 16 or 24; default: 24\n"
         << "  --wav-standard       WAV/FLAC: reorder channels to WAVEFORMATEXTENSIBLE speaker order\n"
         << "                       and write dwChannelMask\n"
+        << "  --clear-output-lsb [N]  clear low N PCM bits on export (default N=4; range 1..8); "
+        << warn("WARNING") << "\n"
+        << "                       strips residual sync/ADOL from passthrough channels\n"
         << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac, etc.\n"
         << "  --channel-diagram    print structural input-to-output channel diagram (no decode; -o not required)\n"
         << "  --probe              print format diagnostics without decoding to a file; -o is not required\n"
@@ -948,6 +1003,38 @@ bool parse_args(int argc, char** argv, Options& opt) {
         }
         if (a == "--wav-standard") {
             opt.wav_standard = true;
+            continue;
+        }
+        if (a == "--clear-output-lsb") {
+            opt.clear_output_lsb = 4u;
+            if (i + 1 < argc) {
+                const char* maybe = argv[i + 1];
+                bool all_digits = maybe && *maybe;
+                for (const char* p = maybe; all_digits && *p; ++p)
+                    all_digits = std::isdigit(static_cast<unsigned char>(*p)) != 0;
+                if (all_digits) {
+                    unsigned n = 0;
+                    if (!parse_unsigned_arg(maybe, &n, "--clear-output-lsb"))
+                        return false;
+                    if (n < 1u || n > 8u) {
+                        std::cerr << "--clear-output-lsb: expected 1..8\n";
+                        return false;
+                    }
+                    opt.clear_output_lsb = n;
+                    ++i;
+                }
+            }
+            continue;
+        }
+        if (a.rfind("--clear-output-lsb=", 0) == 0) {
+            unsigned n = 0;
+            if (!parse_unsigned_arg(a.c_str() + 19, &n, "--clear-output-lsb"))
+                return false;
+            if (n < 1u || n > 8u) {
+                std::cerr << "--clear-output-lsb: expected 1..8\n";
+                return false;
+            }
+            opt.clear_output_lsb = n;
             continue;
         }
         if (a == "--restore-lfe") {
@@ -1481,6 +1568,8 @@ int app_main(int argc, char** argv) {
                     }
                     piece.swap(remapped);
                 }
+                if (opt.clear_output_lsb != 0u)
+                    clear_interleaved_pcm_lsbs(piece, cfg.channels, 3u, opt.clear_output_lsb);
                 if (!wav_out.write(piece, err)) {
                     progress.finish();
                     print_error("WAV: " + err);
@@ -1510,6 +1599,8 @@ int app_main(int argc, char** argv) {
         progress.done("save wav");
         if (opt.verbose && wav_out.uses_rf64())
             std::cerr << "wav_container=RF64\n";
+        if (opt.verbose && opt.clear_output_lsb != 0u)
+            std::cerr << "clear_output_lsb=" << opt.clear_output_lsb << "\n";
 
         if (!write_channel_mapping_xml(
                 std::filesystem::u8path(opt.output),
@@ -1583,6 +1674,14 @@ int app_main(int argc, char** argv) {
     }
 
     std::string err;
+    if (opt.clear_output_lsb != 0u) {
+        const std::size_t bytes_per_sample = cfg.bits_per_sample == 24u ? 3u : 2u;
+        clear_interleaved_pcm_lsbs(
+            pcm_all, cfg.channels, static_cast<unsigned>(bytes_per_sample), opt.clear_output_lsb);
+        if (opt.verbose)
+            std::cerr << "clear_output_lsb=" << opt.clear_output_lsb << "\n";
+    }
+
     if (opt.restore_lfe) {
         progress.update("restore lfe", -1);
         bool applied = false;
