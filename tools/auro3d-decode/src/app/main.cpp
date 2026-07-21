@@ -9,8 +9,10 @@
 #include "../util/auro3deng_strength.hpp"
 
 #include <array>
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <cwchar>
 #include <exception>
 #include <filesystem>
@@ -35,6 +37,7 @@ struct Options {
     bool channel_diagram = false;
     bool binaural = false;
     bool restore_lfe = false;
+    bool wav_standard = false;
     bool help_only = false;
     bool version_only = false;
     bool probe = false;
@@ -117,14 +120,6 @@ void print_banner_line_rainbow(const char* line, bool color, bool newline = true
 }
 
 void print_banner() {
-    static constexpr const char* kTop[] = {
-        "       ⏝⏝",
-        "      ⏝⏝⏝",
-    };
-    static constexpr const char* kBottom[] = {
-        "      ⏜⏜⏜",
-        "       ⏜⏜",
-    };
     // ₃ᴅ → 3D → ³ᴰ → 3D → …
     static constexpr const char* kThreeDFrames[] = {
         "₃ᴅ",
@@ -132,7 +127,7 @@ void print_banner() {
         "³ᴰ",
         "3D",
     };
-    constexpr int kLogoLines = 5;
+    constexpr int kLogoLines = 1;
     constexpr int kCycles = 2;
     constexpr auto kFrameDelay = std::chrono::milliseconds(140);
 
@@ -146,12 +141,13 @@ void print_banner() {
         return line;
     };
     auto draw_logo = [&](const char* three_d) {
-        for (const char* line : kTop)
-            print_banner_line_rainbow(line, color);
         print_banner_line_rainbow(middle(three_d).c_str(), color);
-        for (const char* line : kBottom)
-            print_banner_line_rainbow(line, color);
         std::cerr << std::flush;
+    };
+    auto draw_version = [&]() {
+        auro3d::console_style::paint(std::cerr, color, auro3d::console_style::dim)
+            << auro3d_decode::kVersion;
+        auro3d::console_style::paint_reset(std::cerr, color) << "\033[K\n";
     };
 
     std::cerr << "\n\n";
@@ -172,7 +168,9 @@ void print_banner() {
         draw_logo("3D");
         std::cerr << auro3d::console_style::show_cursor << std::flush;
     }
-    std::cerr << "\n\n";
+    std::cerr << '\n';
+    draw_version();
+    std::cerr << '\n';
 }
 
 void print_status(const char* icon_color, const char* icon, const std::string& message) {
@@ -252,6 +250,38 @@ const char* native_reconstruction_note(std::uint32_t slot) {
     return "codec reconstructed channel";
 }
 
+/// Preferred Microsoft dwChannelMask bit for an Auro/ORUA export slot.
+int preferred_wave_bit_for_auro_slot(std::uint32_t slot) {
+    switch (slot) {
+    case 0: return 0;   // FL  -> FRONT_LEFT
+    case 1: return 1;   // FR  -> FRONT_RIGHT
+    case 2: return 2;   // C   -> FRONT_CENTER
+    case 3: return 3;   // LFE -> LOW_FREQUENCY
+    case 7: return 4;   // LB  -> BACK_LEFT
+    case 21: return 4;  // BL  -> BACK_LEFT
+    case 8: return 5;   // RB  -> BACK_RIGHT
+    case 22: return 5;  // BR  -> BACK_RIGHT
+    case 18: return 6;  // LC  -> FRONT_LEFT_OF_CENTER
+    case 19: return 7;  // RC  -> FRONT_RIGHT_OF_CENTER
+    case 6: return 8;   // CS  -> BACK_CENTER
+    case 23: return 8;  // BC  -> BACK_CENTER
+    case 4: return 9;   // LS  -> SIDE_LEFT
+    case 24: return 9;  // BLS -> SIDE_LEFT
+    case 5: return 10;  // RS  -> SIDE_RIGHT
+    case 25: return 10; // BRS -> SIDE_RIGHT
+    case 12: return 11; // T   -> TOP_CENTER
+    case 9: return 12;  // HL  -> TOP_FRONT_LEFT
+    case 11: return 13; // HC  -> TOP_FRONT_CENTER
+    case 10: return 14; // HR  -> TOP_FRONT_RIGHT
+    case 13: return 15; // HLS -> TOP_BACK_LEFT
+    case 16: return 15; // HLB -> TOP_BACK_LEFT
+    case 15: return 16; // HCS -> TOP_BACK_CENTER
+    case 14: return 17; // HRS -> TOP_BACK_RIGHT
+    case 17: return 17; // HRB -> TOP_BACK_RIGHT
+    default: return -1; // LFE2 / OBJ / unknown
+    }
+}
+
 std::uint32_t wav_channel_mask_from_slots(
     const std::vector<std::uint32_t>& slots,
     unsigned channel_count) {
@@ -260,34 +290,116 @@ std::uint32_t wav_channel_mask_from_slots(
     std::uint32_t mask = 0u;
     int previous_bit = -1;
     for (unsigned ch = 0; ch < channel_count; ++ch) {
-        int bit = -1;
-        switch (slots[ch]) {
-        case 0: bit = 0; break;
-        case 1: bit = 1; break;
-        case 2: bit = 2; break;
-        case 3: bit = 3; break;
-        case 7: bit = 4; break;
-        case 8: bit = 5; break;
-        case 18: bit = 6; break;
-        case 19: bit = 7; break;
-        case 6: bit = 8; break;
-        case 4: bit = 9; break;
-        case 5: bit = 10; break;
-        case 12: bit = 11; break;
-        case 9: bit = 12; break;
-        case 11: bit = 13; break;
-        case 10: bit = 14; break;
-        case 16: bit = 15; break;
-        case 15: bit = 16; break;
-        case 17: bit = 17; break;
-        default: return 0u;
-        }
+        const int bit = preferred_wave_bit_for_auro_slot(slots[ch]);
+        if (bit < 0)
+            return 0u;
         if (bit <= previous_bit)
             return 0u;
         previous_bit = bit;
         mask |= 1u << bit;
     }
     return mask;
+}
+
+struct WavStandardPlan {
+    std::vector<std::uint32_t> slots;
+    std::vector<unsigned> src_index; // dst channel -> source channel
+    std::uint32_t channel_mask = 0;
+    std::string error;
+};
+
+/// Map ORUA slots onto distinct WAVE speaker bits and sort into canonical order.
+WavStandardPlan plan_wav_standard_layout(
+    const std::vector<std::uint32_t>& slots,
+    unsigned channel_count) {
+    WavStandardPlan plan;
+    if (slots.size() < channel_count || channel_count == 0u) {
+        plan.error = "channel slot map is incomplete";
+        return plan;
+    }
+
+    struct Entry {
+        unsigned src = 0;
+        std::uint32_t slot = 0;
+        int bit = -1;
+    };
+    std::vector<Entry> entries;
+    entries.reserve(channel_count);
+    std::uint32_t used_bits = 0;
+
+    auto take_bit = [&](int preferred, std::uint32_t slot) -> int {
+        if (preferred >= 0 && preferred < 18 && (used_bits & (1u << preferred)) == 0u)
+            return preferred;
+        // Height slots: stay in top-layer bits when possible.
+        const bool height = slot >= 9u && slot <= 17u;
+        const int lo = height ? 11 : 0;
+        for (int bit = lo; bit <= 17; ++bit) {
+            if ((used_bits & (1u << bit)) == 0u)
+                return bit;
+        }
+        for (int bit = 0; bit < 18; ++bit) {
+            if ((used_bits & (1u << bit)) == 0u)
+                return bit;
+        }
+        return -1;
+    };
+
+    for (unsigned ch = 0; ch < channel_count; ++ch) {
+        const std::uint32_t slot = slots[ch];
+        const int preferred = preferred_wave_bit_for_auro_slot(slot);
+        if (preferred < 0) {
+            plan.error = std::string("no WAVE speaker mapping for channel ")
+                + auro_slot_name(slot);
+            return plan;
+        }
+        const int bit = take_bit(preferred, slot);
+        if (bit < 0) {
+            plan.error = "too many channels for WAVEFORMATEXTENSIBLE speaker mask";
+            return plan;
+        }
+        used_bits |= 1u << bit;
+        entries.push_back(Entry{ch, slot, bit});
+    }
+
+    std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
+        return a.bit < b.bit;
+    });
+
+    plan.slots.resize(channel_count);
+    plan.src_index.resize(channel_count);
+    for (unsigned i = 0; i < channel_count; ++i) {
+        plan.slots[i] = entries[i].slot;
+        plan.src_index[i] = entries[i].src;
+        plan.channel_mask |= 1u << entries[i].bit;
+    }
+    return plan;
+}
+
+std::vector<std::uint8_t> remap_interleaved_pcm(
+    const std::vector<std::uint8_t>& src,
+    unsigned channels,
+    unsigned bytes_per_sample,
+    const std::vector<unsigned>& src_index) {
+    std::vector<std::uint8_t> dst;
+    if (channels == 0 || bytes_per_sample == 0 || src_index.size() < channels)
+        return dst;
+    const std::size_t frame_bytes = static_cast<std::size_t>(channels) * bytes_per_sample;
+    if (frame_bytes == 0 || src.size() % frame_bytes != 0)
+        return dst;
+    const std::size_t frames = src.size() / frame_bytes;
+    dst.resize(src.size());
+    for (std::size_t f = 0; f < frames; ++f) {
+        const std::uint8_t* sframe = src.data() + f * frame_bytes;
+        std::uint8_t* dframe = dst.data() + f * frame_bytes;
+        for (unsigned dch = 0; dch < channels; ++dch) {
+            const unsigned sch = src_index[dch];
+            std::memcpy(
+                dframe + static_cast<std::size_t>(dch) * bytes_per_sample,
+                sframe + static_cast<std::size_t>(sch) * bytes_per_sample,
+                bytes_per_sample);
+        }
+    }
+    return dst;
 }
 
 // height_slot -> bed carrier used by Auro-Codec dematrix.
@@ -473,7 +585,7 @@ bool write_audio_file(
             ? wav::write_pcm24_le(
                   output.string(), sample_rate, channels, pcm, error_out, channel_mask, metadata)
             : wav::write_pcm16_le(
-                  output.string(), sample_rate, channels, pcm, error_out, metadata);
+                  output.string(), sample_rate, channels, pcm, error_out, channel_mask, metadata);
         if (ok && progress)
             progress(save_stage, 100);
         return ok;
@@ -487,7 +599,8 @@ bool write_audio_file(
     const bool wav_ok = bits == 24
         ? wav::write_pcm24_le(
               temp.string(), sample_rate, channels, pcm, error_out, channel_mask, metadata)
-        : wav::write_pcm16_le(temp.string(), sample_rate, channels, pcm, error_out, metadata);
+        : wav::write_pcm16_le(
+              temp.string(), sample_rate, channels, pcm, error_out, channel_mask, metadata);
     if (!wav_ok)
         return false;
 
@@ -731,9 +844,10 @@ void print_usage() {
         << dim(auro3d_decode::kVersion) << " — ORUA command-line decoder.\n\n"
         << accent("Usage") << ":\n"
         << "  " << auro3d_decode::kName
-        << " -i <input.wav|input.flac|input.mkv|input.mp4|input.s24le>"
+        << " -i <input.wav|input.flac|input.mkv|input.mp4|input.m2ts|input.dts|input.s24le>"
         << " [-o <output.wav|output.flac>] [options]\n"
         << "  " << auro3d_decode::kName << " --probe -i <input>\n"
+        << "  " << auro3d_decode::kName << " --channel-diagram -i <input>\n"
         << accent("Options") << ":\n"
         << "  -i, --input FILE\n"
         << "  -o, --output FILE    output path; default: <input>_decoded.wav"
@@ -749,8 +863,10 @@ void print_usage() {
         << auro3d::kCurrentNativeExportChannelLimit << "\n"
         << "                           legacy PCM without metadata: 6=5.1, 10=5.1.4, 12=7.1.4\n"
         << "  --output-bits N      output PCM depth: 16 or 24; default: 24\n"
+        << "  --wav-standard       WAV/FLAC: reorder channels to WAVEFORMATEXTENSIBLE speaker order\n"
+        << "                       and write dwChannelMask\n"
         << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac, etc.\n"
-        << "  --channel-diagram    print structural input-to-output channel diagram\n"
+        << "  --channel-diagram    print structural input-to-output channel diagram (no decode; -o not required)\n"
         << "  --probe              print format diagnostics without decoding to a file; -o is not required\n"
         << "  --binaural           render decoded channels to HRTF stereo (force 48 kHz)\n"
         << "  --restore-lfe        (!)experimental: if reconstructed LFE is silent/absent,\n"
@@ -828,6 +944,10 @@ bool parse_args(int argc, char** argv, Options& opt) {
         }
         if (a == "--binaural") {
             opt.binaural = true;
+            continue;
+        }
+        if (a == "--wav-standard") {
+            opt.wav_standard = true;
             continue;
         }
         if (a == "--restore-lfe") {
@@ -963,7 +1083,7 @@ bool parse_args(int argc, char** argv, Options& opt) {
         std::cerr << "--input is required\n";
         return false;
     }
-    if (!opt.probe && opt.output.empty())
+    if (!opt.probe && !opt.channel_diagram && opt.output.empty())
         opt.output = default_output_path(opt);
     if (opt.raw && (opt.sample_rate == 0 || opt.channels == 0)) {
         std::cerr << "--raw requires --rate and --channels\n";
@@ -1075,7 +1195,8 @@ int app_main(int argc, char** argv) {
 
     const auro3d::DecoderConfig cfg_open = dec.config();
     const std::string output_format = selected_output_format(opt);
-    if (output_format == "flac" && cfg_open.channels > 8u) {
+    if (!opt.probe && !opt.channel_diagram
+        && output_format == "flac" && cfg_open.channels > 8u) {
         progress.finish();
         print_error(
             "FLAC: format supports at most 8 channels; use a .wav output for "
@@ -1238,15 +1359,188 @@ int app_main(int argc, char** argv) {
                   << " hrtf_preset=" << dynamic_cfg.hrtf_preset << "\n";
     }
 
-    if (opt.probe) {
+    if (opt.probe || opt.channel_diagram) {
+        if (opt.channel_diagram) {
+            print_channel_diagram(
+                cfg_open.channels,
+                output_slots,
+                native_cfg.input_mask,
+                native_mask,
+                auromatic_mask,
+                dematrix_routes);
+        }
         progress.finish();
         dec.close();
         return 0;
     }
 
+    auro3d::DecoderConfig cfg = dec.config();
+    const std::uint64_t latency_samples = dec.latency_samples();
+    const std::uint64_t source_sample_count = dec.source_sample_count();
+    const unsigned source_sample_rate = cfg.sample_rate;
+
+    // Keep decoder/export slot order until after restore-lfe / binaural.
+    // --wav-standard remaps PCM + slots immediately before container write.
+    WavStandardPlan wav_std_plan;
+    std::vector<unsigned> wav_std_src_index;
+    std::vector<std::uint32_t> write_slots = output_slots;
+    std::uint32_t output_wav_channel_mask =
+        wav_channel_mask_from_slots(write_slots, cfg.channels);
+    if (opt.wav_standard && !opt.binaural) {
+        wav_std_plan = plan_wav_standard_layout(output_slots, cfg.channels);
+        if (!wav_std_plan.error.empty()) {
+            progress.finish();
+            print_error("wav-standard: " + wav_std_plan.error);
+            dec.close();
+            return 4;
+        }
+        write_slots = wav_std_plan.slots;
+        wav_std_src_index = wav_std_plan.src_index;
+        output_wav_channel_mask = wav_std_plan.channel_mask;
+        if (opt.verbose) {
+            std::cerr << "wav_standard=1 channel_mask=0x" << std::hex << output_wav_channel_mask
+                      << std::dec << " order=" << channel_names_csv(write_slots) << "\n";
+        }
+    }
+    const wav::OutputMetadata output_meta = make_output_metadata(write_slots);
+
+    // Stream PCM24 WAV/RF64 when no post-process needs the full buffer in RAM.
+    const bool stream_wav_out = output_format == "wav"
+        && cfg.bits_per_sample == 24u
+        && !opt.binaural
+        && !opt.restore_lfe
+        && !opt.mono_tracks;
+
     std::vector<std::uint8_t> pcm_all;
     std::vector<std::uint8_t> chunk;
     progress.update("decode", 0);
+
+    if (stream_wav_out) {
+        wav::Pcm24StreamWriter wav_out;
+        wav_out.set_metadata(output_meta);
+        std::string err;
+        if (!wav_out.open(
+                opt.output,
+                cfg.sample_rate,
+                cfg.channels,
+                source_sample_count,
+                err,
+                output_wav_channel_mask)) {
+            progress.finish();
+            print_error("WAV: " + err);
+            dec.close();
+            return 4;
+        }
+
+        std::uint64_t skip_frames = latency_samples;
+        std::uint64_t remain_frames = source_sample_count;
+        const std::size_t bytes_per_frame =
+            static_cast<std::size_t>(cfg.channels) * 3u;
+
+        while (!dec.exhausted()) {
+            e = dec.decode_next(chunk);
+            if (e != auro3d::DecodeError::Ok) {
+                progress.finish();
+                print_error(std::string("decode: ") + auro3d::decode_error_message(e));
+                dec.close();
+                return 3;
+            }
+            if (chunk.empty()) {
+                progress.update("decode", dec.decode_percent());
+                continue;
+            }
+            if (chunk.size() % bytes_per_frame != 0) {
+                progress.finish();
+                print_error("decode: PCM frame size mismatch");
+                dec.close();
+                return 3;
+            }
+            std::size_t frames = chunk.size() / bytes_per_frame;
+            std::size_t frame_off = 0;
+            if (skip_frames != 0u) {
+                const std::uint64_t skip_now = std::min<std::uint64_t>(skip_frames, frames);
+                frame_off = static_cast<std::size_t>(skip_now);
+                skip_frames -= skip_now;
+                frames -= frame_off;
+            }
+            if (frames != 0u && remain_frames != 0u) {
+                const std::uint64_t take = std::min<std::uint64_t>(remain_frames, frames);
+                std::vector<std::uint8_t> piece(
+                    chunk.begin() + static_cast<std::ptrdiff_t>(frame_off * bytes_per_frame),
+                    chunk.begin()
+                        + static_cast<std::ptrdiff_t>((frame_off + static_cast<std::size_t>(take))
+                            * bytes_per_frame));
+                if (!wav_std_src_index.empty()) {
+                    std::vector<std::uint8_t> remapped = remap_interleaved_pcm(
+                        piece, cfg.channels, 3u, wav_std_src_index);
+                    if (remapped.size() != piece.size()) {
+                        progress.finish();
+                        print_error("wav-standard: PCM remap failed");
+                        dec.close();
+                        return 4;
+                    }
+                    piece.swap(remapped);
+                }
+                if (!wav_out.write(piece, err)) {
+                    progress.finish();
+                    print_error("WAV: " + err);
+                    dec.close();
+                    return 4;
+                }
+                remain_frames -= take;
+            }
+            progress.update("decode", dec.decode_percent());
+        }
+        progress.done("decode");
+
+        const std::uint64_t dsp_clipped = dec.dsp_clipped_samples();
+        dec.close();
+
+        if (skip_frames != 0u || remain_frames != 0u) {
+            progress.finish();
+            print_error("decode: native latency drain produced insufficient PCM");
+            return 3;
+        }
+        progress.update("save wav", -1);
+        if (!wav_out.close(err)) {
+            progress.finish();
+            print_error("WAV: " + err);
+            return 4;
+        }
+        progress.done("save wav");
+        if (opt.verbose && wav_out.uses_rf64())
+            std::cerr << "wav_container=RF64\n";
+
+        if (!write_channel_mapping_xml(
+                std::filesystem::u8path(opt.output),
+                std::filesystem::u8path(opt.input),
+                cfg.sample_rate,
+                source_sample_rate,
+                cfg.bits_per_sample,
+                cfg.channels,
+                native_cfg.requested_output_mask,
+                auro_meta.found ? auro_meta.carrier_layout_id : native_cfg.input_mask,
+                write_slots,
+                native_cfg.input_mask,
+                native_mask,
+                auromatic_mask,
+                dematrix_routes,
+                opt.binaural,
+                auro_meta.found,
+                err)) {
+            progress.finish();
+            print_error("XML: " + err);
+            return 4;
+        }
+        progress.finish();
+        if (opt.verbose) {
+            std::cerr << "bits_per_sample=" << cfg.bits_per_sample << "\n";
+            std::cerr << "dsp_clipped_samples=" << dsp_clipped << "\n";
+            print_ok("Done: " + opt.output);
+        }
+        return 0;
+    }
+
     while (!dec.exhausted()) {
         e = dec.decode_next(chunk);
         if (e != auro3d::DecodeError::Ok) {
@@ -1260,11 +1554,7 @@ int app_main(int argc, char** argv) {
     }
     progress.done("decode");
 
-    auro3d::DecoderConfig cfg = dec.config();
     const std::uint64_t dsp_clipped = dec.dsp_clipped_samples();
-    const std::uint64_t latency_samples = dec.latency_samples();
-    const std::uint64_t source_sample_count = dec.source_sample_count();
-    const unsigned source_sample_rate = cfg.sample_rate;
     dec.close();
 
     if (latency_samples != 0u) {
@@ -1360,12 +1650,38 @@ int app_main(int argc, char** argv) {
                       << " hrtf_bank=" << (opt.hrtf_preset == 0 ? "HPv2" : "Generic2") << "\n";
         }
     }
-    const std::uint32_t output_wav_channel_mask =
-        wav_channel_mask_from_slots(output_slots, cfg.channels);
-    const wav::OutputMetadata output_meta = make_output_metadata(output_slots);
+
+    if (opt.wav_standard && !opt.binaural) {
+        if (wav_std_src_index.empty()) {
+            wav_std_plan = plan_wav_standard_layout(output_slots, cfg.channels);
+            if (!wav_std_plan.error.empty()) {
+                progress.finish();
+                print_error("wav-standard: " + wav_std_plan.error);
+                return 4;
+            }
+            wav_std_src_index = wav_std_plan.src_index;
+            write_slots = wav_std_plan.slots;
+            output_wav_channel_mask = wav_std_plan.channel_mask;
+        }
+        const unsigned bytes_per_sample = cfg.bits_per_sample == 24u ? 3u : 2u;
+        std::vector<std::uint8_t> remapped = remap_interleaved_pcm(
+            pcm_all, cfg.channels, bytes_per_sample, wav_std_src_index);
+        if (remapped.size() != pcm_all.size()) {
+            progress.finish();
+            print_error("wav-standard: PCM remap failed");
+            return 4;
+        }
+        pcm_all.swap(remapped);
+        output_slots = write_slots;
+    } else {
+        write_slots = output_slots;
+        output_wav_channel_mask = wav_channel_mask_from_slots(output_slots, cfg.channels);
+    }
+
     const bool ok = write_audio_file(
         opt.output, output_format, cfg.bits_per_sample, cfg.sample_rate, cfg.channels,
-        output_wav_channel_mask, pcm_all, err, progress.callback(), output_meta);
+        output_wav_channel_mask, pcm_all, err, progress.callback(),
+        make_output_metadata(write_slots));
     if (!ok) {
         progress.finish();
         print_error(std::string(output_format == "flac" ? "FLAC: " : "WAV: ") + err);
@@ -1380,7 +1696,7 @@ int app_main(int argc, char** argv) {
             cfg.channels,
             native_cfg.requested_output_mask,
             auro_meta.found ? auro_meta.carrier_layout_id : native_cfg.input_mask,
-            output_slots,
+            write_slots,
             native_cfg.input_mask,
             native_mask,
             auromatic_mask,
@@ -1392,21 +1708,12 @@ int app_main(int argc, char** argv) {
         print_error("XML: " + err);
         return 4;
     }
-    if (opt.channel_diagram) {
-        print_channel_diagram(
-            cfg.channels,
-            output_slots,
-            native_cfg.input_mask,
-            native_mask,
-            auromatic_mask,
-            dematrix_routes);
-    }
     if (opt.mono_tracks) {
         const unsigned bytes_per_sample = cfg.bits_per_sample / 8u;
         for (unsigned ch = 0; ch < cfg.channels; ++ch) {
             std::string channel_name = "ch" + std::to_string(ch);
-            if (ch < output_slots.size()) {
-                const char* slot_name = auro_slot_name(output_slots[ch]);
+            if (ch < write_slots.size()) {
+                const char* slot_name = auro_slot_name(write_slots[ch]);
                 if (slot_name[0] != '?')
                     channel_name = slot_name;
             }

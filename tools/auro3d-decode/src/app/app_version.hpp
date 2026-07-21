@@ -5,7 +5,7 @@
 
 namespace auro3d_decode {
 
-constexpr char kVersion[] = "0.4.144";
+constexpr char kVersion[] = "0.5.2";
 constexpr char kName[] = "orua3d-decode";
 
 /// Author handle without a contiguous plaintext literal in the binary.

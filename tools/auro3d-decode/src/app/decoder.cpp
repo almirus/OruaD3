@@ -1978,33 +1978,93 @@ bool try_parse_wav_s24le(
     std::uint16_t& channels,
     std::uint32_t& sample_rate,
     std::uint32_t& channel_mask,
-    std::string& err) {
+    std::string& err,
+    std::uint64_t file_size = 0) {
     channel_mask = 0;
-    if (n < 12 || std::memcmp(p, "RIFF", 4) != 0 || std::memcmp(p + 8, "WAVE", 4) != 0) {
+    if (n < 12) {
         err = "not RIFF/WAVE";
         return false;
     }
+    const bool is_rf64 = std::memcmp(p, "RF64", 4) == 0 || std::memcmp(p, "BW64", 4) == 0;
+    const bool is_riff = std::memcmp(p, "RIFF", 4) == 0;
+    if ((!is_rf64 && !is_riff) || std::memcmp(p + 8, "WAVE", 4) != 0) {
+        err = "not RIFF/WAVE";
+        return false;
+    }
+
     bool fmt_ok = false;
+    bool have_ds64 = false;
+    std::uint64_t ds64_data_size = 0;
     std::size_t pos = 12;
     while (pos + 8 <= n) {
         const char* id = reinterpret_cast<const char*>(p + pos);
-        const std::uint32_t csz = static_cast<std::uint32_t>(p[pos + 4]) | (static_cast<std::uint32_t>(p[pos + 5]) << 8)
-            | (static_cast<std::uint32_t>(p[pos + 6]) << 16) | (static_cast<std::uint32_t>(p[pos + 7]) << 24);
+        const std::uint32_t csz = static_cast<std::uint32_t>(p[pos + 4])
+            | (static_cast<std::uint32_t>(p[pos + 5]) << 8)
+            | (static_cast<std::uint32_t>(p[pos + 6]) << 16)
+            | (static_cast<std::uint32_t>(p[pos + 7]) << 24);
         pos += 8;
-        if (pos + csz > n) {
+
+        // RF64/BW64: data (and sometimes other) chunk sizes may be 0xFFFFFFFF;
+        // real sizes live in ds64. Do not require the full payload in `p`.
+        // Some writers (ffmpeg Lavf) also emit classic RIFF + 0xFFFFFFFF data
+        // size for >4 GiB files without a ds64 chunk — fall back to EOF.
+        const bool is_data_chunk = std::memcmp(id, "data", 4) == 0;
+        const bool size_from_ds64 = (csz == 0xFFFFFFFFu);
+        if (size_from_ds64 && !is_data_chunk && std::memcmp(id, "ds64", 4) != 0) {
+            // Unknown oversized chunk without local size — cannot safely skip.
+            err = "unsupported 64-bit chunk before data";
+            return false;
+        }
+        // Non-data chunks must be fully present so we can parse or skip them.
+        // The data payload may live only on disk (streaming / header-only probe).
+        if (!size_from_ds64 && !is_data_chunk && pos + csz > n) {
             err = "truncated chunk";
             return false;
         }
+
+        if (std::memcmp(id, "ds64", 4) == 0) {
+            if (csz < 28u || pos + 28u > n) {
+                err = "ds64 chunk truncated";
+                return false;
+            }
+            auto rd64 = [&](std::size_t off) -> std::uint64_t {
+                const std::uint32_t lo = static_cast<std::uint32_t>(p[off])
+                    | (static_cast<std::uint32_t>(p[off + 1]) << 8)
+                    | (static_cast<std::uint32_t>(p[off + 2]) << 16)
+                    | (static_cast<std::uint32_t>(p[off + 3]) << 24);
+                const std::uint32_t hi = static_cast<std::uint32_t>(p[off + 4])
+                    | (static_cast<std::uint32_t>(p[off + 5]) << 8)
+                    | (static_cast<std::uint32_t>(p[off + 6]) << 16)
+                    | (static_cast<std::uint32_t>(p[off + 7]) << 24);
+                return static_cast<std::uint64_t>(lo) | (static_cast<std::uint64_t>(hi) << 32);
+            };
+            // riffSize at +0, dataSize at +8, sampleCount at +16
+            ds64_data_size = rd64(pos + 8);
+            have_ds64 = true;
+            if (!size_from_ds64)
+                pos += csz + (csz & 1u);
+            else {
+                err = "ds64 chunk size must be known";
+                return false;
+            }
+            continue;
+        }
+
         if (std::memcmp(id, "fmt ", 4) == 0) {
-            if (csz < 16) {
+            if (size_from_ds64 || csz < 16) {
                 err = "fmt too small";
                 return false;
             }
-            const std::uint16_t audio_format = static_cast<std::uint16_t>(p[pos]) | (static_cast<std::uint16_t>(p[pos + 1]) << 8);
-            channels = static_cast<std::uint16_t>(p[pos + 2]) | (static_cast<std::uint16_t>(p[pos + 3]) << 8);
-            sample_rate = static_cast<std::uint32_t>(p[pos + 4]) | (static_cast<std::uint32_t>(p[pos + 5]) << 8)
-                | (static_cast<std::uint32_t>(p[pos + 6]) << 16) | (static_cast<std::uint32_t>(p[pos + 7]) << 24);
-            const std::uint16_t bits = static_cast<std::uint16_t>(p[pos + 14]) | (static_cast<std::uint16_t>(p[pos + 15]) << 8);
+            const std::uint16_t audio_format = static_cast<std::uint16_t>(p[pos])
+                | (static_cast<std::uint16_t>(p[pos + 1]) << 8);
+            channels = static_cast<std::uint16_t>(p[pos + 2])
+                | (static_cast<std::uint16_t>(p[pos + 3]) << 8);
+            sample_rate = static_cast<std::uint32_t>(p[pos + 4])
+                | (static_cast<std::uint32_t>(p[pos + 5]) << 8)
+                | (static_cast<std::uint32_t>(p[pos + 6]) << 16)
+                | (static_cast<std::uint32_t>(p[pos + 7]) << 24);
+            const std::uint16_t bits = static_cast<std::uint16_t>(p[pos + 14])
+                | (static_cast<std::uint16_t>(p[pos + 15]) << 8);
             const bool is_pcm_s24 = (audio_format == 1 && bits == 24);
             bool is_extensible_pcm_s24 = false;
             if (audio_format == 0xFFFEu && csz >= 40) {
@@ -2034,14 +2094,40 @@ bool try_parse_wav_s24le(
                 err = "WAV must be PCM 24-bit or WAVEFORMATEXTENSIBLE PCM 24-bit";
                 return false;
             }
-        } else if (std::memcmp(id, "data", 4) == 0) {
+            pos += csz + (csz & 1u);
+            continue;
+        }
+
+        if (is_data_chunk) {
             if (!fmt_ok) {
                 err = "fmt chunk missing or invalid";
                 return false;
             }
             pcm_begin = pos;
-            pcm_length = csz;
+            std::uint64_t data_bytes = csz;
+            if (csz == 0xFFFFFFFFu) {
+                if (have_ds64) {
+                    data_bytes = ds64_data_size;
+                } else if (file_size > static_cast<std::uint64_t>(pcm_begin)) {
+                    // Lavf-style oversized RIFF: trust EOF after the data header.
+                    data_bytes = file_size - static_cast<std::uint64_t>(pcm_begin);
+                } else {
+                    err = "oversized data chunk requires ds64 or file size";
+                    return false;
+                }
+            }
+            if (data_bytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())) {
+                err = "WAV data size exceeds addressable size";
+                return false;
+            }
+            pcm_length = static_cast<std::size_t>(data_bytes);
             return true;
+        }
+
+        // Skip ordinary chunks present in the buffered header prefix.
+        if (size_from_ds64) {
+            err = "unexpected 64-bit sized chunk";
+            return false;
         }
         pos += csz + (csz & 1u);
     }
@@ -2110,8 +2196,69 @@ bool is_iso_base_media_stream(const std::vector<std::uint8_t>& bytes) {
     return bytes.size() >= 12 && std::memcmp(bytes.data() + 4, "ftyp", 4) == 0;
 }
 
+/// Classic MPEG-TS (188) or Blu-ray/AVCHD BDAV M2TS (192 = 4-byte ATS + 188).
+bool is_mpegts_stream(const std::vector<std::uint8_t>& bytes) {
+    auto sync_ok = [&](std::size_t packet_size, std::size_t sync_off) -> bool {
+        // Need three consecutive sync bytes to avoid false positives.
+        if (bytes.size() < sync_off + packet_size * 2u + 1u)
+            return false;
+        return bytes[sync_off] == 0x47u
+            && bytes[sync_off + packet_size] == 0x47u
+            && bytes[sync_off + packet_size * 2u] == 0x47u;
+    };
+    // Prefer BDAV/M2TS when both could match (ATS may start with 0x47).
+    if (sync_ok(192u, 4u))
+        return true;
+    if (sync_ok(188u, 0u))
+        return true;
+    return false;
+}
+
+/// Raw DTS / DTS-HD elementary stream or DTSHD container (*.dts / *.dtshd).
+bool is_dts_stream(const std::vector<std::uint8_t>& bytes) {
+    if (bytes.size() >= 8 && std::memcmp(bytes.data(), "DTSHDHDR", 8) == 0)
+        return true;
+    if (bytes.size() < 4)
+        return false;
+    const std::uint32_t sync = (static_cast<std::uint32_t>(bytes[0]) << 24)
+        | (static_cast<std::uint32_t>(bytes[1]) << 16)
+        | (static_cast<std::uint32_t>(bytes[2]) << 8)
+        | static_cast<std::uint32_t>(bytes[3]);
+    switch (sync) {
+    case 0x7FFE8001u: // core BE
+    case 0xFE7F0180u: // core LE
+    case 0x1FFFE800u: // core 14-bit BE
+    case 0xFF1F00E8u: // core 14-bit LE
+    case 0x64582025u: // EXSS / DTS-HD substream BE
+    case 0x25205864u: // EXSS LE
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool path_looks_like_dts_file(const std::string& path) {
+    const auto slash = path.find_last_of("/\\");
+    const auto dot = path.find_last_of('.');
+    if (dot == std::string::npos || (slash != std::string::npos && dot < slash))
+        return false;
+    std::string ext = path.substr(dot);
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return ext == ".dts" || ext == ".dtshd";
+}
+
 bool is_ffmpeg_audio_input(const std::vector<std::uint8_t>& bytes) {
-    return is_flac_stream(bytes) || is_matroska_stream(bytes) || is_iso_base_media_stream(bytes);
+    return is_flac_stream(bytes)
+        || is_matroska_stream(bytes)
+        || is_iso_base_media_stream(bytes)
+        || is_mpegts_stream(bytes)
+        || is_dts_stream(bytes);
+}
+
+bool is_ffmpeg_audio_input(const std::vector<std::uint8_t>& bytes, const std::string& path) {
+    return is_ffmpeg_audio_input(bytes) || path_looks_like_dts_file(path);
 }
 
 std::string shell_quote_path(const std::string& path) {
@@ -2249,14 +2396,23 @@ bool find_supported_audio_stream(const std::string& path, unsigned& stream_index
     return false;
 }
 
-bool decode_supported_audio_to_pcm24_wav_bytes(
+bool is_wave_container_prefix(const std::vector<std::uint8_t>& bytes) {
+    if (bytes.size() < 12)
+        return false;
+    const bool tag_ok = std::memcmp(bytes.data(), "RIFF", 4) == 0
+        || std::memcmp(bytes.data(), "RF64", 4) == 0
+        || std::memcmp(bytes.data(), "BW64", 4) == 0;
+    return tag_ok && std::memcmp(bytes.data() + 8, "WAVE", 4) == 0;
+}
+
+bool demux_supported_audio_to_temp_wav(
     const std::string& path,
-    std::vector<std::uint8_t>& wav_bytes,
+    std::string& tmp_wav_out,
     std::string& err,
     std::uint32_t target_sample_rate = 0u,
     const auro3d::ProgressFn& progress = {}) {
     err.clear();
-    wav_bytes.clear();
+    tmp_wav_out.clear();
     if (progress)
         progress(target_sample_rate != 0u ? "resampling" : "demux", -1);
     unsigned stream_index = 0u;
@@ -2271,23 +2427,38 @@ bool decode_supported_audio_to_pcm24_wav_bytes(
         + (target_sample_rate != 0u
             ? " -ar " + std::to_string(target_sample_rate)
             : std::string())
-        + " -f wav " + shell_quote_path(tmp_wav);
+        + " -rf64 auto -f wav " + shell_quote_path(tmp_wav);
     const int rc = run_command(cmd);
     if (rc != 0) {
         std::remove(tmp_wav.c_str());
         err = "ffmpeg failed to decode selected audio stream to PCM24 WAV";
         return false;
     }
+    tmp_wav_out = tmp_wav;
+    if (progress)
+        progress(target_sample_rate != 0u ? "resampling" : "demux", 100);
+    return true;
+}
+
+bool decode_supported_audio_to_pcm24_wav_bytes(
+    const std::string& path,
+    std::vector<std::uint8_t>& wav_bytes,
+    std::string& err,
+    std::uint32_t target_sample_rate = 0u,
+    const auro3d::ProgressFn& progress = {}) {
+    err.clear();
+    wav_bytes.clear();
+    std::string tmp_wav;
+    if (!demux_supported_audio_to_temp_wav(path, tmp_wav, err, target_sample_rate, progress))
+        return false;
     const bool ok = read_file_bytes(tmp_wav, wav_bytes, err);
     std::remove(tmp_wav.c_str());
     if (!ok)
         return false;
-    if (wav_bytes.size() < 12 || std::memcmp(wav_bytes.data(), "RIFF", 4) != 0) {
-        err = "ffmpeg did not produce WAV";
+    if (!is_wave_container_prefix(wav_bytes)) {
+        err = "ffmpeg did not produce WAV/RF64";
         return false;
     }
-    if (progress)
-        progress(target_sample_rate != 0u ? "resampling" : "demux", 100);
     return true;
 }
 
@@ -2364,7 +2535,8 @@ bool resample_interleaved_pcm_bytes(
             out_channels,
             out_rate,
             out_mask,
-            err)
+            err,
+            static_cast<std::uint64_t>(wav_bytes.size()))
         || out_channels != channels
         || out_rate != sample_rate_out) {
         err = "resampled WAV parse failed";
@@ -3654,6 +3826,14 @@ bool probe_wav_pcm_s24le(
         err = "cannot open file";
         return false;
     }
+    in.seekg(0, std::ios::end);
+    const auto end_pos = in.tellg();
+    if (end_pos < 0) {
+        err = "cannot determine file size";
+        return false;
+    }
+    const std::uint64_t file_size = static_cast<std::uint64_t>(end_pos);
+    in.seekg(0, std::ios::beg);
 
     std::vector<std::uint8_t> buf;
     constexpr std::size_t kStep = 262144;
@@ -3663,13 +3843,15 @@ bool probe_wav_pcm_s24le(
         in.read(reinterpret_cast<char*>(buf.data() + old), static_cast<std::streamsize>(kStep));
         const std::streamsize got = in.gcount();
         buf.resize(old + static_cast<std::size_t>(got));
-        if (try_parse_wav_s24le(buf.data(), buf.size(), pcm_byte_offset, pcm_byte_length, channels, sample_rate, channel_mask, err))
+        if (try_parse_wav_s24le(
+                buf.data(), buf.size(), pcm_byte_offset, pcm_byte_length, channels, sample_rate,
+                channel_mask, err, file_size))
             return true;
         if (got == 0)
             break;
         if (err == "no data chunk" || err == "truncated chunk")
             continue;
-        if (err == "not RIFF/WAVE" && buf.size() < 12)
+        if ((err == "not RIFF/WAVE") && buf.size() < 12)
             continue;
         return false;
     }
@@ -3814,15 +3996,15 @@ bool load_all_pcm_s24le_interleaved_i32(
     cfg_out = {};
 
     std::vector<std::uint8_t> prefix;
-    if (!read_file_prefix(path, 12u, prefix, err))
+    if (!read_file_prefix(path, 512u, prefix, err))
         return false;
-    if (raw && is_ffmpeg_audio_input(prefix)) {
+    if (raw && is_ffmpeg_audio_input(prefix, path)) {
         err = "compressed/container input cannot be used with --raw";
         return false;
     }
 
     std::vector<std::uint8_t> file_bytes;
-    if (!raw && is_ffmpeg_audio_input(prefix)) {
+    if (!raw && is_ffmpeg_audio_input(prefix, path)) {
         if (!decode_supported_audio_to_pcm24_wav_bytes(path, file_bytes, err))
             return false;
     } else {
@@ -3836,9 +4018,11 @@ bool load_all_pcm_s24le_interleaved_i32(
     std::uint32_t rate = 0;
     std::uint32_t channel_mask = 0;
 
-    const bool riff = file_bytes.size() >= 12 && std::memcmp(file_bytes.data(), "RIFF", 4) == 0;
+    const bool wave = file_bytes.size() >= 12 && is_wave_container_prefix(file_bytes);
 
-    if (!raw && riff && try_parse_wav_s24le(file_bytes.data(), file_bytes.size(), pcm_b, pcm_len, ch, rate, channel_mask, err)) {
+    if (!raw && wave && try_parse_wav_s24le(
+            file_bytes.data(), file_bytes.size(), pcm_b, pcm_len, ch, rate, channel_mask, err,
+            static_cast<std::uint64_t>(file_bytes.size()))) {
         // ok
     } else if (raw) {
         if (raw_channels == 0 || raw_sample_rate == 0) {
@@ -3884,10 +4068,54 @@ bool load_all_pcm_s24le_interleaved_i32(
     return true;
 }
 
+bool Decoder::read_pcm_bytes(
+    std::size_t absolute_offset,
+    std::size_t byte_count,
+    std::uint8_t* dst) const {
+    if (!dst || byte_count == 0)
+        return true;
+    if (!pcm_streamed_) {
+        if (absolute_offset + byte_count > file_bytes_.size())
+            return false;
+        std::memcpy(dst, file_bytes_.data() + absolute_offset, byte_count);
+        return true;
+    }
+    if (!pcm_stream_in_.is_open()) {
+        pcm_stream_in_.open(std::filesystem::u8path(pcm_stream_path_), std::ios::binary);
+        if (!pcm_stream_in_)
+            return false;
+    }
+    pcm_stream_in_.clear();
+    pcm_stream_in_.seekg(static_cast<std::streamoff>(absolute_offset));
+    pcm_stream_in_.read(reinterpret_cast<char*>(dst), static_cast<std::streamsize>(byte_count));
+    return static_cast<std::size_t>(pcm_stream_in_.gcount()) == byte_count;
+}
+
+const std::uint8_t* Decoder::pcm_block_ptr(std::size_t absolute_offset, std::size_t byte_count) {
+    if (!pcm_streamed_) {
+        if (absolute_offset + byte_count > file_bytes_.size())
+            return nullptr;
+        return file_bytes_.data() + absolute_offset;
+    }
+    pcm_read_scratch_.resize(byte_count);
+    if (!read_pcm_bytes(absolute_offset, byte_count, pcm_read_scratch_.data()))
+        return nullptr;
+    return pcm_read_scratch_.data();
+}
+
 DecodeError Decoder::open(const std::string& path) {
     // IDA 0x101760: Decoder construct starts with CRC_t_init.
     auro3deng::decoder_crc_t_init_106f00();
     file_bytes_.clear();
+    pcm_stream_path_.clear();
+    if (owns_demux_temp_ && !demux_temp_path_.empty())
+        std::remove(demux_temp_path_.c_str());
+    demux_temp_path_.clear();
+    owns_demux_temp_ = false;
+    pcm_streamed_ = false;
+    if (pcm_stream_in_.is_open())
+        pcm_stream_in_.close();
+    pcm_read_scratch_.clear();
     pcm_begin_ = 0;
     pcm_length_ = 0;
     read_pos_ = 0;
@@ -3923,17 +4151,11 @@ DecodeError Decoder::open(const std::string& path) {
 
     std::string input_err;
     std::vector<std::uint8_t> prefix;
-    if (!read_file_prefix(path, 12u, prefix, input_err))
+    if (!read_file_prefix(path, 512u, prefix, input_err))
         return DecodeError::IoError;
-    if (raw_forced_ && is_ffmpeg_audio_input(prefix))
+    if (raw_forced_ && is_ffmpeg_audio_input(prefix, path))
         return DecodeError::BadInput;
-    if (!raw_forced_ && is_ffmpeg_audio_input(prefix)) {
-        if (!decode_supported_audio_to_pcm24_wav_bytes(path, file_bytes_, input_err, 0u, progress_))
-            return DecodeError::BadInput;
-    } else {
-        if (!read_file_bytes(path, file_bytes_, input_err))
-            return DecodeError::IoError;
-    }
+
     std::string wav_err;
     std::size_t pcm_b = 0;
     std::size_t pcm_len = 0;
@@ -3941,28 +4163,84 @@ DecodeError Decoder::open(const std::string& path) {
     uint32_t wav_rate = 0;
     uint32_t wav_channel_mask = 0;
 
-    const bool riff = file_bytes_.size() >= 12 && std::memcmp(file_bytes_.data(), "RIFF", 4) == 0;
+    const auto adopt_wave = [&](const std::string& wave_path) -> bool {
+        if (!probe_wav_pcm_s24le(wave_path, pcm_b, pcm_len, wav_rate, wav_ch, wav_err))
+            return false;
+        // probe does not currently return channel_mask; re-parse header prefix.
+        std::vector<std::uint8_t> header;
+        if (!read_file_prefix(wave_path, 1u << 20, header, wav_err))
+            return false;
+        std::uint64_t file_size = 0;
+        {
+            std::ifstream sized(std::filesystem::u8path(wave_path), std::ios::binary);
+            if (!sized) {
+                wav_err = "cannot open file";
+                return false;
+            }
+            sized.seekg(0, std::ios::end);
+            const auto end_pos = sized.tellg();
+            if (end_pos < 0) {
+                wav_err = "cannot determine file size";
+                return false;
+            }
+            file_size = static_cast<std::uint64_t>(end_pos);
+        }
+        std::size_t ignore_b = 0, ignore_l = 0;
+        std::uint16_t ignore_ch = 0;
+        std::uint32_t ignore_rate = 0;
+        if (!try_parse_wav_s24le(
+                header.data(), header.size(), ignore_b, ignore_l, ignore_ch, ignore_rate,
+                wav_channel_mask, wav_err, file_size))
+            return false;
+        if (pcm_stream_in_.is_open())
+            pcm_stream_in_.close();
+        pcm_stream_in_.open(std::filesystem::u8path(wave_path), std::ios::binary);
+        if (!pcm_stream_in_) {
+            wav_err = "cannot open PCM stream";
+            return false;
+        }
+        pcm_stream_path_ = wave_path;
+        pcm_streamed_ = true;
+        file_bytes_.clear();
+        return true;
+    };
 
-    if (!raw_forced_ && riff
-        && try_parse_wav_s24le(
-            file_bytes_.data(), file_bytes_.size(), pcm_b, pcm_len, wav_ch, wav_rate, wav_channel_mask, wav_err)) {
+    if (!raw_forced_ && is_wave_container_prefix(prefix)) {
+        // Always stream WAV/RF64/BW64 from disk so >4 GiB inputs work.
+        if (!adopt_wave(path))
+            return DecodeError::BadInput;
+    } else if (!raw_forced_ && is_ffmpeg_audio_input(prefix, path)) {
+        std::string tmp_wav;
+        if (!demux_supported_audio_to_temp_wav(path, tmp_wav, input_err, 0u, progress_))
+            return DecodeError::BadInput;
+        demux_temp_path_ = tmp_wav;
+        owns_demux_temp_ = true;
+        if (!adopt_wave(tmp_wav))
+            return DecodeError::BadInput;
+    } else if (raw_forced_) {
+        if (!read_file_bytes(path, file_bytes_, input_err))
+            return DecodeError::IoError;
+        pcm_b = 0;
+        pcm_len = file_bytes_.size();
+        pcm_streamed_ = false;
+    } else {
+        return DecodeError::BadInput;
+    }
+
+    if (!raw_forced_) {
         pcm_begin_ = pcm_b;
         pcm_length_ = pcm_len;
         sample_rate_ = wav_rate;
         channel_count_ = wav_ch;
         input_wav_channel_mask_ = wav_channel_mask;
-        // JNI uses 832 when no codec frame metadata is available. Embedded
-        // AURO below replaces this with an aligned internal host block.
         block_size_ = block_request_ != 0 ? block_request_ : kDefaultJniBlockSize;
-    } else if (raw_forced_) {
+    } else {
         pcm_begin_ = 0;
         pcm_length_ = file_bytes_.size();
         block_size_ = block_request_ != 0 ? block_request_ : kDefaultJniBlockSize;
         if (sample_rate_ == 0 || channel_count_ == 0 || block_size_ == 0)
             return DecodeError::BadInput;
         input_wav_channel_mask_ = 0;
-    } else {
-        return DecodeError::BadInput;
     }
 
     const std::size_t sample_frame_b = static_cast<std::size_t>(channel_count_) * 3u;
@@ -3971,9 +4249,18 @@ DecodeError Decoder::open(const std::string& path) {
 
     read_pos_ = pcm_begin_;
     opened_ = true;
-    // По умолчанию (как JNI путь из libauro3d.so) используем stereo.
-    // При явном запросе разрешаем multichannel export через native slot layout.
-    auro_metadata_ = scan_auro_metadata_pcm24(file_bytes_, pcm_begin_, pcm_length_, channel_count_);
+    // Scan metadata from a bounded prefix so RF64 inputs need not be fully resident.
+    {
+        constexpr std::size_t kMaxMetaScanBytes = 64u << 20; // 64 MiB
+        std::size_t scan_bytes = std::min(pcm_length_, kMaxMetaScanBytes);
+        scan_bytes -= scan_bytes % sample_frame_b;
+        std::vector<std::uint8_t> meta_buf(scan_bytes);
+        if (scan_bytes != 0 && !read_pcm_bytes(pcm_begin_, scan_bytes, meta_buf.data())) {
+            opened_ = false;
+            return DecodeError::IoError;
+        }
+        auro_metadata_ = scan_auro_metadata_pcm24(meta_buf, 0, scan_bytes, channel_count_);
+    }
     if (block_request_ == 0u && auro_metadata_.found && auro_metadata_.block_size != 0u) {
         // Config_initialize @ 0x52D7B0 requires a host block divisible by 32.
         // A whole number of embedded frames prevents GR/Extrapolate state from
@@ -4003,36 +4290,39 @@ DecodeError Decoder::open(const std::string& path) {
         if (sample_rate_ > 48000u
             && sample_rate_ % 48000u == 0u
             && !raw_forced_
-            && is_ffmpeg_audio_input(prefix)) {
-            std::vector<std::uint8_t> resampled;
-            if (!decode_supported_audio_to_pcm24_wav_bytes(
-                    path, resampled, input_err, 48000u, progress_)) {
+            && is_ffmpeg_audio_input(prefix, path)) {
+            std::string resampled_wav;
+            if (!demux_supported_audio_to_temp_wav(
+                    path, resampled_wav, input_err, 48000u, progress_)) {
                 opened_ = false;
                 return DecodeError::BadInput;
             }
-            std::size_t resampled_pcm_b = 0u;
-            std::size_t resampled_pcm_len = 0u;
-            std::uint16_t resampled_channels = 0u;
-            std::uint32_t resampled_rate = 0u;
-            std::uint32_t resampled_mask = 0u;
-            if (!try_parse_wav_s24le(
-                    resampled.data(), resampled.size(),
-                    resampled_pcm_b, resampled_pcm_len,
-                    resampled_channels, resampled_rate, resampled_mask,
-                    wav_err)
-                || resampled_channels != channel_count_
-                || resampled_rate != 48000u) {
+            if (owns_demux_temp_ && !demux_temp_path_.empty())
+                std::remove(demux_temp_path_.c_str());
+            demux_temp_path_ = resampled_wav;
+            owns_demux_temp_ = true;
+            if (!adopt_wave(resampled_wav)
+                || wav_ch != channel_count_
+                || wav_rate != 48000u) {
                 opened_ = false;
                 return DecodeError::BadInput;
             }
-            file_bytes_.swap(resampled);
-            pcm_begin_ = resampled_pcm_b;
-            pcm_length_ = resampled_pcm_len;
-            sample_rate_ = resampled_rate;
-            input_wav_channel_mask_ = resampled_mask;
+            pcm_begin_ = pcm_b;
+            pcm_length_ = pcm_len;
+            sample_rate_ = wav_rate;
+            input_wav_channel_mask_ = wav_channel_mask;
             read_pos_ = pcm_begin_;
-            auro_metadata_ = scan_auro_metadata_pcm24(
-                file_bytes_, pcm_begin_, pcm_length_, channel_count_);
+            {
+                constexpr std::size_t kMaxMetaScanBytes = 64u << 20;
+                std::size_t scan_bytes = std::min(pcm_length_, kMaxMetaScanBytes);
+                scan_bytes -= scan_bytes % sample_frame_b;
+                std::vector<std::uint8_t> meta_buf(scan_bytes);
+                if (scan_bytes != 0 && !read_pcm_bytes(pcm_begin_, scan_bytes, meta_buf.data())) {
+                    opened_ = false;
+                    return DecodeError::IoError;
+                }
+                auro_metadata_ = scan_auro_metadata_pcm24(meta_buf, 0, scan_bytes, channel_count_);
+            }
             if (auro_metadata_.found) {
                 opened_ = false;
                 return DecodeError::BadInput;
@@ -4112,12 +4402,22 @@ DecodeError Decoder::open(const std::string& path) {
     // @ 0x52C680 combines the metadata bits of every channel in that mask;
     // padding planes without the embedded carrier bits must stay outside it.
     const std::size_t total_frames = pcm_length_ / sample_frame_b;
+    constexpr std::size_t kMaxSilenceScanBytes = 64u << 20;
+    const std::size_t silence_scan_bytes =
+        std::min(pcm_length_, kMaxSilenceScanBytes) / sample_frame_b * sample_frame_b;
+    const std::size_t silence_scan_frames = silence_scan_bytes / sample_frame_b;
+    std::vector<std::uint8_t> silence_scan_buf(silence_scan_bytes);
+    if (silence_scan_bytes != 0
+        && !read_pcm_bytes(pcm_begin_, silence_scan_bytes, silence_scan_buf.data())) {
+        opened_ = false;
+        return DecodeError::IoError;
+    }
     for (unsigned physical_ch = 0; physical_ch < channel_count_; ++physical_ch) {
         bool carries_pcm_or_metadata = false;
-        const std::uint8_t* sample = file_bytes_.data() + pcm_begin_
-            + static_cast<std::size_t>(physical_ch) * 3u;
+        const std::uint8_t* sample =
+            silence_scan_buf.data() + static_cast<std::size_t>(physical_ch) * 3u;
         for (std::size_t frame_index = 0;
-             frame_index < total_frames;
+             frame_index < silence_scan_frames;
              ++frame_index, sample += sample_frame_b) {
             const std::int32_t value = decode_pcm24_sample(sample);
             if (value != 0) {
@@ -4125,6 +4425,10 @@ DecodeError Decoder::open(const std::string& path) {
                 break;
             }
         }
+        // If the bounded prefix is silent, keep the channel — a full-file scan
+        // would be required for certainty on multi-GB RF64 inputs.
+        if (!carries_pcm_or_metadata && silence_scan_frames < total_frames)
+            carries_pcm_or_metadata = true;
         if (!carries_pcm_or_metadata)
             input_signal_channel_mask_ &= ~(1u << input_layout.slots[physical_ch]);
     }
@@ -4180,26 +4484,38 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
     }
 
     const bool block_has_padding = !draining && input_stream_cursor_ < input_padding_samples_;
-    const std::uint8_t* frame = draining || block_has_padding
-        ? nullptr
-        : (file_bytes_.data() + read_pos_);
-    if (!draining && !block_has_padding && valid_frames == block_size_) {
-        unpack_exoplayer_s24le_interleaved_to_planar_i32(frame, channel_count_, block_size_, planar_scratch_);
+    std::size_t pad_frames = 0u;
+    std::size_t src_frames = 0u;
+    const std::uint8_t* src_pcm = nullptr;
+    if (!draining && valid_frames != 0u) {
+        if (block_has_padding) {
+            pad_frames = static_cast<std::size_t>(std::min<std::uint64_t>(
+                valid_frames, input_padding_samples_ - input_stream_cursor_));
+        }
+        src_frames = valid_frames - pad_frames;
+        if (src_frames != 0u) {
+            const std::uint64_t source_sample =
+                input_stream_cursor_ + pad_frames - input_padding_samples_;
+            src_pcm = pcm_block_ptr(
+                pcm_begin_ + static_cast<std::size_t>(source_sample) * sample_frame_b,
+                src_frames * sample_frame_b);
+            if (!src_pcm)
+                return DecodeError::IoError;
+        }
+    }
+    if (!draining && !block_has_padding && valid_frames == block_size_ && src_pcm) {
+        unpack_exoplayer_s24le_interleaved_to_planar_i32(src_pcm, channel_count_, block_size_, planar_scratch_);
     } else {
         planar_scratch_.assign(static_cast<std::size_t>(channel_count_) * block_size_, 0);
-        for (std::size_t s = 0; s < valid_frames; ++s) {
-            const std::uint64_t stream_sample = input_stream_cursor_ + s;
-            if (stream_sample < input_padding_samples_)
-                continue;
-            const std::uint64_t source_sample = stream_sample - input_padding_samples_;
-            const std::uint8_t* sample = file_bytes_.data() + pcm_begin_
-                + static_cast<std::size_t>(source_sample) * sample_frame_b;
+        for (std::size_t s = 0; s < src_frames; ++s) {
+            const std::uint8_t* sample = src_pcm + s * sample_frame_b;
+            const std::size_t dst_frame = pad_frames + s;
             for (unsigned ch = 0; ch < channel_count_; ++ch) {
                 const std::uint8_t* p = sample + static_cast<std::size_t>(ch) * 3u;
                 int v = static_cast<int>(p[0]) | (static_cast<int>(p[1]) << 8) | (static_cast<int>(p[2]) << 16);
                 if ((v & 0x800000) != 0)
                     v -= 0x1000000;
-                planar_scratch_[static_cast<std::size_t>(ch) * block_size_ + s] = v;
+                planar_scratch_[static_cast<std::size_t>(ch) * block_size_ + dst_frame] = v;
             }
         }
     }
@@ -4399,6 +4715,15 @@ DecoderConfig Decoder::config() const {
 
 void Decoder::close() {
     file_bytes_.clear();
+    pcm_stream_path_.clear();
+    if (pcm_stream_in_.is_open())
+        pcm_stream_in_.close();
+    if (owns_demux_temp_ && !demux_temp_path_.empty())
+        std::remove(demux_temp_path_.c_str());
+    demux_temp_path_.clear();
+    owns_demux_temp_ = false;
+    pcm_streamed_ = false;
+    pcm_read_scratch_.clear();
     pcm_begin_ = 0;
     pcm_length_ = 0;
     read_pos_ = 0;

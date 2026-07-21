@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -344,8 +345,16 @@ private:
     const std::int32_t* native_input_buffer(unsigned index) const;
     std::int32_t* native_work_buffer(unsigned index);
     const std::int32_t* native_work_buffer(unsigned index) const;
+    bool read_pcm_bytes(std::size_t absolute_offset, std::size_t byte_count, std::uint8_t* dst) const;
+    const std::uint8_t* pcm_block_ptr(std::size_t absolute_offset, std::size_t byte_count);
 
     std::vector<std::uint8_t> file_bytes_;
+    std::string pcm_stream_path_;
+    std::string demux_temp_path_;
+    bool pcm_streamed_ = false;
+    bool owns_demux_temp_ = false;
+    mutable std::ifstream pcm_stream_in_;
+    std::vector<std::uint8_t> pcm_read_scratch_;
     std::size_t pcm_begin_ = 0;
     std::size_t pcm_length_ = 0;
     std::size_t read_pos_ = 0;
