@@ -5,8 +5,10 @@ how AURO metadata is found in PCM, how layouts are derived, and how missing
 channels are reconstructed.
 
 The implementation targets metadata-bearing Auro-Codec streams in PCM carriers.
-The AuroCX path is implemented separately for MP4 `a3ds` tracks. The Auro-Matic
-XinN synthetic upmixer is intentionally not implemented.
+The AuroCX path is implemented separately for MP4 `a3ds` tracks. Native codec-v3
+dematrix is the primary path; Auro-Matic/XinN is used only to fill listening
+holes (legacy PCM without metadata, or requested height slots beyond the codec
+produced mask). Metadata never lists “synthesize these slots with XinN”.
 
 Successful AuroCX decoding writes a channel-mapping XML next to the output WAV.
 It records the output and original filenames, decoder type, PCM format, and the
@@ -47,12 +49,13 @@ decode_channel_modes carrier_passthrough=... native=... auromatic=...
 ```
 
 `carrier_passthrough` channels are copied from the input carrier without DSP
-gain. `native` channels are reconstructed from Auro-Codec metadata. `auromatic`
-marks codec-signaled expansion filled by Auro-Matic/XinN (for example missing
-height beyond the native dematrix subset, or 2.1→5.1). Carrier slots that feed
-height dematrix are labeled `carrier_dematrix` in the channel-mapping XML and
-`--channel-diagram` output: the bed is recovered (and may be silent) while the
-paired height is emitted as `native_auro`.
+gain. `native` channels are reconstructed from Auro-Codec metadata
+(GolombRice/Extrapolate). The CLI `auromatic=` list is a **log label** for
+listening-side expansion (legacy XinN upmix, or height holes beyond the codec
+produced mask). It is **not** a per-channel map stored in the stream. Carrier
+slots that feed height dematrix are labeled `carrier_dematrix` in the
+channel-mapping XML and `--channel-diagram` output: the bed is recovered (and
+may be silent) while the paired height is emitted as `native_auro`.
 
 Example for `7.1_5H1_1T` (`--channel-diagram`):
 
@@ -90,7 +93,10 @@ Important fields are stored in `AuroMetadataInfo`:
 - `output_channels`: decoded channel count.
 - `carrier_channels`: carrier channel count.
 - `uses_mix3`: true for layouts that use three-output reconstruction.
+- `closest_layout_without_mix3`: table mapping for mix3 layouts (diagnostics /
+  engine helpers); not an auromatic channel list.
 - `sync_sample`: first detected metadata sync sample.
+- ADOL `0x47` / 71 → `auromatic_profile` / `auromatic_mode` when present.
 
 The metadata scanner is only used to choose layout and boot parameters. The
 actual channel payload is decoded later by the codec-v3 parser/output generator.
@@ -98,6 +104,102 @@ At end of input the decoder feeds zero host blocks through the pipeline for its
 configured stage-1 latency, removes the initial latency, and retains exactly the
 number of PCM frames reported by the source container. No input frames are
 discarded and no final partial block is treated as a complete codec frame.
+
+## Metadata vs Auro-Matic / XinN (native `libauro.so`)
+
+Codec metadata does **not** split channels into “dematrix these, invent those”.
+There is one decoded `layout_id`. Anything in that mask is a codec output.
+Anything beyond it can only appear if the **listening** `output_layout` asks for
+more slots than Extrapolate produced. The three related mechanisms below are
+easy to confuse with a per-channel auromatic bitmap; they are not.
+
+### 2. ADOL opcode `0x47` / 71 — `auromatic` profile/mode only
+
+Native: `auro::codec::v3::metadata::to_auromatic` / `from_auromatic`
+(`libauro.so` ≈ `0x514FF0` / `0x515020`). Our parser maps opcode `0x47`:
+
+- payload nibble high → `auromatic_profile` (0..15);
+- payload nibble low → `auromatic_mode` (0..15).
+
+`to_auromatic` returns a packed tuning word when the instruction is present; it
+does **not** return a channel mask. The opcode never names HLS/HRS/HLB/… or any
+other slot. Verbose probe prints `auromatic_profile=` / `auromatic_mode=` when
+the instruction exists. Treat it as an encoder hint for the Auro-Matic engine
+(room/content style), not as “draw these speakers”.
+
+### 3. Listening hybrid: codec dematrix + XinN/ASC4HE for missing height
+
+Native A3DENG has a separate pipeline step `upmix::XinN`. After codec-v3
+`OutputGenerator` writes `produced_output_mask`, the host may still request a
+larger height layer via `output_layout` / effective output mask.
+
+In `orua3d-decode` (mirrors that idea):
+
+```text
+missing_height =
+  (requested_output ∩ height_layer)
+  \ (input_carrier ∪ codec_produced_height)
+```
+
+- For **Auro-encoded** streams, only that height hole mask is passed to XinN
+  (then ASC4HE as fallback). Bed expansion (e.g. `4.0_4H` → add C/LFE for
+  `5.1_4H`) is **not** driven by metadata and is rejected by CLI layout checks
+  when the request differs from `layout_id`.
+- For **legacy PCM without metadata**, XinN may fill a broader
+  `missing_requested` set (supported legacy targets: 2–3ch→5.1, 2–6ch→5.1_4H,
+  8ch→7.1_4H). Center may be averaged from FL/FR; LFE is left silent (bass
+  management is a separate native stage).
+
+So “native HL/HR + invented HLS/HRS” can happen only when listening asks for
+heights that dematrix did not produce — not because the ADOL stream marked
+those slots as auromatic.
+
+**CLI post-dematrix upmix:** when `--dsp-output-layout` / `--dsp-output-channels`
+requests a **compatible strict superset** of metadata `layout_id` (both known
+named layouts; added slots ⊆ XinN additions for the decoded bed and/or C/LFE
+bed-synth), `orua3d-decode` dematrixes to the metadata layout first, then runs
+XinN (and simple C/silent-LFE fill) for the missing slots. Example: meta `5.1`
+→ request `5.1_4H`. Native XinN configure only accepts **32 / 44.1 / 48 kHz**.
+For **96 kHz** hosts the codec dematrix stays at 96 kHz (ADOL LSBs intact); XinN
+runs at 48 kHz via a temporary 2:1 pair-average / sample-hold bridge (stand-in
+for the native factor-2 pre-XinN resampler). Do **not** FFmpeg-resample the
+carrier before dematrix — that destroys embedded metadata. Legacy PCM without
+metadata still uses whole-file FFmpeg→48 kHz before XinN.
+
+XinN mode/additions (port of native prepare): stereo-ish input mode adds from
+mask `0x6630`; surround mode from `0x7E00` (height-oriented bits). Unsupported
+output bits relative to the mode are rejected inside XinN prepare.
+
+### 4. `uses_mix3` and `closest_layout_without_mix3`
+
+These are **layout-table properties** of `layout_id`, not an auromatic channel
+list.
+
+- `auro_codec_v3_uses_mix3(layout)` — true for layouts that use the three-output
+  Extrapolate path (e.g. several 5.1/7.1 + height + Top variants, including
+  `7.1_5H_1T` = `0x7FBF`).
+- `auro_codec_v3_get_closest_layout_without_mix3(layout)` (native ≈ `0x522891`)
+  maps a mix3 layout to a nearby non-mix3 layout for engine helpers
+  (resampler/transcoder, `disable_mix3`, diagnostics). Examples from the table:
+
+  | mix3 `layout_id` | closest without mix3 |
+  |------------------|----------------------|
+  | `5.0` / `LCRS` / `2.0_2H` | `4.0` |
+  | `5.1_4H_1T` / `5.1_5H_1T` | `5.1_4H` |
+  | `7.1_4H_1T` / `7.1_5H_1T` | `7.1_4H` |
+  | plain `5.1` | no mapping (`false`) |
+
+Probe prints `auro_closest_without_mix3=` / `auromatic_candidate_layout=` when
+`uses_mix3` is set. That candidate is **not** “channels to synthesize with
+XinN”; it is the nearest simpler codec layout for mix3-related bookkeeping.
+
+### What metadata cannot say
+
+There is no ADOL field of the form “dematrix FL..HR natively, paint HLS/HRS
+with Auro-Matic”. If HLS/HRS appear in `layout_id`, they are codec channels. If
+they do not, only a listening `output_layout` larger than the codec result can
+introduce them via XinN — and the current CLI keeps encoded streams locked to
+metadata `layout_id` unless auto/XinN height-hole rules apply.
 
 Legacy XinN accepts 32/44.1/48 kHz. A 96 kHz decoded PCM input is converted to
 48 kHz at the 1fs boundary before XinN, matching the resampler position in the
@@ -269,13 +371,13 @@ Examples:
 Native decoded channels are present in metadata and reconstructed by
 GolombRice/Extrapolate. Height channels in `5.1+4H` are native decoded.
 
-### Auro 2D/Auro-Matic-labeled expansion
+### Auro 2D carrier-to-surround expansion
 
 For Auro 2D carrier-to-surround streams, metadata can request a decoded 2D bed
-layout larger than the carrier. The current code labels these generated channels
-as `auromatic` in the log, but they are still reconstructed from codec-v3
-metadata and the Extrapolate path. The excluded XinN synthetic upmixer is not
-used.
+layout larger than the carrier. Those extra bed channels are still reconstructed
+from codec-v3 metadata and Extrapolate — not from XinN. Older logs may still
+list them under an `auromatic=` style label; that naming is historical and does
+not mean Auro-Matic synthesis.
 
 Example for `auro_2d.wav`:
 
@@ -545,9 +647,12 @@ channel list is authoritative over the declared mask name.
   the linked layout flag, but hard-errors only at the unported ESPCAP call.
   Pure object-group SASC (`header_value=0`) with `config_flag` is not
   `Planner::compute_` (needs a bed) — separate hard-error.
-- Auro-Matic XinN synthetic upmix is not implemented.
-- Full `7.1 + 5H + T` expansion is not implemented; current output uses the
-  native direct subset.
+- Auro-Matic/XinN fills listening holes only (legacy upmix or missing height
+  beyond codec `produced_output_mask`); see “Metadata vs Auro-Matic / XinN”.
+  It is not a per-channel map inside ADOL metadata.
+- Full listening rematrix of encoded streams away from metadata `layout_id` is
+  limited to **compatible** post-dematrix upmix (superset fill via XinN/C/LFE);
+  unrelated layouts are still rejected by the CLI.
 - The decoder expects PCM24 WAV input for normal operation.
 
 ## Key source files

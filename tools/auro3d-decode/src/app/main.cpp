@@ -2,6 +2,7 @@
 #include "cx_probe.hpp"
 #include "cx_decode.hpp"
 #include "decoder.hpp"
+#include "output_layout.hpp"
 #include "progress.hpp"
 #include "restore_lfe.hpp"
 #include "../io/wav_writer.hpp"
@@ -48,7 +49,7 @@ struct Options {
     unsigned channels = 0;
     unsigned block_size = 0;
     unsigned dsp_strength = 12;
-    unsigned dsp_output_channels = 0;
+    auro3d::DspOutputLayoutRequest dsp_output;
     unsigned output_bits = 24;
     std::string output_format;
     float dsp_headroom_db = 0.0f;
@@ -186,6 +187,10 @@ void print_status(const char* icon_color, const char* icon, const std::string& m
 
 void print_error(const std::string& message) {
     print_status(auro3d::console_style::red, "✖", message);
+}
+
+void print_warning(const std::string& message) {
+    print_status(auro3d::console_style::yellow, "!", message);
 }
 
 void print_ok(const std::string& message) {
@@ -927,9 +932,12 @@ void print_usage() {
         << "  --channels N         channel count for --raw\n"
         << "  --block N            internal block size; default aligns complete frames (832 fallback)\n"
         << "  --dsp-strength N     decoder/render strength (0..15; default: 12)\n"
-        << "  --dsp-output-channels N  output channels; 0/omitted = auto from metadata; native decode with Orua-Matic/XinN height fallback, up to "
-        << auro3d::kCurrentNativeExportChannelLimit << "\n"
-        << "                           legacy PCM without metadata: 6=5.1, 10=5.1.4, 12=7.1.4\n"
+        << "  --dsp-output-channels LAYOUT  Codec-v3/AuroCX output layout (0/omit = auto)\n"
+        << "                       accepts named layout (5.1_4H, 7.1.4), 0x mask, or legacy count\n"
+        << "                       Codec-v3: Auro mask within 0x7FFF; AuroCX: API CICP layouts only\n"
+        << "                       with Auro meta: same layout, or compatible expansion after dematrix\n"
+        << "                       (e.g. meta 5.1 → 5.1_4H via XinN); legacy without meta: 6/10/12\n"
+        << "  --dsp-output-layout LAYOUT   same as --dsp-output-channels (native output_layout style)\n"
         << "  --output-bits N      output PCM depth: 16 or 24; default: 24\n"
         << "  --wav-standard       WAV/W64/FLAC: reorder channels to WAVEFORMATEXTENSIBLE speaker order\n"
         << "                       and write dwChannelMask\n"
@@ -1115,12 +1123,14 @@ bool parse_args(int argc, char** argv, Options& opt) {
             }
             continue;
         }
-        if (a == "--dsp-output-channels") {
-            const char* v = need("--dsp-output-channels");
-            if (!v || !parse_unsigned_arg(v, &opt.dsp_output_channels, "--dsp-output-channels"))
+        if (a == "--dsp-output-channels" || a == "--dsp-output-layout") {
+            const char* flag = a.c_str();
+            const char* v = need(flag);
+            if (!v)
                 return false;
-            if (opt.dsp_output_channels > 64) {
-                std::cerr << "--dsp-output-channels: expected range 0..64\n";
+            std::string parse_err;
+            if (!auro3d::parse_dsp_output_layout_arg(v, opt.dsp_output, parse_err)) {
+                std::cerr << flag << ": " << parse_err << "\n";
                 return false;
             }
             continue;
@@ -1231,6 +1241,35 @@ int app_main(int argc, char** argv) {
     // Auto path: MP4 a3ds (AuroCX) wins over classic/native. Do not fall through
     // to auro_native if CX was selected but decode fails.
     if (!opt.probe && !opt.raw && auro3d::mp4_has_auro_cx_a3ds(opt.input)) {
+        if (opt.dsp_output.specified) {
+            if (!opt.dsp_output.mask_resolved) {
+                print_error("AuroCX: could not resolve --dsp-output-channels/--dsp-output-layout");
+                return 2;
+            }
+            const std::uint32_t requested = opt.dsp_output.mask;
+            if (!auro3d::auro_cx_output_layout_mask_allowed(requested)) {
+                print_error(auro3d::auro_cx_invalid_output_layout_message(requested));
+                return 2;
+            }
+            auro3d::AuroCxProbeInfo layout_info{};
+            if (!auro3d::probe_auro_cx_mp4(opt.input, layout_info)) {
+                print_error("OruaCX probe: " + layout_info.error);
+                return 2;
+            }
+            std::uint32_t stream_layout = 0u;
+            if (layout_info.has_declared_layout)
+                stream_layout = layout_info.declared_layout;
+            if (stream_layout == 0u && layout_info.schema_bed_channels_decoded) {
+                for (const auto& ch : layout_info.schema_bed_channels) {
+                    if (ch.id < 32u)
+                        stream_layout |= (1u << ch.id);
+                }
+            }
+            if (stream_layout != 0u && requested != stream_layout) {
+                print_error(auro3d::auro_cx_unsupported_remap_message(stream_layout, requested));
+                return 2;
+            }
+        }
         if (opt.verbose) {
             auro3d::AuroCxProbeInfo info{};
             if (!auro3d::probe_auro_cx_mp4(opt.input, info)) {
@@ -1239,6 +1278,10 @@ int app_main(int argc, char** argv) {
             }
             auro3d::print_auro_cx_probe(info);
             std::cerr << "dsp_headroom_db=" << opt.dsp_headroom_db << "\n";
+            if (opt.dsp_output.specified) {
+                std::cerr << "dsp_output_layout_request=" << opt.dsp_output.raw
+                          << " mask=0x" << std::hex << opt.dsp_output.mask << std::dec << "\n";
+            }
             std::cerr << "binaural=" << (opt.binaural ? 1 : 0)
                       << " room_preset=" << opt.room_preset
                       << " hrtf_preset=" << opt.hrtf_preset << "\n";
@@ -1278,7 +1321,14 @@ int app_main(int argc, char** argv) {
     auro3d::Decoder dec;
     dec.set_progress_callback(progress.callback());
     dec.set_dsp_strength(opt.dsp_strength);
-    dec.set_dsp_output_channels(opt.dsp_output_channels);
+    if (opt.dsp_output.specified && opt.dsp_output.mask_resolved) {
+        if (opt.dsp_output.is_legacy_count)
+            dec.set_dsp_output_channels(opt.dsp_output.legacy_count);
+        else
+            dec.set_dsp_output_layout_mask(opt.dsp_output.mask);
+    } else {
+        dec.set_dsp_output_channels(0);
+    }
     dec.set_output_bits(opt.output_bits);
     dec.set_dsp_headroom_db(opt.dsp_headroom_db);
     dec.set_room_preset(opt.room_preset);
@@ -1294,12 +1344,30 @@ int app_main(int argc, char** argv) {
     auro3d::DecodeError e = dec.open(opt.input);
     if (e != auro3d::DecodeError::Ok) {
         progress.finish();
-        print_error(std::string("open: ") + auro3d::decode_error_message(e));
+        if (!dec.last_error_detail().empty())
+            print_error(dec.last_error_detail());
+        else
+            print_error(std::string("open: ") + auro3d::decode_error_message(e));
         dec.close();
         return 2;
     }
 
     const auro3d::DecoderConfig cfg_open = dec.config();
+    if (dec.meta_auromatic_upmix() && dec.meta_xinn_rate_decimation() > 1u) {
+        const std::uint32_t host_hz = cfg_open.sample_rate;
+        const std::uint32_t xinn_hz = host_hz / dec.meta_xinn_rate_decimation();
+        print_warning(
+            "Orua-Matic/XinN: host "
+            + std::to_string(host_hz)
+            + " Hz downsampled to "
+            + std::to_string(xinn_hz)
+            + " Hz for XinN (pair-average bridge);");
+    } else if (dec.legacy_auromatic_upmix() && dec.legacy_auromatic_ffmpeg_downsampled()) {
+        print_warning(
+            "Orua-Matic/XinN: input "
+            + std::to_string(dec.legacy_auromatic_source_rate_hz())
+            + " Hz FFmpeg-downsampled to 48000 Hz before XinN (legacy, no metadata)");
+    }
     const std::string output_format = selected_output_format(opt);
     if (!opt.probe && !opt.channel_diagram
         && output_format == "flac" && cfg_open.channels > 8u) {
@@ -1322,6 +1390,12 @@ int app_main(int argc, char** argv) {
     if (!auro_meta.found) {
         auromatic_mask = native_mask;
         native_mask = 0u;
+    } else if (native_cfg.requested_output_mask != 0u && auro_meta.layout_id != 0u
+               && (native_cfg.requested_output_mask & auro_meta.layout_id) == auro_meta.layout_id
+               && native_cfg.requested_output_mask != auro_meta.layout_id) {
+        // Post-dematrix compatible upmix: extras beyond metadata layout.
+        auromatic_mask = native_cfg.requested_output_mask & ~auro_meta.layout_id;
+        native_mask = auro_meta.layout_id & ~native_cfg.input_mask;
     }
     const DematrixRouteMap dematrix_routes = build_dematrix_route_map(
         native_cfg.input_mask,
@@ -1414,7 +1488,12 @@ int app_main(int argc, char** argv) {
         }
         std::cerr << "dsp_strength=" << opt.dsp_strength
                   << " gain=" << auro3deng::strength_translate(opt.dsp_strength) << "\n";
-        std::cerr << "dsp_output_channels_request=" << opt.dsp_output_channels << "\n";
+        std::cerr << "dsp_output_channels_request="
+                  << (opt.dsp_output.specified ? opt.dsp_output.raw : "0") << "\n";
+        if (opt.dsp_output.mask_resolved) {
+            std::cerr << "dsp_output_layout_mask=0x" << std::hex << opt.dsp_output.mask
+                      << std::dec << "\n";
+        }
         std::cerr << "dsp_headroom_db=" << opt.dsp_headroom_db << "\n";
         std::cerr << "native_input_mask=0x" << std::hex << native_cfg.input_mask
                   << " requested_output_mask=0x" << native_cfg.requested_output_mask
