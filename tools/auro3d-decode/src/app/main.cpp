@@ -528,10 +528,11 @@ std::filesystem::path mono_channel_output_path(
     const std::string& output,
     const std::string& channel_name,
     const std::string& extension) {
-    std::filesystem::path out_path(output);
+    const std::filesystem::path out_path = std::filesystem::u8path(output);
     const std::filesystem::path dir = out_path.parent_path();
-    const std::string stem = out_path.stem().string();
-    std::filesystem::path mono_name = stem + " (" + channel_name + ")" + extension;
+    const std::string stem = out_path.stem().u8string();
+    const std::filesystem::path mono_name =
+        std::filesystem::u8path(stem + " (" + channel_name + ")" + extension);
     return dir.empty() ? mono_name : (dir / mono_name);
 }
 
@@ -546,23 +547,33 @@ std::string lowercase(std::string value) {
 std::string selected_output_format(const Options& opt) {
     if (!opt.output_format.empty())
         return opt.output_format;
-    return lowercase(std::filesystem::path(opt.output).extension().string()) == ".flac"
-        ? "flac" : "wav";
+    const std::string ext =
+        lowercase(std::filesystem::u8path(opt.output).extension().u8string());
+    if (ext == ".flac")
+        return "flac";
+    if (ext == ".w64")
+        return "w64";
+    return "wav";
 }
 
 std::string default_output_path(const Options& opt) {
     const std::filesystem::path input = std::filesystem::u8path(opt.input);
-    const std::string stem = input.stem().string();
+    const std::string stem = input.stem().u8string();
     const std::string tag = opt.binaural ? "_decoded_binaural" : "_decoded";
-    const std::string ext =
-        (!opt.output_format.empty() && opt.output_format == "flac") ? ".flac" : ".wav";
-    const std::filesystem::path name = stem + tag + ext;
+    std::string ext = ".wav";
+    if (!opt.output_format.empty()) {
+        if (opt.output_format == "flac")
+            ext = ".flac";
+        else if (opt.output_format == "w64")
+            ext = ".w64";
+    }
+    const std::filesystem::path name = std::filesystem::u8path(stem + tag + ext);
     const std::filesystem::path parent = input.parent_path();
-    return (parent.empty() ? name : (parent / name)).string();
+    return (parent.empty() ? name : (parent / name)).u8string();
 }
 
 std::string shell_quote(const std::filesystem::path& path) {
-    std::string value = path.string();
+    std::string value = path.u8string();
     std::string quoted = "\"";
     for (char c : value) {
         if (c == '\"')
@@ -622,15 +633,20 @@ bool write_audio_file(
     std::string& error_out,
     const auro3d::ProgressFn& progress = {},
     const wav::OutputMetadata& metadata = {}) {
-    const char* save_stage = format == "flac" ? "save flac" : "save wav";
-    if (format == "wav") {
+    const bool is_w64 = format == "w64";
+    const char* save_stage = format == "flac" ? "save flac" : (is_w64 ? "save w64" : "save wav");
+    if (format == "wav" || is_w64) {
         if (progress)
             progress(save_stage, -1);
+        const wav::PcmContainer container =
+            is_w64 ? wav::PcmContainer::W64 : wav::PcmContainer::WavAuto;
         const bool ok = bits == 24
             ? wav::write_pcm24_le(
-                  output.string(), sample_rate, channels, pcm, error_out, channel_mask, metadata)
+                  output.u8string(), sample_rate, channels, pcm, error_out, channel_mask, metadata,
+                  container)
             : wav::write_pcm16_le(
-                  output.string(), sample_rate, channels, pcm, error_out, channel_mask, metadata);
+                  output.u8string(), sample_rate, channels, pcm, error_out, channel_mask, metadata,
+                  container);
         if (ok && progress)
             progress(save_stage, 100);
         return ok;
@@ -643,14 +659,14 @@ bool write_audio_file(
         / ("orua3d-decode-" + std::to_string(stamp) + ".wav");
     const bool wav_ok = bits == 24
         ? wav::write_pcm24_le(
-              temp.string(), sample_rate, channels, pcm, error_out, channel_mask, metadata)
+              temp.u8string(), sample_rate, channels, pcm, error_out, channel_mask, metadata)
         : wav::write_pcm16_le(
-              temp.string(), sample_rate, channels, pcm, error_out, channel_mask, metadata);
+              temp.u8string(), sample_rate, channels, pcm, error_out, channel_mask, metadata);
     if (!wav_ok)
         return false;
 
     const bool flac_ok =
-        wav::encode_wav_to_flac(temp.string(), output.string(), error_out, metadata);
+        wav::encode_wav_to_flac(temp.u8string(), output.u8string(), error_out, metadata);
     std::error_code remove_error;
     std::filesystem::remove(temp, remove_error);
     if (!flac_ok)
@@ -896,16 +912,16 @@ void print_usage() {
         << accent("Usage") << ":\n"
         << "  " << auro3d_decode::kName
         << " -i <input.wav|input.flac|input.mkv|input.mp4|input.m2ts|input.dts|input.s24le>"
-        << " [-o <output.wav|output.flac>] [options]\n"
+        << " [-o <output.wav|output.flac|output.w64>] [options]\n"
         << "  " << auro3d_decode::kName << " --probe -i <input>\n"
         << "  " << auro3d_decode::kName << " --channel-diagram -i <input>\n"
         << accent("Options") << ":\n"
         << "  -i, --input FILE\n"
         << "  -o, --output FILE    output path; default: <input>_decoded.wav"
            " or <input>_decoded_binaural.wav with --binaural"
-           " (use --output-format flac for .flac)\n"
-        << "  --output-format FMT  output format: wav (no channel limit) or flac ("
-        << warn("MAX 8 channel") << ")\n"
+           " (use --output-format flac|w64)\n"
+        << "  --output-format FMT  output format: wav (no channel limit), flac ("
+        << warn("MAX 8 channel") << "), or w64 (Sony Wave64, no 4 GiB limit)\n"
         << "  --raw                input is raw interleaved s24le (requires --rate and --channels)\n"
         << "  --rate HZ            sample rate for --raw\n"
         << "  --channels N         channel count for --raw\n"
@@ -915,12 +931,12 @@ void print_usage() {
         << auro3d::kCurrentNativeExportChannelLimit << "\n"
         << "                           legacy PCM without metadata: 6=5.1, 10=5.1.4, 12=7.1.4\n"
         << "  --output-bits N      output PCM depth: 16 or 24; default: 24\n"
-        << "  --wav-standard       WAV/FLAC: reorder channels to WAVEFORMATEXTENSIBLE speaker order\n"
+        << "  --wav-standard       WAV/W64/FLAC: reorder channels to WAVEFORMATEXTENSIBLE speaker order\n"
         << "                       and write dwChannelMask\n"
         << "  --clear-output-lsb [N]  clear low N PCM bits on export (default N=4; range 1..8); "
         << warn("WARNING") << "\n"
         << "                       strips residual sync/ADOL from passthrough channels\n"
-        << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac, etc.\n"
+        << "  --mono-tracks        additionally write mono files named <output stem> (FL).wav/.flac/.w64, etc.\n"
         << "  --channel-diagram    print structural input-to-output channel diagram (no decode; -o not required)\n"
         << "  --probe              print format diagnostics without decoding to a file; -o is not required\n"
         << "  --binaural           render decoded channels to HRTF stereo (force 48 kHz)\n"
@@ -1064,8 +1080,9 @@ bool parse_args(int argc, char** argv, Options& opt) {
             if (!v)
                 return false;
             opt.output_format = lowercase(v);
-            if (opt.output_format != "wav" && opt.output_format != "flac") {
-                std::cerr << "--output-format: expected wav or flac\n";
+            if (opt.output_format != "wav" && opt.output_format != "flac"
+                && opt.output_format != "w64") {
+                std::cerr << "--output-format: expected wav, flac, or w64\n";
                 return false;
             }
             continue;
@@ -1252,6 +1269,8 @@ int app_main(int argc, char** argv) {
         }
         if (opt.verbose)
             print_ok("Done (OruaCX): " + opt.output);
+        else
+            print_ok("Done: " + opt.output);
         return 0;
     }
 
@@ -1286,7 +1305,7 @@ int app_main(int argc, char** argv) {
         && output_format == "flac" && cfg_open.channels > 8u) {
         progress.finish();
         print_error(
-            "FLAC: format supports at most 8 channels; use a .wav output for "
+            "FLAC: format supports at most 8 channels; use .wav or .w64 output for "
             + std::to_string(cfg_open.channels) + " channels");
         dec.close();
         return 4;
@@ -1491,8 +1510,8 @@ int app_main(int argc, char** argv) {
     }
     const wav::OutputMetadata output_meta = make_output_metadata(write_slots);
 
-    // Stream PCM24 WAV/RF64 when no post-process needs the full buffer in RAM.
-    const bool stream_wav_out = output_format == "wav"
+    // Stream PCM24 WAV/RF64/W64 when no post-process needs the full buffer in RAM.
+    const bool stream_pcm_out = (output_format == "wav" || output_format == "w64")
         && cfg.bits_per_sample == 24u
         && !opt.binaural
         && !opt.restore_lfe
@@ -1502,19 +1521,22 @@ int app_main(int argc, char** argv) {
     std::vector<std::uint8_t> chunk;
     progress.update("decode", 0);
 
-    if (stream_wav_out) {
+    if (stream_pcm_out) {
         wav::Pcm24StreamWriter wav_out;
         wav_out.set_metadata(output_meta);
         std::string err;
+        const wav::PcmContainer container =
+            output_format == "w64" ? wav::PcmContainer::W64 : wav::PcmContainer::WavAuto;
         if (!wav_out.open(
                 opt.output,
                 cfg.sample_rate,
                 cfg.channels,
                 source_sample_count,
                 err,
-                output_wav_channel_mask)) {
+                output_wav_channel_mask,
+                container)) {
             progress.finish();
-            print_error("WAV: " + err);
+            print_error(std::string(output_format == "w64" ? "W64: " : "WAV: ") + err);
             dec.close();
             return 4;
         }
@@ -1572,7 +1594,7 @@ int app_main(int argc, char** argv) {
                     clear_interleaved_pcm_lsbs(piece, cfg.channels, 3u, opt.clear_output_lsb);
                 if (!wav_out.write(piece, err)) {
                     progress.finish();
-                    print_error("WAV: " + err);
+                    print_error(std::string(output_format == "w64" ? "W64: " : "WAV: ") + err);
                     dec.close();
                     return 4;
                 }
@@ -1590,15 +1612,17 @@ int app_main(int argc, char** argv) {
             print_error("decode: native latency drain produced insufficient PCM");
             return 3;
         }
-        progress.update("save wav", -1);
+        progress.update(output_format == "w64" ? "save w64" : "save wav", -1);
         if (!wav_out.close(err)) {
             progress.finish();
-            print_error("WAV: " + err);
+            print_error(std::string(output_format == "w64" ? "W64: " : "WAV: ") + err);
             return 4;
         }
-        progress.done("save wav");
+        progress.done(output_format == "w64" ? "save w64" : "save wav");
         if (opt.verbose && wav_out.uses_rf64())
             std::cerr << "wav_container=RF64\n";
+        if (opt.verbose && wav_out.uses_w64())
+            std::cerr << "wav_container=W64\n";
         if (opt.verbose && opt.clear_output_lsb != 0u)
             std::cerr << "clear_output_lsb=" << opt.clear_output_lsb << "\n";
 
@@ -1627,8 +1651,8 @@ int app_main(int argc, char** argv) {
         if (opt.verbose) {
             std::cerr << "bits_per_sample=" << cfg.bits_per_sample << "\n";
             std::cerr << "dsp_clipped_samples=" << dsp_clipped << "\n";
-            print_ok("Done: " + opt.output);
         }
+        print_ok("Done: " + opt.output);
         return 0;
     }
 
@@ -1783,7 +1807,10 @@ int app_main(int argc, char** argv) {
         make_output_metadata(write_slots));
     if (!ok) {
         progress.finish();
-        print_error(std::string(output_format == "flac" ? "FLAC: " : "WAV: ") + err);
+        print_error(std::string(
+                        output_format == "flac" ? "FLAC: "
+                            : (output_format == "w64" ? "W64: " : "WAV: "))
+            + err);
         return 4;
     }
     if (!write_channel_mapping_xml(
@@ -1816,8 +1843,10 @@ int app_main(int argc, char** argv) {
                 if (slot_name[0] != '?')
                     channel_name = slot_name;
             }
+            const std::string mono_ext = output_format == "flac" ? ".flac"
+                : (output_format == "w64" ? ".w64" : ".wav");
             const std::filesystem::path mono_path =
-                mono_channel_output_path(opt.output, channel_name, output_format == "flac" ? ".flac" : ".wav");
+                mono_channel_output_path(opt.output, channel_name, mono_ext);
             const std::vector<std::uint8_t> mono_pcm =
                 extract_mono_channel_pcm(pcm_all, cfg.channels, ch, bytes_per_sample);
             wav::OutputMetadata mono_meta;
@@ -1829,8 +1858,10 @@ int app_main(int argc, char** argv) {
             if (!mono_ok) {
                 progress.finish();
                 print_error(
-                    std::string(output_format == "flac" ? "FLAC mono " : "WAV mono ")
-                    + mono_path.string() + ": " + err);
+                    std::string(
+                        output_format == "flac" ? "FLAC mono "
+                            : (output_format == "w64" ? "W64 mono " : "WAV mono "))
+                    + mono_path.u8string() + ": " + err);
                 return 4;
             }
         }
@@ -1840,8 +1871,8 @@ int app_main(int argc, char** argv) {
     if (opt.verbose) {
         std::cerr << "bits_per_sample=" << cfg.bits_per_sample << "\n";
         std::cerr << "dsp_clipped_samples=" << dsp_clipped << "\n";
-        print_ok("Done: " + opt.output);
     }
+    print_ok("Done: " + opt.output);
     return 0;
 }
 

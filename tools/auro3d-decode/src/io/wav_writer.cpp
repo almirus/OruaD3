@@ -4,12 +4,49 @@
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
-#include <iterator>
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 namespace wav {
 namespace {
+
+#ifdef _WIN32
+std::wstring utf8_to_wide(const std::string& value) {
+    if (value.empty())
+        return {};
+    const int size = MultiByteToWideChar(
+        CP_UTF8, 0, value.data(), static_cast<int>(value.size()), nullptr, 0);
+    if (size <= 0)
+        return {};
+    std::wstring wide(static_cast<std::size_t>(size), L'\0');
+    if (MultiByteToWideChar(
+            CP_UTF8, 0, value.data(), static_cast<int>(value.size()), wide.data(), size)
+        <= 0) {
+        return {};
+    }
+    return wide;
+}
+
+bool open_binary_trunc(std::ofstream& out, const std::string& utf8_path) {
+    const std::wstring wide = utf8_to_wide(utf8_path);
+    if (wide.empty() && !utf8_path.empty())
+        return false;
+    out.open(wide.c_str(), std::ios::binary | std::ios::trunc);
+    return static_cast<bool>(out);
+}
+#else
+bool open_binary_trunc(std::ofstream& out, const std::string& utf8_path) {
+    out.open(utf8_path, std::ios::binary | std::ios::trunc);
+    return static_cast<bool>(out);
+}
+#endif
 
 std::string shell_quote(const std::string& path) {
     std::string quoted = "\"";
@@ -42,6 +79,42 @@ void write_u16(std::ostream& out, std::uint16_t value) {
         static_cast<unsigned char>((value >> 8) & 0xFFu),
     };
     out.write(reinterpret_cast<const char*>(b), 2);
+}
+
+// Sony Wave64 GUIDs (little-endian on disk; first 4 bytes spell the FOURCC).
+constexpr char kW64GuidRiff[16] = {
+    'r', 'i', 'f', 'f',
+    static_cast<char>(0x2E), static_cast<char>(0x91), static_cast<char>(0xCF), static_cast<char>(0x11),
+    static_cast<char>(0xA5), static_cast<char>(0xD6), static_cast<char>(0x28), static_cast<char>(0xDB),
+    static_cast<char>(0x04), static_cast<char>(0xC1), static_cast<char>(0x00), static_cast<char>(0x00),
+};
+constexpr char kW64GuidWave[16] = {
+    'w', 'a', 'v', 'e',
+    static_cast<char>(0xF3), static_cast<char>(0xAC), static_cast<char>(0xD3), static_cast<char>(0x11),
+    static_cast<char>(0x8C), static_cast<char>(0xD1), static_cast<char>(0x00), static_cast<char>(0xC0),
+    static_cast<char>(0x4F), static_cast<char>(0x8E), static_cast<char>(0xDB), static_cast<char>(0x8A),
+};
+constexpr char kW64GuidFmt[16] = {
+    'f', 'm', 't', ' ',
+    static_cast<char>(0xF3), static_cast<char>(0xAC), static_cast<char>(0xD3), static_cast<char>(0x11),
+    static_cast<char>(0x8C), static_cast<char>(0xD1), static_cast<char>(0x00), static_cast<char>(0xC0),
+    static_cast<char>(0x4F), static_cast<char>(0x8E), static_cast<char>(0xDB), static_cast<char>(0x8A),
+};
+constexpr char kW64GuidData[16] = {
+    'd', 'a', 't', 'a',
+    static_cast<char>(0xF3), static_cast<char>(0xAC), static_cast<char>(0xD3), static_cast<char>(0x11),
+    static_cast<char>(0x8C), static_cast<char>(0xD1), static_cast<char>(0x00), static_cast<char>(0xC0),
+    static_cast<char>(0x4F), static_cast<char>(0x8E), static_cast<char>(0xDB), static_cast<char>(0x8A),
+};
+
+std::uint64_t w64_pad8(std::uint64_t n) {
+    return (n + 7ull) & ~7ull;
+}
+
+void write_w64_chunk_header(std::ostream& out, const char guid[16], std::uint64_t payload_bytes) {
+    // Size includes the 24-byte GUID+size header; padding is NOT included.
+    out.write(guid, 16);
+    write_le64(out, 24ull + payload_bytes);
 }
 
 bool write_list_info(std::ostream& out, const OutputMetadata& metadata, std::string& error_out) {
@@ -82,7 +155,7 @@ bool write_list_info(std::ostream& out, const OutputMetadata& metadata, std::str
     return true;
 }
 
-void write_fmt_pcm(
+void write_fmt_pcm_payload(
     std::ostream& out,
     std::uint16_t channels,
     std::uint32_t sample_rate,
@@ -93,9 +166,7 @@ void write_fmt_pcm(
         0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
         0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71
     };
-    out.write("fmt ", 4);
     if (channel_mask) {
-        write_le32(out, 40u);
         write_u16(out, 0xFFFEu);
         write_u16(out, channels);
         write_le32(out, sample_rate);
@@ -107,7 +178,6 @@ void write_fmt_pcm(
         write_le32(out, channel_mask);
         out.write(reinterpret_cast<const char*>(kPcmGuid), 16);
     } else {
-        write_le32(out, 16u);
         write_u16(out, 1u);
         write_u16(out, channels);
         write_le32(out, sample_rate);
@@ -117,10 +187,40 @@ void write_fmt_pcm(
     }
 }
 
+void write_fmt_pcm_riff(
+    std::ostream& out,
+    std::uint16_t channels,
+    std::uint32_t sample_rate,
+    std::uint16_t block_align,
+    std::uint16_t bits,
+    std::uint32_t channel_mask) {
+    const std::uint32_t fmt_payload = channel_mask ? 40u : 16u;
+    out.write("fmt ", 4);
+    write_le32(out, fmt_payload);
+    write_fmt_pcm_payload(out, channels, sample_rate, block_align, bits, channel_mask);
+}
+
+void write_fmt_pcm_w64(
+    std::ostream& out,
+    std::uint16_t channels,
+    std::uint32_t sample_rate,
+    std::uint16_t block_align,
+    std::uint16_t bits,
+    std::uint32_t channel_mask) {
+    const std::uint64_t fmt_payload = channel_mask ? 40ull : 16ull;
+    write_w64_chunk_header(out, kW64GuidFmt, fmt_payload);
+    write_fmt_pcm_payload(out, channels, sample_rate, block_align, bits, channel_mask);
+    const std::uint64_t padded = w64_pad8(fmt_payload);
+    for (std::uint64_t i = fmt_payload; i < padded; ++i)
+        out.put('\0');
+}
+
 bool finalize_container_sizes(
     std::ostream& out,
     bool use_rf64,
+    bool use_w64,
     std::uint64_t ds64_payload_pos,
+    std::uint64_t w64_riff_size_pos,
     std::string& error_out) {
     out.flush();
     out.seekp(0, std::ios::end);
@@ -129,7 +229,14 @@ bool finalize_container_sizes(
         error_out = "write failed";
         return false;
     }
-    const std::uint64_t riff_size = static_cast<std::uint64_t>(end) - 8ull;
+    const std::uint64_t file_size = static_cast<std::uint64_t>(end);
+    if (use_w64) {
+        // Sony Wave64: riff size field is the total file size (includes header).
+        out.seekp(static_cast<std::streamoff>(w64_riff_size_pos));
+        write_le64(out, file_size);
+        return static_cast<bool>(out);
+    }
+    const std::uint64_t riff_size = file_size - 8ull;
     if (use_rf64) {
         out.seekp(static_cast<std::streamoff>(ds64_payload_pos));
         write_le64(out, riff_size);
@@ -144,33 +251,23 @@ bool finalize_container_sizes(
     return static_cast<bool>(out);
 }
 
-} // namespace
-
-bool write_pcm16_le(
+bool write_pcm_riff_or_rf64(
     const std::string& path,
     uint32_t sample_rate,
     uint16_t channels,
+    uint16_t bits,
     const std::vector<std::uint8_t>& interleaved_pcm,
     std::string& error_out,
     std::uint32_t channel_mask,
     const OutputMetadata& metadata) {
-    if (channels == 0 || sample_rate == 0) {
-        error_out = "invalid channels or sample_rate";
-        return false;
-    }
-    if (interleaved_pcm.size() % (channels * 2) != 0) {
-        error_out = "PCM size not aligned to frame";
-        return false;
-    }
-
-    const std::uint16_t bits = 16;
-    const std::uint16_t block_align = static_cast<std::uint16_t>(channels * 2u);
+    const std::uint16_t bytes_per_sample = static_cast<std::uint16_t>(bits / 8u);
+    const std::uint16_t block_align = static_cast<std::uint16_t>(channels * bytes_per_sample);
     const std::uint64_t data_size = interleaved_pcm.size();
     const std::uint64_t frame_count = data_size / block_align;
     const bool use_rf64 = data_size > kRiffSafeMaxDataBytes;
 
-    std::ofstream out(path, std::ios::binary | std::ios::trunc);
-    if (!out) {
+    std::ofstream out;
+    if (!open_binary_trunc(out, path)) {
         error_out = "cannot open output file";
         return false;
     }
@@ -187,7 +284,7 @@ bool write_pcm16_le(
         write_le64(out, data_size);
         write_le64(out, frame_count);
         write_le32(out, 0);
-        write_fmt_pcm(out, channels, sample_rate, block_align, bits, channel_mask);
+        write_fmt_pcm_riff(out, channels, sample_rate, block_align, bits, channel_mask);
         out.write("data", 4);
         write_le32(out, 0xFFFFFFFFu);
     } else {
@@ -196,7 +293,7 @@ bool write_pcm16_le(
         out.write("RIFF", 4);
         write_le32(out, header_after_riff + static_cast<std::uint32_t>(data_size));
         out.write("WAVE", 4);
-        write_fmt_pcm(out, channels, sample_rate, block_align, bits, channel_mask);
+        write_fmt_pcm_riff(out, channels, sample_rate, block_align, bits, channel_mask);
         out.write("data", 4);
         write_le32(out, static_cast<std::uint32_t>(data_size));
     }
@@ -206,10 +303,76 @@ bool write_pcm16_le(
                   static_cast<std::streamsize>(interleaved_pcm.size()));
     if (!write_list_info(out, metadata, error_out))
         return false;
-    if (!finalize_container_sizes(out, use_rf64, ds64_pos, error_out))
+    if (!finalize_container_sizes(out, use_rf64, false, ds64_pos, 0, error_out))
         return false;
     out.close();
     return !out.fail();
+}
+
+bool write_pcm_w64(
+    const std::string& path,
+    uint32_t sample_rate,
+    uint16_t channels,
+    uint16_t bits,
+    const std::vector<std::uint8_t>& interleaved_pcm,
+    std::string& error_out,
+    std::uint32_t channel_mask) {
+    const std::uint16_t bytes_per_sample = static_cast<std::uint16_t>(bits / 8u);
+    const std::uint16_t block_align = static_cast<std::uint16_t>(channels * bytes_per_sample);
+    const std::uint64_t data_size = interleaved_pcm.size();
+
+    std::ofstream out;
+    if (!open_binary_trunc(out, path)) {
+        error_out = "cannot open output file";
+        return false;
+    }
+
+    // riff GUID + size(placeholder) + wave GUID
+    out.write(kW64GuidRiff, 16);
+    const std::uint64_t riff_size_pos = static_cast<std::uint64_t>(out.tellp());
+    write_le64(out, 0);
+    out.write(kW64GuidWave, 16);
+
+    write_fmt_pcm_w64(out, channels, sample_rate, block_align, bits, channel_mask);
+
+    write_w64_chunk_header(out, kW64GuidData, data_size);
+    if (!interleaved_pcm.empty())
+        out.write(reinterpret_cast<const char*>(interleaved_pcm.data()),
+                  static_cast<std::streamsize>(interleaved_pcm.size()));
+    const std::uint64_t data_padded = w64_pad8(data_size);
+    for (std::uint64_t i = data_size; i < data_padded; ++i)
+        out.put('\0');
+
+    // No LIST/INFO in W64 path (editors care about PCM; RF64/WAV keep tags).
+    if (!finalize_container_sizes(out, false, true, 0, riff_size_pos, error_out))
+        return false;
+    out.close();
+    return !out.fail();
+}
+
+} // namespace
+
+bool write_pcm16_le(
+    const std::string& path,
+    uint32_t sample_rate,
+    uint16_t channels,
+    const std::vector<std::uint8_t>& interleaved_pcm,
+    std::string& error_out,
+    std::uint32_t channel_mask,
+    const OutputMetadata& metadata,
+    PcmContainer container) {
+    if (channels == 0 || sample_rate == 0) {
+        error_out = "invalid channels or sample_rate";
+        return false;
+    }
+    if (interleaved_pcm.size() % (channels * 2) != 0) {
+        error_out = "PCM size not aligned to frame";
+        return false;
+    }
+    if (container == PcmContainer::W64)
+        return write_pcm_w64(path, sample_rate, channels, 16, interleaved_pcm, error_out, channel_mask);
+    return write_pcm_riff_or_rf64(
+        path, sample_rate, channels, 16, interleaved_pcm, error_out, channel_mask, metadata);
 }
 
 bool write_pcm24_le(
@@ -219,7 +382,8 @@ bool write_pcm24_le(
     const std::vector<std::uint8_t>& interleaved_pcm,
     std::string& error_out,
     std::uint32_t channel_mask,
-    const OutputMetadata& metadata) {
+    const OutputMetadata& metadata,
+    PcmContainer container) {
     if (channels == 0 || sample_rate == 0) {
         error_out = "invalid channels or sample_rate";
         return false;
@@ -233,7 +397,7 @@ bool write_pcm24_le(
     writer.set_metadata(metadata);
     const std::uint64_t frame_count =
         interleaved_pcm.size() / (static_cast<std::size_t>(channels) * 3u);
-    if (!writer.open(path, sample_rate, channels, frame_count, error_out, channel_mask))
+    if (!writer.open(path, sample_rate, channels, frame_count, error_out, channel_mask, container))
         return false;
     if (!writer.write(interleaved_pcm, error_out))
         return false;
@@ -264,7 +428,8 @@ bool Pcm24StreamWriter::open(
     std::uint16_t channels,
     std::uint64_t frame_count,
     std::string& error_out,
-    std::uint32_t channel_mask) {
+    std::uint32_t channel_mask,
+    PcmContainer container) {
     if (!channels || !sample_rate) {
         error_out = "invalid channels or sample_rate";
         return false;
@@ -273,15 +438,25 @@ bool Pcm24StreamWriter::open(
     frame_count_ = frame_count;
     expected_bytes_ = frame_count * static_cast<std::uint64_t>(block_align_);
     written_bytes_ = 0;
-    use_rf64_ = expected_bytes_ > kRiffSafeMaxDataBytes;
+    use_w64_ = container == PcmContainer::W64;
+    use_rf64_ = !use_w64_ && expected_bytes_ > kRiffSafeMaxDataBytes;
+    ds64_chunk_pos_ = 0;
+    w64_riff_size_pos_ = 0;
 
-    out_.open(path, std::ios::binary | std::ios::trunc);
-    if (!out_) {
+    out_.close();
+    if (!open_binary_trunc(out_, path)) {
         error_out = "cannot open output file";
         return false;
     }
 
-    if (use_rf64_) {
+    if (use_w64_) {
+        out_.write(kW64GuidRiff, 16);
+        w64_riff_size_pos_ = static_cast<std::uint64_t>(out_.tellp());
+        write_le64(out_, 0);
+        out_.write(kW64GuidWave, 16);
+        write_fmt_pcm_w64(out_, channels, sample_rate, block_align_, 24, channel_mask);
+        write_w64_chunk_header(out_, kW64GuidData, expected_bytes_);
+    } else if (use_rf64_) {
         out_.write("RF64", 4);
         write_le32(out_, 0xFFFFFFFFu);
         out_.write("WAVE", 4);
@@ -292,16 +467,16 @@ bool Pcm24StreamWriter::open(
         write_le64(out_, expected_bytes_);
         write_le64(out_, frame_count_);
         write_le32(out_, 0);
-        write_fmt_pcm(out_, channels, sample_rate, block_align_, 24, channel_mask);
+        write_fmt_pcm_riff(out_, channels, sample_rate, block_align_, 24, channel_mask);
         out_.write("data", 4);
         write_le32(out_, 0xFFFFFFFFu);
     } else {
         const std::uint32_t fmt_payload = channel_mask ? 40u : 16u;
-        const std::uint32_t header_after_riff = 4u + 8u + fmt_payload + 8u; // WAVE + fmt + data hdr
+        const std::uint32_t header_after_riff = 4u + 8u + fmt_payload + 8u;
         out_.write("RIFF", 4);
         write_le32(out_, header_after_riff + static_cast<std::uint32_t>(expected_bytes_));
         out_.write("WAVE", 4);
-        write_fmt_pcm(out_, channels, sample_rate, block_align_, 24, channel_mask);
+        write_fmt_pcm_riff(out_, channels, sample_rate, block_align_, 24, channel_mask);
         out_.write("data", 4);
         write_le32(out_, static_cast<std::uint32_t>(expected_bytes_));
     }
@@ -339,11 +514,16 @@ bool Pcm24StreamWriter::close(std::string& error_out) {
         out_.close();
         return false;
     }
-    if (!write_list_info(out_, metadata_, error_out)) {
+    if (use_w64_) {
+        const std::uint64_t padded = w64_pad8(expected_bytes_);
+        for (std::uint64_t i = expected_bytes_; i < padded; ++i)
+            out_.put('\0');
+    } else if (!write_list_info(out_, metadata_, error_out)) {
         out_.close();
         return false;
     }
-    if (!finalize_container_sizes(out_, use_rf64_, ds64_chunk_pos_, error_out)) {
+    if (!finalize_container_sizes(
+            out_, use_rf64_, use_w64_, ds64_chunk_pos_, w64_riff_size_pos_, error_out)) {
         out_.close();
         return false;
     }

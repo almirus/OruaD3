@@ -319,6 +319,34 @@ also print the selected coding policy.
 The AuroCX channel-mapping XML records the same classification in the root
 `audioCoding` attribute.
 
+### AWC audio coding
+
+AuroCX does not use a single generic codec such as FLAC or AAC. Its full-band
+audio PDUs use AWC with a shared predictive coding structure:
+
+1. each audio frame is divided into one or more subblocks;
+2. each stream is reconstructed from an LPC prediction and a residual vector;
+3. the residual is carried by LDC entropy syntax: raw, unary, common-Golomb,
+   or run-length/alternating variants;
+4. optional ICC couples streams inside a subblock.
+
+Lossless AWC keeps this process integer-only. LPC coefficients are selected
+from the 64-entry coefficient table, residuals are decoded exactly, and ICC
+uses the fixed-point ICP/Q23 gain table. In this policy the decoded PCM is
+intended to be bit-exact to the coded source.
+
+Transparent/near-lossless AWC retains the same LPC and LDC residual syntax,
+but carries an ErrorScaler for nonzero residual vectors. Reconstruction adds
+`residual * error_scale` to the LPC prediction, so the residual has a controlled
+quantization step and output is not bit-exact. Its inter-channel transform is
+a separate floating-point PCA/ICC path with 32 coefficient pairs, not the
+lossless ICP/Q23 path.
+
+LFE is not a normal full-band AWC stream: it has a separate residual syntax and
+persistent multistage interpolation for its coded sample-rate factor. The LFE
+filter state crosses access-unit boundaries; AWC LPC history is reset for each
+AWC frame and is retained only between subblocks of that frame.
+
 ### Confirmed schema syntax (segment 1)
 
 - **ConfigHeader** starts with unary codec version/profile, 3-bit sample-rate id
