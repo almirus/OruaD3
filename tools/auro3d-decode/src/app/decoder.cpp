@@ -18,7 +18,6 @@
 #include <fstream>
 #include <filesystem>
 #include <limits>
-#include <numeric>
 #include <sstream>
 #include <string>
 
@@ -2387,16 +2386,19 @@ bool find_supported_audio_stream(const std::string& path, unsigned& stream_index
             ? bits_per_raw_sample
             : bits_per_sample;
         const bool flac24 = codec == "flac" && bit_depth == 24u;
+        const bool pcm24 = (codec == "pcm_s24le" || codec == "pcm_s24be")
+            && (bit_depth == 0u || bit_depth == 24u);
         const bool dts_hd_ma = codec == "dts"
             && profile.find("dts-hd ma") != std::string::npos
             && (bit_depth == 0u || bit_depth == 24u);
-        if (index != std::numeric_limits<unsigned>::max() && (flac24 || dts_hd_ma)) {
+        if (index != std::numeric_limits<unsigned>::max()
+            && (flac24 || pcm24 || dts_hd_ma)) {
             stream_index = index;
             return true;
         }
     }
 
-    err = "no 24-bit FLAC or DTS-HD MA audio stream found";
+    err = "no 24-bit FLAC, PCM, or DTS-HD MA audio stream found";
     return false;
 }
 
@@ -3790,27 +3792,6 @@ void Decoder::run_codec_v3_partial_step() {
     codec_v3_sync_detector_.notify = sync_detector_notify_frame_builder_105530_bridge;
     codec_v3_dispatch_.produced_output_mask = 0u;
 
-    auro3deng::CodecV3IoBufferDescEb5a0 input_desc{};
-    input_desc.total_samples = block_size_;
-    input_desc.sample_rate = sample_rate_;
-    input_desc.bits_per_sample = kProcessorDescSampleBitsS24;
-    for (std::uint32_t ch = 0; ch < kCodecV3ChannelCount; ++ch)
-        input_desc.channel_ptr[ch] = codec_v3_input_channel_ptrs[ch];
-
-    auro3deng::ParserPayloadRefreshContext payload_ctx{};
-    payload_ctx.frame_deque_ptr = codec_v3_fake_frame_deque_storage_.empty()
-        ? 0u
-        : reinterpret_cast<std::uint64_t>(codec_v3_fake_frame_deque_storage_.data());
-    payload_ctx.output_generator_base = codec_v3_output_generator_state_.empty()
-        ? 0u
-        : reinterpret_cast<std::uint64_t>(codec_v3_output_generator_state_.data());
-    payload_ctx.input_channel_limit = kCodecV3ChannelCount;
-    payload_ctx.block_size = static_cast<std::uint32_t>(block_size_);
-    payload_ctx.channel_words_base = codec_v3_fake_frame_channel_words_.data();
-    payload_ctx.channel_words_count = codec_v3_fake_frame_channel_words_.size() / 8u;
-    payload_ctx.channel_ctx_base = codec_v3_fake_frame_channel_ctx_storage_.data();
-    payload_ctx.channel_ctx_count = codec_v3_fake_frame_channel_ctx_storage_.size() / 64u;
-
     DecoderStepBridgeCtx step_bridge{};
     step_bridge.dispatch = &codec_v3_dispatch_;
     step_bridge.delay_line = &codec_v3_delay_line_;
@@ -3846,8 +3827,6 @@ void Decoder::run_codec_v3_partial_step() {
 
     auro3deng::DecoderStepRunContext101800 step_ctx{};
     step_ctx.dispatch_ctx = &dispatch_ctx;
-    step_ctx.parser_input_desc = &input_desc;
-    step_ctx.payload_ctx = &payload_ctx;
     step_ctx.delay_line_ptr = reinterpret_cast<std::uint64_t>(&codec_v3_delay_line_);
     step_ctx.run_parser_stage = run_parser_stage_1034e0_bridge;
     step_ctx.parser_user = &step_bridge;
@@ -4215,6 +4194,7 @@ DecodeError Decoder::open(const std::string& path) {
     dsp_clipped_samples_ = 0;
     input_wav_channel_mask_ = 0;
     auro_metadata_ = {};
+    last_error_detail_.clear();
     legacy_auromatic_upmix_ = false;
     meta_auromatic_upmix_ = false;
     meta_upmix_source_mask_ = 0u;
@@ -4224,10 +4204,14 @@ DecodeError Decoder::open(const std::string& path) {
 
     std::string input_err;
     std::vector<std::uint8_t> prefix;
-    if (!read_file_prefix(path, 512u, prefix, input_err))
+    if (!read_file_prefix(path, 512u, prefix, input_err)) {
+        last_error_detail_ = input_err.empty() ? "cannot read input" : input_err;
         return DecodeError::IoError;
-    if (raw_forced_ && is_ffmpeg_audio_input(prefix, path))
+    }
+    if (raw_forced_ && is_ffmpeg_audio_input(prefix, path)) {
+        last_error_detail_ = "raw PCM mode cannot open container/ffmpeg inputs";
         return DecodeError::BadInput;
+    }
 
     std::string wav_err;
     std::size_t pcm_b = 0;
@@ -4280,23 +4264,36 @@ DecodeError Decoder::open(const std::string& path) {
 
     if (!raw_forced_ && is_wave_container_prefix(prefix)) {
         // Always stream WAV/RF64/BW64 from disk so >4 GiB inputs work.
-        if (!adopt_wave(path))
+        if (!adopt_wave(path)) {
+            last_error_detail_ = wav_err.empty() ? "invalid or unsupported WAV input" : wav_err;
             return DecodeError::BadInput;
+        }
     } else if (!raw_forced_ && is_ffmpeg_audio_input(prefix, path)) {
         std::string tmp_wav;
-        if (!demux_supported_audio_to_temp_wav(path, tmp_wav, input_err, 0u, progress_))
+        if (!demux_supported_audio_to_temp_wav(path, tmp_wav, input_err, 0u, progress_)) {
+            last_error_detail_ = input_err.empty()
+                ? "invalid or unsupported input"
+                : input_err;
             return DecodeError::BadInput;
+        }
         demux_temp_path_ = tmp_wav;
         owns_demux_temp_ = true;
-        if (!adopt_wave(tmp_wav))
+        if (!adopt_wave(tmp_wav)) {
+            last_error_detail_ = wav_err.empty()
+                ? "demuxed audio is not PCM24 WAV"
+                : wav_err;
             return DecodeError::BadInput;
+        }
     } else if (raw_forced_) {
-        if (!read_file_bytes(path, file_bytes_, input_err))
+        if (!read_file_bytes(path, file_bytes_, input_err)) {
+            last_error_detail_ = input_err.empty() ? "cannot read raw input" : input_err;
             return DecodeError::IoError;
+        }
         pcm_b = 0;
         pcm_len = file_bytes_.size();
         pcm_streamed_ = false;
     } else {
+        last_error_detail_ = "invalid or unsupported input";
         return DecodeError::BadInput;
     }
 
@@ -4334,20 +4331,6 @@ DecodeError Decoder::open(const std::string& path) {
         }
         auro_metadata_ = scan_auro_metadata_pcm24(meta_buf, 0, scan_bytes, channel_count_);
     }
-    if (block_request_ == 0u && auro_metadata_.found && auro_metadata_.block_size != 0u) {
-        // Config_initialize @ 0x52D7B0 requires a host block divisible by 32.
-        // A whole number of embedded frames prevents GR/Extrapolate state from
-        // being split between host calls: 1024 -> 1024, 1000 -> 4000.
-        const std::uint64_t aligned_block = std::lcm<std::uint64_t>(
-            auro_metadata_.block_size, 32u);
-        if (aligned_block == 0u || aligned_block > std::numeric_limits<unsigned>::max()) {
-            opened_ = false;
-            return DecodeError::BadInput;
-        }
-        block_size_ = static_cast<unsigned>(aligned_block);
-        const std::uint64_t sync_in_host = auro_metadata_.sync_sample % block_size_;
-        input_padding_samples_ = sync_in_host == 0u ? 0u : block_size_ - sync_in_host;
-    }
     last_error_detail_.clear();
     legacy_auromatic_upmix_ = false;
     legacy_auromatic_ffmpeg_downsampled_ = false;
@@ -4379,11 +4362,18 @@ DecodeError Decoder::open(const std::string& path) {
                 last_error_detail_ = codec_v3_invalid_output_layout_message(requested_mask);
                 return DecodeError::InvalidOutputLayout;
             }
-            last_error_detail_ = codec_v3_invalid_output_layout_message(
-                requested_mask != 0u ? requested_mask : dsp_output_channels_req_,
-                0u,
-                channel_count_);
-            return DecodeError::InvalidOutputLayout;
+            // Plain PCM / discrete multichannel without ADOL: Auro dematrix is
+            // impossible. Legacy Orua-Matic needs an explicit taller layout.
+            if (requested_mask == 0u && dsp_output_channels_req_ == 0u) {
+                last_error_detail_ =
+                    "decode impossible: no Auro-Codec metadata found";
+                return DecodeError::BadInput;
+            }
+            last_error_detail_ =
+                "decode impossible: no Auro-Codec metadata found; "
+                "legacy Orua-Matic upmix requires --dsp-output-channels "
+                "6 (5.1), 10 (5.1_4H), or 12 (7.1_4H) on plain PCM";
+            return DecodeError::BadInput;
         }
         // Native XinN accepts 32/44.1/48 kHz. The A3DENG pipeline inserts a
         // factor-2 resampler before it for 96 kHz input; use FFmpeg for the

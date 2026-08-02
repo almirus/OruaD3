@@ -1366,57 +1366,6 @@ void parser_rebind_frame_parse_results(
     }
 }
 
-void parser_refresh_payload(
-    const CodecV3IoBufferDescEb5a0* input_desc,
-    const ParserPayloadRefreshContext* ctx) {
-    if (input_desc == nullptr || ctx == nullptr || ctx->frame_deque_ptr == 0u || ctx->block_size == 0u)
-        return;
-    if (/* Decompiled name: frame_deque_count */
-frame_deque_count(ctx->frame_deque_ptr) == 0u)
-        return;
-    const std::uint64_t active_frame_ptr = /* Decompiled name: frame_deque_frame_at */
-frame_deque_frame_at(ctx->frame_deque_ptr, 0u);
-    if (active_frame_ptr == 0u)
-        return;
-
-    const std::uint32_t slot_count = *reinterpret_cast<const std::uint32_t*>(active_frame_ptr + 44u);
-    for (std::uint32_t slot = 0; slot < slot_count; ++slot) {
-        const std::uint64_t frame_slot_ptr =
-            active_frame_ptr + 48u + static_cast<std::uint64_t>(slot) * 32u;
-        if (*reinterpret_cast<const std::uint32_t*>(frame_slot_ptr + 4u) == 0u)
-            continue;
-
-        const std::uint32_t channel_index =
-            *reinterpret_cast<const std::uint32_t*>(frame_slot_ptr + 0u);
-        if (channel_index >= ctx->input_channel_limit || channel_index >= ctx->channel_words_count
-            || channel_index >= ctx->channel_ctx_count) {
-            continue;
-        }
-        const std::uint64_t ch_ptr = input_desc->channel_ptr[channel_index];
-        if (ch_ptr == 0u)
-            continue;
-
-        const std::uint64_t frame_channel_ptr =
-            *reinterpret_cast<const std::uint64_t*>(frame_slot_ptr + 24u);
-        if (frame_channel_ptr == 0u)
-            continue;
-
-        if (ctx->output_generator_base != 0u) {
-            auto* gr_state = reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(ctx->output_generator_base))
-                + 0u + static_cast<std::size_t>(slot) * 40u;
-            auto* words = reinterpret_cast<std::uint32_t*>(
-                static_cast<std::uintptr_t>(frame_channel_ptr + kFrameChannelOff_stream_words));
-            *reinterpret_cast<std::uint64_t*>(gr_state + 0u) =
-                reinterpret_cast<std::uint64_t>(words + 1u);
-            *reinterpret_cast<std::uint64_t*>(gr_state + 8u) =
-                frame_channel_ptr + kFrameChannelOff_ctx_words;
-            *reinterpret_cast<std::uint32_t*>(gr_state + 16u) = 31u;
-            *reinterpret_cast<std::uint32_t*>(gr_state + 20u) = words[0];
-            *reinterpret_cast<std::uint32_t*>(gr_state + 36u) = 0u;
-        }
-    }
-}
-
 std::int64_t parser_ready_frame_push_copy(
     std::uint64_t frame_deque_ptr,
     std::uint64_t frame_ptr,
@@ -1775,8 +1724,6 @@ std::int64_t decoder_run_step(DecoderStepRunContext101800* ctx) {
     if (rc_dispatch != 0)
         return rc_dispatch;
 
-    if (ctx->parser_input_desc && ctx->payload_ctx)
-        ::auro3deng::parser_refresh_payload(ctx->parser_input_desc, ctx->payload_ctx);
     if (ctx->run_parser_stage)
         ctx->run_parser_stage(ctx->parser_user);
     if (ctx->dispatch_ctx && ctx->dispatch_ctx->output_channel_ptrs_27) {

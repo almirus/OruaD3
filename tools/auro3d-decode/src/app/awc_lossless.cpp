@@ -1705,7 +1705,6 @@ bool decode_lossless_frame_body(
                 error = "AWC residual flag read failed";
                 return false;
             }
-
             std::vector<std::int32_t> errors;
             if (has_residual) {
                 std::string ldc_error;

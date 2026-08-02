@@ -76,8 +76,15 @@ bool BinauralStreamRenderer::initialize(
         err = "unsupported PCM format";
         return false;
     }
-    unsigned bank = hrtf == 0 ? 0 : 1;
-    if (bank >= h->banks) bank = 0;
+    if (hrtf != 0u && hrtf != 2u) {
+        err = "bundled binaural IR supports only HRTF preset 0=HPV2 or 2=GENERIC_2";
+        return false;
+    }
+    const unsigned bank = hrtf == 0u ? 0u : 1u;
+    if (bank >= h->banks) {
+        err = "requested HRTF bank is absent from the binaural IR resource";
+        return false;
+    }
 
     auto impl = std::make_unique<Impl>();
     impl->bits = bits;

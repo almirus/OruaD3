@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -59,14 +60,30 @@ inline bool stderr_is_tty() {
 #endif
 }
 
-inline bool color_enabled_for_stderr() {
+inline bool stdout_is_tty() {
+#ifdef _WIN32
+    return _isatty(_fileno(stdout)) != 0;
+#else
+    return isatty(STDOUT_FILENO) != 0;
+#endif
+}
+
+inline bool color_enabled_for(bool tty) {
     if (std::getenv("NO_COLOR") != nullptr)
         return false;
     if (const char* force = std::getenv("FORCE_COLOR")) {
         if (force[0] != '\0' && std::strcmp(force, "0") != 0)
             return true;
     }
-    return stderr_is_tty();
+    return tty;
+}
+
+inline bool color_enabled_for_stderr() {
+    return color_enabled_for(stderr_is_tty());
+}
+
+inline bool color_enabled_for_stdout() {
+    return color_enabled_for(stdout_is_tty());
 }
 
 inline void enable_virtual_terminal() {
@@ -131,7 +148,6 @@ public:
             return;
         }
 
-        stop_spinner(lock);
         if (percent > 100)
             percent = 100;
         if (percent >= 100 && completed_stage_ == current_ && !line_open_)
@@ -144,11 +160,13 @@ public:
         last_percent_ = percent;
         line_open_ = true;
         if (percent >= 100) {
+            stop_spinner(lock);
             render_done();
             finish_line(lock, true);
             completed_stage_ = current_;
         } else {
             render_percent(percent);
+            start_spinner(lock);
         }
     }
 
@@ -206,9 +224,12 @@ private:
         while (!spinner_stop_.load(std::memory_order_acquire)) {
             {
                 std::lock_guard<std::mutex> lock(mutex_);
-                if (last_percent_ == -1 && line_open_) {
+                if (line_open_ && last_percent_ >= -1 && last_percent_ < 100) {
                     ++spinner_index_;
-                    render_indeterminate();
+                    if (last_percent_ < 0)
+                        render_indeterminate();
+                    else
+                        render_percent(last_percent_);
                 }
             }
             std::this_thread::sleep_for(100ms);

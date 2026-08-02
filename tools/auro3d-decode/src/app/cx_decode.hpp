@@ -3,6 +3,7 @@
 #include "progress.hpp"
 
 #include <string>
+#include <vector>
 
 namespace auro3d {
 
@@ -15,10 +16,13 @@ bool decode_auro_cx_mp4(
     const std::string& out_wav,
     std::string& error,
     float headroom_db = 0.0f,
+    unsigned output_bits = 24u,
+    unsigned clear_output_lsb = 0u,
     bool binaural = false,
     unsigned room_preset = 0,
     unsigned hrtf_preset = 0,
     const std::string& output_format = "wav",
-    const ProgressFn& progress = {});
+    const ProgressFn& progress = {},
+    std::vector<std::string>* warnings = nullptr);
 
 } // namespace auro3d

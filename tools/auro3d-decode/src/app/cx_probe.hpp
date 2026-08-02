@@ -263,6 +263,12 @@ struct AuroCxProbeInfo {
     std::string error;
 };
 bool probe_auro_cx_mp4(const std::string& path, AuroCxProbeInfo& info);
+bool auro_cx_declared_layout_from_acxd(
+    const std::vector<std::uint8_t>& acxd,
+    std::uint16_t& layout);
+const char* auro_cx_awc_coding(
+    const std::vector<AuroCxSchemaPduInfo>& pdus,
+    std::size_t& awc_pdus);
 void print_auro_cx_probe(const AuroCxProbeInfo& info);
 bool cx_parse_schema_blob(
     const std::vector<std::uint8_t>& blob,

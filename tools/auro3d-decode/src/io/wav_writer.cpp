@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -140,7 +141,6 @@ bool write_list_info(std::ostream& out, const OutputMetadata& metadata, std::str
             p[8 + raw_size] = '\0';
     };
     append_chunk("ICMT", metadata.comment);
-    append_chunk("IKEY", metadata.channel_names);
     if (buf.empty())
         return true;
 
@@ -393,7 +393,7 @@ bool write_pcm24_le(
         return false;
     }
 
-    Pcm24StreamWriter writer;
+    PcmStreamWriter writer;
     writer.set_metadata(metadata);
     const std::uint64_t frame_count =
         interleaved_pcm.size() / (static_cast<std::size_t>(channels) * 3u);
@@ -412,29 +412,55 @@ bool encode_wav_to_flac(
     std::string command = "ffmpeg -y -v error -i " + shell_quote(wav_path);
     if (!metadata.comment.empty())
         command += " -metadata comment=" + shell_quote(metadata.comment);
-    if (!metadata.channel_names.empty())
-        command += " -metadata keywords=" + shell_quote(metadata.channel_names);
-    command += " -map 0:a:0 -c:a flac " + shell_quote(flac_path);
+    command += " -map 0:a:0 -c:a flac -f flac " + shell_quote(flac_path);
     if (std::system(command.c_str()) != 0) {
+        std::error_code remove_error;
+        std::filesystem::remove(std::filesystem::u8path(flac_path), remove_error);
         error_out = "ffmpeg failed to encode FLAC (is ffmpeg available in PATH?)";
         return false;
     }
     return true;
 }
 
-bool Pcm24StreamWriter::open(
+bool convert_pcm24_to_pcm16(
+    const std::vector<std::uint8_t>& pcm24,
+    std::vector<std::uint8_t>& pcm16,
+    std::string& error_out) {
+    if (pcm24.size() % 3u != 0u) {
+        error_out = "PCM24 byte count is not sample-aligned";
+        return false;
+    }
+    pcm16.clear();
+    pcm16.reserve((pcm24.size() / 3u) * 2u);
+    for (std::size_t offset = 0; offset < pcm24.size(); offset += 3u) {
+        std::int32_t sample = static_cast<std::int32_t>(pcm24[offset])
+            | (static_cast<std::int32_t>(pcm24[offset + 1u]) << 8)
+            | (static_cast<std::int32_t>(pcm24[offset + 2u]) << 16);
+        if ((sample & 0x800000) != 0)
+            sample |= ~0xFFFFFF;
+        const std::int16_t sample16 = static_cast<std::int16_t>(sample / 256);
+        const std::uint16_t packed = static_cast<std::uint16_t>(sample16);
+        pcm16.push_back(static_cast<std::uint8_t>(packed));
+        pcm16.push_back(static_cast<std::uint8_t>(packed >> 8));
+    }
+    return true;
+}
+
+bool PcmStreamWriter::open(
     const std::string& path,
     std::uint32_t sample_rate,
     std::uint16_t channels,
     std::uint64_t frame_count,
     std::string& error_out,
     std::uint32_t channel_mask,
-    PcmContainer container) {
-    if (!channels || !sample_rate) {
-        error_out = "invalid channels or sample_rate";
+    PcmContainer container,
+    unsigned bits_per_sample) {
+    if (!channels || !sample_rate || (bits_per_sample != 16u && bits_per_sample != 24u)) {
+        error_out = "invalid channels, sample_rate, or PCM bit depth";
         return false;
     }
-    block_align_ = static_cast<std::uint16_t>(channels * 3u);
+    bits_per_sample_ = bits_per_sample;
+    block_align_ = static_cast<std::uint16_t>(channels * (bits_per_sample_ / 8u));
     frame_count_ = frame_count;
     expected_bytes_ = frame_count * static_cast<std::uint64_t>(block_align_);
     written_bytes_ = 0;
@@ -454,7 +480,7 @@ bool Pcm24StreamWriter::open(
         w64_riff_size_pos_ = static_cast<std::uint64_t>(out_.tellp());
         write_le64(out_, 0);
         out_.write(kW64GuidWave, 16);
-        write_fmt_pcm_w64(out_, channels, sample_rate, block_align_, 24, channel_mask);
+        write_fmt_pcm_w64(out_, channels, sample_rate, block_align_, bits_per_sample_, channel_mask);
         write_w64_chunk_header(out_, kW64GuidData, expected_bytes_);
     } else if (use_rf64_) {
         out_.write("RF64", 4);
@@ -467,7 +493,7 @@ bool Pcm24StreamWriter::open(
         write_le64(out_, expected_bytes_);
         write_le64(out_, frame_count_);
         write_le32(out_, 0);
-        write_fmt_pcm_riff(out_, channels, sample_rate, block_align_, 24, channel_mask);
+        write_fmt_pcm_riff(out_, channels, sample_rate, block_align_, bits_per_sample_, channel_mask);
         out_.write("data", 4);
         write_le32(out_, 0xFFFFFFFFu);
     } else {
@@ -476,7 +502,7 @@ bool Pcm24StreamWriter::open(
         out_.write("RIFF", 4);
         write_le32(out_, header_after_riff + static_cast<std::uint32_t>(expected_bytes_));
         out_.write("WAVE", 4);
-        write_fmt_pcm_riff(out_, channels, sample_rate, block_align_, 24, channel_mask);
+        write_fmt_pcm_riff(out_, channels, sample_rate, block_align_, bits_per_sample_, channel_mask);
         out_.write("data", 4);
         write_le32(out_, static_cast<std::uint32_t>(expected_bytes_));
     }
@@ -487,12 +513,12 @@ bool Pcm24StreamWriter::open(
     return true;
 }
 
-bool Pcm24StreamWriter::write(
+bool PcmStreamWriter::write(
     const std::vector<std::uint8_t>& interleaved_pcm,
     std::string& error_out) {
     if (!out_.is_open() || !block_align_ || interleaved_pcm.size() % block_align_ != 0
         || written_bytes_ + interleaved_pcm.size() > expected_bytes_) {
-        error_out = "PCM24 stream write is not frame-aligned";
+        error_out = "PCM stream write is not frame-aligned";
         return false;
     }
     if (!interleaved_pcm.empty())
@@ -506,11 +532,11 @@ bool Pcm24StreamWriter::write(
     return true;
 }
 
-bool Pcm24StreamWriter::close(std::string& error_out) {
+bool PcmStreamWriter::close(std::string& error_out) {
     if (!out_.is_open())
         return true;
     if (written_bytes_ != expected_bytes_) {
-        error_out = "PCM24 stream ended before the declared frame count";
+        error_out = "PCM stream ended before the declared frame count";
         out_.close();
         return false;
     }

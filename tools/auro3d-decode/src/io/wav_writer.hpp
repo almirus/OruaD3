@@ -10,12 +10,10 @@ namespace wav {
 
 /// Embedded output tags written into WAV LIST/INFO and FLAC vorbis comments.
 struct OutputMetadata {
-    /// e.g. "Decoded by orua3d-decode 0.4.144, author @almirus"
+    /// e.g. "Decoded by orua3d-decode 0.5.10, @almirus"
     std::string comment;
-    /// Channel names in file order, comma-separated: "FL,FR,C,LFE,LS,RS"
-    std::string channel_names;
 
-    bool empty() const { return comment.empty() && channel_names.empty(); }
+    bool empty() const { return comment.empty(); }
 };
 
 /// Classic RIFF WAV max payload before RF64 is required (leave headroom for LIST/INFO).
@@ -60,7 +58,14 @@ bool encode_wav_to_flac(
     std::string& error_out,
     const OutputMetadata& metadata = {});
 
-class Pcm24StreamWriter {
+/// Convert packed signed PCM24 LE samples to signed PCM16 LE, truncating toward zero.
+bool convert_pcm24_to_pcm16(
+    const std::vector<std::uint8_t>& pcm24,
+    std::vector<std::uint8_t>& pcm16,
+    std::string& error_out);
+
+/// Streaming WAV/RF64/W64 writer for packed signed PCM16 or PCM24.
+class PcmStreamWriter {
 public:
     void set_metadata(OutputMetadata metadata) { metadata_ = std::move(metadata); }
 
@@ -71,7 +76,8 @@ public:
         std::uint64_t frame_count,
         std::string& error_out,
         std::uint32_t channel_mask = 0,
-        PcmContainer container = PcmContainer::WavAuto);
+        PcmContainer container = PcmContainer::WavAuto,
+        unsigned bits_per_sample = 24u);
     bool write(const std::vector<std::uint8_t>& interleaved_pcm, std::string& error_out);
     bool close(std::string& error_out);
 
@@ -84,6 +90,7 @@ private:
     std::uint64_t written_bytes_ = 0;
     std::uint64_t frame_count_ = 0;
     std::uint16_t block_align_ = 0;
+    unsigned bits_per_sample_ = 24u;
     std::uint64_t ds64_chunk_pos_ = 0; // file offset of ds64 payload (after id+size)
     std::uint64_t w64_riff_size_pos_ = 0; // offset of 64-bit riff size field
     bool use_rf64_ = false;

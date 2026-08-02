@@ -162,6 +162,12 @@ def run_case(decoder: Path, case: dict, output_dir: Path) -> dict:
                         f"decode failed for {case_id} (exit {proc.returncode})\n"
                         f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
                     )
+                for expected_text in case.get("stderr_contains", []):
+                    if expected_text not in proc.stderr:
+                        raise RuntimeError(
+                            f"{case_id}: stderr is missing expected text: "
+                            f"{expected_text!r}\nstderr:\n{proc.stderr}"
+                        )
                 stats = validate_cx_pcm(output_path, case)
         else:
             cmd = [str(decoder), "-i", str(input_path), "-o", os.devnull]

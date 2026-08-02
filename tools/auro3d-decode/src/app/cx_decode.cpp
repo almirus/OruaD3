@@ -240,6 +240,62 @@ void append_pcm24(std::vector<std::uint8_t>& out, std::int32_t sample) {
     out.push_back(static_cast<std::uint8_t>((sample >> 16) & 0xFF));
 }
 
+bool clear_pcm_lsbs(
+    std::vector<std::uint8_t>& pcm,
+    unsigned bytes_per_sample,
+    unsigned clear_bits,
+    std::string& error) {
+    if (clear_bits == 0u)
+        return true;
+    if ((bytes_per_sample != 2u && bytes_per_sample != 3u)
+        || clear_bits > 8u
+        || pcm.size() % bytes_per_sample != 0u) {
+        error = "invalid PCM LSB-clear request";
+        return false;
+    }
+    const std::int32_t step = 1 << clear_bits;
+    for (std::size_t offset = 0; offset < pcm.size(); offset += bytes_per_sample) {
+        std::int32_t sample = static_cast<std::int32_t>(pcm[offset])
+            | (static_cast<std::int32_t>(pcm[offset + 1u]) << 8);
+        if (bytes_per_sample == 3u) {
+            sample |= static_cast<std::int32_t>(pcm[offset + 2u]) << 16;
+            if ((sample & 0x800000) != 0)
+                sample |= ~0xFFFFFF;
+        } else {
+            sample = static_cast<std::int16_t>(sample);
+        }
+        sample = (sample / step) * step;
+        pcm[offset] = static_cast<std::uint8_t>(sample);
+        pcm[offset + 1u] = static_cast<std::uint8_t>(sample >> 8);
+        if (bytes_per_sample == 3u)
+            pcm[offset + 2u] = static_cast<std::uint8_t>(sample >> 16);
+    }
+    return true;
+}
+
+bool prepare_export_pcm(
+    const std::vector<std::uint8_t>& pcm24,
+    unsigned output_bits,
+    unsigned clear_output_lsb,
+    std::vector<std::uint8_t>& converted,
+    const std::vector<std::uint8_t>*& output,
+    std::string& error) {
+    output = &pcm24;
+    if (output_bits == 16u) {
+        if (!wav::convert_pcm24_to_pcm16(pcm24, converted, error))
+            return false;
+        output = &converted;
+    } else if (clear_output_lsb != 0u) {
+        converted = pcm24;
+        output = &converted;
+    }
+    if (clear_output_lsb != 0u
+        && !clear_pcm_lsbs(converted, output_bits / 8u, clear_output_lsb, error)) {
+        return false;
+    }
+    return true;
+}
+
 struct OutputMapping {
     std::vector<std::uint32_t> stream_for_output_channel;
     std::vector<std::uint32_t> channel_id_for_output_channel;
@@ -253,24 +309,6 @@ const char* cx_channel_name(std::uint32_t channel_id) {
         "RB", "HL", "HR", "HC", "T", "HLS", "HRS", "HCS"
     };
     return channel_id < sizeof(names) / sizeof(names[0]) ? names[channel_id] : nullptr;
-}
-
-std::string cx_channel_names_csv(const OutputMapping& mapping, bool binaural) {
-    if (binaural)
-        return "FL,FR";
-    std::string csv;
-    for (std::uint32_t index = 0; index < mapping.channels; ++index) {
-        if (index)
-            csv += ',';
-        const std::uint32_t channel_id = index < mapping.channel_id_for_output_channel.size()
-            ? mapping.channel_id_for_output_channel[index]
-            : index;
-        if (const char* name = cx_channel_name(channel_id))
-            csv += name;
-        else
-            csv += "ch" + std::to_string(channel_id);
-    }
-    return csv;
 }
 
 const char* cx_layout_name(std::uint32_t layout) {
@@ -314,6 +352,7 @@ bool write_channel_mapping_xml(
     std::uint32_t source_sample_rate,
     const OutputMapping& mapping,
     const char* audio_coding,
+    unsigned output_bits,
     bool binaural,
     std::uint16_t container_channels,
     const std::string& declared_layout_name,
@@ -363,7 +402,8 @@ bool write_channel_mapping_xml(
         << (source_sample_rate != 0u ? source_sample_rate : sample_rate)
         << "\" sourceLayout=\"" << xml_escape(source_layout_text)
         << "\" sourceLayoutMask=\"0x" << std::hex << source_layout << std::dec
-        << "\" bitsPerSample=\"24\" channelCount=\"" << (binaural ? 2u : mapping.channels)
+        << "\" bitsPerSample=\"" << output_bits << "\" channelCount=\""
+        << (binaural ? 2u : mapping.channels)
         << "\">\n";
     if (binaural) {
         out << "  <channel index=\"0\" number=\"1\" slot=\"0\" name=\"FL\" source=\"binaural_renderer\"/>\n"
@@ -513,13 +553,26 @@ bool decode_auro_cx_mp4(
     const std::string& out_wav,
     std::string& error,
     float headroom_db,
+    unsigned output_bits,
+    unsigned clear_output_lsb,
     bool binaural,
     unsigned room_preset,
     unsigned hrtf_preset,
     const std::string& output_format,
-    const ProgressFn& progress) {
+    const ProgressFn& progress,
+    std::vector<std::string>* warnings) {
+    if (warnings)
+        warnings->clear();
     if (!std::isfinite(headroom_db) || headroom_db < 0.0f) {
         error = "invalid output headroom";
+        return false;
+    }
+    if (output_bits != 16u && output_bits != 24u) {
+        error = "invalid output PCM bit depth";
+        return false;
+    }
+    if (clear_output_lsb > 8u) {
+        error = "invalid output LSB-clear count";
         return false;
     }
     const bool want_flac = output_format == "flac";
@@ -552,8 +605,9 @@ bool decode_auro_cx_mp4(
                 progress("encode flac", 100);
             return true;
         }
+        const char* save_stage = output_format == "w64" ? "save w64" : "save wav";
         if (progress)
-            progress("save wav", 100);
+            progress(save_stage, 100);
         return true;
     };
     const float headroom_gain = std::pow(10.0f, -headroom_db / 20.0f);
@@ -581,10 +635,8 @@ bool decode_auro_cx_mp4(
 
     std::uint16_t declared_layout = 0;
     bool has_declared_layout = false;
-    if (track.acxd.size() >= 38) {
-        has_declared_layout = true;
-        declared_layout = be16(track.acxd.data() + 36);
-    }
+    has_declared_layout =
+        auro_cx_declared_layout_from_acxd(track.acxd, declared_layout);
 
     const std::uint8_t error_scale_byte = track.sample_bits
         ? static_cast<std::uint8_t>(track.sample_bits)
@@ -604,14 +656,16 @@ bool decode_auro_cx_mp4(
     std::vector<std::vector<sasc::Step>> sasc_plans;
     std::uint32_t sasc_scratch_stream = UINT32_MAX;
     std::vector<std::uint32_t> awc_stream_parameters;
-    wav::Pcm24StreamWriter wav_writer;
+    wav::PcmStreamWriter wav_writer;
     BinauralStreamRenderer binaural_renderer;
     std::vector<std::uint8_t> au_pcm;
     std::vector<std::uint8_t> binaural_pcm;
+    std::vector<std::uint8_t> export_pcm;
     std::vector<std::uint8_t> deferred_multichannel_pcm;
     const bool binaural_needs_resample = binaural && track.rate != 48000u;
     bool saw_lossless_awc = false;
     bool saw_transparent_awc = false;
+    std::vector<bool> output_channel_active;
 
     const auto bed_stream_count = [&](const CxSchemaParseResult& schema) -> std::uint32_t {
         std::uint32_t count = 0;
@@ -885,7 +939,10 @@ bool decode_auro_cx_mp4(
                     samples_per_au,
                     error))
                 return false;
-            output_meta.channel_names = cx_channel_names_csv(mapping, binaural);
+            std::size_t configured_awc_pdus = 0;
+            output_meta.comment = auro3d_decode::make_decode_comment(
+                auro_cx_awc_coding(schema.pdus, configured_awc_pdus));
+            output_channel_active.assign(mapping.channels, false);
             if (binaural_needs_resample) {
                 deferred_multichannel_pcm.reserve(
                     static_cast<std::size_t>(frame_count)
@@ -898,7 +955,10 @@ bool decode_auro_cx_mp4(
                         binaural ? 2u : mapping.channels,
                         frame_count,
                         error,
-                        binaural ? 3u : mapping.channel_mask))
+                        binaural ? 3u : mapping.channel_mask,
+                        output_format == "w64" ? wav::PcmContainer::W64
+                                                 : wav::PcmContainer::WavAuto,
+                        output_bits))
                     return false;
             }
             au_pcm.reserve(static_cast<std::size_t>(mapping.channels) * samples_per_au * 3u);
@@ -1247,6 +1307,8 @@ bool decode_auro_cx_mp4(
                 const std::int32_t sample = stream < stream_buffers.size()
                     ? normalize_pcm24(stream_buffers[stream][frame], stream_bitdepths[stream])
                     : 0;
+                if (sample != 0)
+                    output_channel_active[out_ch] = true;
                 append_pcm24(
                     au_pcm,
                     static_cast<std::int32_t>(static_cast<float>(sample) * headroom_gain));
@@ -1257,12 +1319,21 @@ bool decode_auro_cx_mp4(
                 deferred_multichannel_pcm.end(), au_pcm.begin(), au_pcm.end());
             continue;
         }
-        const std::vector<std::uint8_t>* output_pcm = &au_pcm;
+        const std::vector<std::uint8_t>* output_pcm24 = &au_pcm;
         if (binaural) {
             if (!binaural_renderer.process(au_pcm, binaural_pcm, error))
                 return false;
-            output_pcm = &binaural_pcm;
+            output_pcm24 = &binaural_pcm;
         }
+        const std::vector<std::uint8_t>* output_pcm = nullptr;
+        if (!prepare_export_pcm(
+                *output_pcm24,
+                output_bits,
+                clear_output_lsb,
+                export_pcm,
+                output_pcm,
+                error))
+            return false;
         if (!wav_writer.write(*output_pcm, error))
             return false;
     }
@@ -1303,6 +1374,17 @@ bool decode_auro_cx_mp4(
                 error,
                 progress))
             return false;
+        const std::vector<std::uint8_t>* output_pcm = nullptr;
+        if (!prepare_export_pcm(
+                stereo,
+                output_bits,
+                clear_output_lsb,
+                export_pcm,
+                output_pcm,
+                error)) {
+            remove_temp_wav();
+            return false;
+        }
         const std::size_t frame_bytes = 2u * 3u;
         if (!frame_bytes || stereo.size() % frame_bytes != 0u) {
             error = "binaural resample produced incomplete frames";
@@ -1310,16 +1392,16 @@ bool decode_auro_cx_mp4(
             return false;
         }
         if (!want_flac && progress)
-            progress("save wav", -1);
-        output_meta.channel_names = "FL,FR";
-        if (!wav::write_pcm24_le(
-                pcm_path,
-                48000u,
-                2u,
-                stereo,
-                error,
-                3u,
-                output_meta)) {
+            progress(output_format == "w64" ? "save w64" : "save wav", -1);
+        const wav::PcmContainer container = output_format == "w64"
+            ? wav::PcmContainer::W64
+            : wav::PcmContainer::WavAuto;
+        const bool wrote = output_bits == 24u
+            ? wav::write_pcm24_le(
+                  pcm_path, 48000u, 2u, *output_pcm, error, 3u, output_meta, container)
+            : wav::write_pcm16_le(
+                  pcm_path, 48000u, 2u, *output_pcm, error, 3u, output_meta, container);
+        if (!wrote) {
             remove_temp_wav();
             return false;
         }
@@ -1359,11 +1441,31 @@ bool decode_auro_cx_mp4(
             track.rate,
             mapping,
             audio_coding,
+            output_bits,
             binaural,
             track.channels,
             declared_layout_name,
             error))
         return false;
+    if (warnings && !binaural) {
+        for (std::uint32_t out_ch = 0; out_ch < mapping.channels; ++out_ch) {
+            if (out_ch < output_channel_active.size() && output_channel_active[out_ch])
+                continue;
+            const std::uint32_t channel_id = mapping.channel_id_for_output_channel[out_ch];
+            const std::uint32_t stream = mapping.stream_for_output_channel[out_ch];
+            const char* channel_name = cx_channel_name(channel_id);
+            const std::string channel_label = channel_name
+                ? std::string(channel_name)
+                : "ch" + std::to_string(channel_id);
+            warnings->push_back(
+                "AuroCX: channel "
+                + channel_label
+                + " (output " + std::to_string(out_ch + 1u)
+                + ", audioStream " + std::to_string(stream)
+                + ") remained completely silent; it is declared by the schema but carries no "
+                  "decoded samples (possible placeholder channel)");
+        }
+    }
     return true;
 }
 

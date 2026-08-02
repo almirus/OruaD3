@@ -264,7 +264,7 @@ public:
     /// Для сырого s24le без WAV: частота, каналы, размер блока (как в Java Initialize).
     void set_raw_pcm24_params(uint32_t sample_rate_hz, unsigned channel_count, unsigned block_size);
 
-    /// Override the metadata-aligned internal block size (JNI fallback is 832).
+    /// Override the native 832-sample host block size.
     void set_block_size(unsigned block_size) { block_request_ = block_size; }
 
     void set_progress_callback(ProgressFn callback) { progress_ = std::move(callback); }

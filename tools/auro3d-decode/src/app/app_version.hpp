@@ -5,7 +5,7 @@
 
 namespace auro3d_decode {
 
-constexpr char kVersion[] = "0.5.9";
+constexpr char kVersion[] = "0.5.10";
 constexpr char kName[] = "orua3d-decode";
 
 /// Author handle without a contiguous plaintext literal in the binary.
@@ -21,8 +21,12 @@ inline std::string make_author() {
     return out;
 }
 
-inline std::string make_decode_comment() {
-    return std::string("Decoded by ") + kName + " " + kVersion + ", author " + make_author();
+inline std::string make_decode_comment(const std::string& source_audio_coding = {}) {
+    std::string comment = std::string("Decoded by ") + kName + " " + kVersion
+        + ", " + make_author();
+    if (!source_audio_coding.empty())
+        comment += ", source audioCoding=" + source_audio_coding;
+    return comment;
 }
 
 } // namespace auro3d_decode

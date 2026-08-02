@@ -12,6 +12,11 @@
 
 namespace auro3deng {
 
+// Deterministic regression for codec-v3 frame continuation.  The same parsed
+// channel is reconstructed as one call and as several consecutive pieces;
+// PCM plus final Golomb-Rice/Extrapolate state must match exactly.
+bool codec_v3_split_equivalence_self_test(std::string& detail);
+
 /// Начало объекта Processor перекрыто полями Analyser (см. auro_a3deng_v3_Processor_t_construct → Analyser_t_construct).
 constexpr std::uintptr_t kProcessor_Analyser_ctx_ptr = 8;   // второй аргумент construct: снова Processor*
 constexpr std::uintptr_t kProcessor_Analyser_inner_fn = 16; // третий аргумент: sub_DA320
@@ -995,22 +1000,6 @@ parser_rebind_frame_parse_results(
     std::uint64_t frame_ptr,
     const ParserRebindContext103610* ctx);
 
-struct ParserPayloadRefreshContext {
-    std::uint64_t frame_deque_ptr = 0;
-    std::uint64_t output_generator_base = 0;
-    std::uint32_t input_channel_limit = 31;
-    std::uint32_t block_size = 0;
-    std::uint32_t* channel_words_base = nullptr; // 8 u32 per channel index
-    std::size_t channel_words_count = 0;
-    std::uint8_t* channel_ctx_base = nullptr;    // 64 bytes per channel index
-    std::size_t channel_ctx_count = 0;
-};
-
-void /* Decompiled name: parser_refresh_payload */
-parser_refresh_payload(
-    const CodecV3IoBufferDescEb5a0* input_desc,
-    const ParserPayloadRefreshContext* ctx);
-
 struct ParserReadyFrameCopyContext {
     std::uint8_t* ready_parse_result_base = nullptr;
     std::size_t ready_parse_result_size = 0;
@@ -1142,8 +1131,6 @@ decoder_run_dispatch(DecoderDispatchRunContextEb5a0* ctx);
 
 struct DecoderStepRunContext101800 {
     DecoderDispatchRunContextEb5a0* dispatch_ctx = nullptr;
-    const CodecV3IoBufferDescEb5a0* parser_input_desc = nullptr;
-    const ParserPayloadRefreshContext* payload_ctx = nullptr;
     std::uint64_t delay_line_ptr = 0;
     void (*run_parser_stage)(void* user) = nullptr;
     void* parser_user = nullptr;

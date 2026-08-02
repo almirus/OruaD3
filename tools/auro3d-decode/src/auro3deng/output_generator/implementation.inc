@@ -1235,7 +1235,6 @@ std::int64_t raw_decode_channel_segment(
     } else {
         (void)golombrice_get_errors_104e40(gr_state, frame_ch, errors_buf, sample_count);
     }
-
     std::uint64_t s0 = 0, s1 = 0, s2 = 0;
     if (extrap_sources) {
         s0 = extrap_sources->src0;
@@ -1250,5 +1249,134 @@ std::int64_t raw_decode_channel_segment(
 extrapolate_process(ex_state, src_ptr, errors_buf, s0, s1, s2, sample_count);
     }
     return 0;
+}
+
+bool codec_v3_split_equivalence_self_test(std::string& detail) {
+    constexpr std::size_t kSamples = 1000u;
+    constexpr std::size_t kGrStateBytes = kOgStride_gr_state;
+    constexpr std::size_t kExStateBytes = kOgStride_ex_state;
+
+    const std::array<std::vector<std::size_t>, 6> split_cases{{
+        {1u, kSamples - 1u},
+        {2u, 3u, kSamples - 5u},
+        {640u, 360u},
+        {472u, 528u},
+        {776u, 224u},
+        {168u, 304u, 360u, 168u},
+    }};
+
+    for (const std::uint32_t mode : {2u, 3u}) {
+        std::array<std::uint32_t, 48> frame_channel{};
+        frame_channel[kFrameChannelOff_ex_mode / 4u] = mode;
+        frame_channel[kFrameChannelOff_ex_quant_shift / 4u] = 17u;
+        frame_channel[kFrameChannelOff_ex_scale_idx0 / 4u + 0u] = 0u;
+        frame_channel[kFrameChannelOff_ex_scale_idx0 / 4u + 1u] = 0u;
+        frame_channel[kFrameChannelOff_ex_scale_idx0 / 4u + 2u] = 0u;
+        frame_channel[kFrameChannelOff_ex_scale_idx1 / 4u] = 0u;
+        frame_channel[kFrameChannelOff_seed0_primary / 4u] = 630u;
+        frame_channel[kFrameChannelOff_seed0_secondary / 4u] = 0u;
+        frame_channel[kFrameChannelOff_seed1_primary / 4u] = 2268u;
+        frame_channel[kFrameChannelOff_seed1_secondary / 4u] = static_cast<std::uint32_t>(-1);
+        frame_channel[kFrameChannelOff_seed2_primary / 4u] = 491u;
+        frame_channel[kFrameChannelOff_gr_packed_flags / 4u] = 0u;
+        frame_channel[kFrameChannelOff_gr_base_index / 4u] = 1u;
+        frame_channel[kFrameChannelOff_gr_bit_width / 4u] = 1u;
+
+        std::vector<std::uint32_t> gr_words(4096u);
+        std::vector<std::uint32_t> gr_context(4096u);
+        for (std::size_t i = 0; i < gr_words.size(); ++i) {
+            gr_words[i] = (i & 1u) != 0u ? 0x55555555u : 0xAAAAAAAAu;
+            gr_context[i] = static_cast<std::uint32_t>(0x9E3779B9u * (i + 1u));
+        }
+        std::vector<std::int32_t> carrier(kSamples);
+        for (std::size_t i = 0; i < carrier.size(); ++i) {
+            const std::int32_t saw = static_cast<std::int32_t>((i * 7919u + 1237u) % 200001u) - 100000;
+            carrier[i] = (saw + static_cast<std::int32_t>((i % 7u) * 13u)) * 64;
+        }
+
+        const std::size_t error_count = kSamples * (mode == 3u ? 2u : 1u);
+        std::vector<std::int32_t> whole_errors(error_count, 0);
+        std::vector<std::int32_t> extrapolate_errors(error_count, 0);
+        for (std::size_t i = 0; i < error_count; ++i)
+            extrapolate_errors[i] = static_cast<std::int32_t>((i * 37u + 11u) % 187u) - 93;
+        std::vector<std::int32_t> whole0(kSamples, 0);
+        std::vector<std::int32_t> whole1(kSamples, 0);
+        std::vector<std::int32_t> whole2(kSamples, 0);
+        alignas(8) std::array<std::uint8_t, kGrStateBytes> whole_gr{};
+        alignas(8) std::array<std::uint8_t, kExStateBytes> whole_ex{};
+        (void)golombrice_initialize_104e10(
+            reinterpret_cast<std::uint64_t>(whole_gr.data()),
+            gr_words.data(),
+            reinterpret_cast<std::uint64_t>(gr_context.data()));
+        (void)extrapolate_initialize_104440(
+            reinterpret_cast<std::uint64_t>(whole_ex.data()),
+            reinterpret_cast<std::uint64_t>(frame_channel.data()));
+        (void)golombrice_get_errors_104e40(
+            reinterpret_cast<std::uint64_t>(whole_gr.data()),
+            reinterpret_cast<std::uint64_t>(frame_channel.data()),
+            reinterpret_cast<std::uint64_t>(whole_errors.data()),
+            kSamples);
+        (void)extrapolate_process(
+            reinterpret_cast<std::uint64_t>(whole_ex.data()),
+            reinterpret_cast<std::uint64_t>(carrier.data()),
+            reinterpret_cast<std::uint64_t>(extrapolate_errors.data()),
+            reinterpret_cast<std::uint64_t>(whole0.data()),
+            reinterpret_cast<std::uint64_t>(whole1.data()),
+            reinterpret_cast<std::uint64_t>(whole2.data()),
+            kSamples);
+
+        for (std::size_t split_index = 0; split_index < split_cases.size(); ++split_index) {
+            std::vector<std::int32_t> split_errors(error_count, 0);
+            std::vector<std::int32_t> split0(kSamples, 0);
+            std::vector<std::int32_t> split1(kSamples, 0);
+            std::vector<std::int32_t> split2(kSamples, 0);
+            alignas(8) std::array<std::uint8_t, kGrStateBytes> split_gr{};
+            alignas(8) std::array<std::uint8_t, kExStateBytes> split_ex{};
+            (void)golombrice_initialize_104e10(
+                reinterpret_cast<std::uint64_t>(split_gr.data()),
+                gr_words.data(),
+                reinterpret_cast<std::uint64_t>(gr_context.data()));
+            (void)extrapolate_initialize_104440(
+                reinterpret_cast<std::uint64_t>(split_ex.data()),
+                reinterpret_cast<std::uint64_t>(frame_channel.data()));
+
+            std::size_t offset = 0u;
+            for (const std::size_t count : split_cases[split_index]) {
+                const std::size_t error_offset = offset * (mode == 3u ? 2u : 1u);
+                (void)golombrice_get_errors_104e40(
+                    reinterpret_cast<std::uint64_t>(split_gr.data()),
+                    reinterpret_cast<std::uint64_t>(frame_channel.data()),
+                    reinterpret_cast<std::uint64_t>(split_errors.data() + error_offset),
+                    count);
+                (void)extrapolate_process(
+                    reinterpret_cast<std::uint64_t>(split_ex.data()),
+                    reinterpret_cast<std::uint64_t>(carrier.data() + offset),
+                    reinterpret_cast<std::uint64_t>(extrapolate_errors.data() + error_offset),
+                    reinterpret_cast<std::uint64_t>(split0.data() + offset),
+                    reinterpret_cast<std::uint64_t>(split1.data() + offset),
+                    reinterpret_cast<std::uint64_t>(split2.data() + offset),
+                    count);
+                offset += count;
+            }
+
+            const bool pcm_equal = split_errors == whole_errors
+                && split0 == whole0
+                && split1 == whole1
+                && (mode != 3u || split2 == whole2);
+            const bool gr_equal = std::memcmp(split_gr.data(), whole_gr.data(), kGrStateBytes) == 0;
+            const bool ex_equal = std::memcmp(split_ex.data(), whole_ex.data(), kExStateBytes) == 0;
+            if (!pcm_equal || !gr_equal || !ex_equal || offset != kSamples) {
+                detail = "mode=" + std::to_string(mode)
+                    + " split_case=" + std::to_string(split_index)
+                    + " pcm=" + std::to_string(pcm_equal ? 1 : 0)
+                    + " gr_state=" + std::to_string(gr_equal ? 1 : 0)
+                    + " ex_state=" + std::to_string(ex_equal ? 1 : 0);
+                return false;
+            }
+        }
+    }
+
+    detail = "mode2/mode3 PCM and GR/Extrapolate state are exactly equal";
+    return true;
 }
 

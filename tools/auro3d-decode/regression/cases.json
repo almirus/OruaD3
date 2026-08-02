@@ -47,7 +47,11 @@
       "id": "cx_markus_13_1_lossless",
       "input": "test_files/aurocx/Markus_Schulz_YouBelong_AUROCX.mp4",
       "comparison": "cx-consume",
-      "pcm": {"channels": 14, "sample_rate": 48000, "sample_width": 3}
+      "pcm": {"channels": 14, "sample_rate": 48000, "sample_width": 3},
+      "stderr_contains": [
+        "channel T (output 9, audioStream 8) remained completely silent",
+        "possible placeholder channel"
+      ]
     },
     {
       "id": "cx_ola_9_1_lossless",

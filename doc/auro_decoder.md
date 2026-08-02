@@ -15,6 +15,13 @@ It records the output and original filenames, decoder type, PCM format, and the
 source schema layout (name and mask), plus the schema channel id, name, and
 audio-stream index for every emitted channel. Binaural XML retains the original
 multichannel source layout while describing a two-channel output.
+After a successful discrete AuroCX decode, the CLI checks every mapped output
+channel across the complete file. A channel containing only exact zero samples
+produces a warning with its name, one-based output number, and `audioStream`
+index. It is reported as a possible placeholder channel; the declared layout
+and silent channel are preserved, and no audio is synthesized. In Markus, `T`
+maps to stream 8, whose LDC payload is inactive throughout the file and is not
+reconstructed by ICC or SASC.
 The `auro_native` channel-mapping XML exposes the same `sourceLayout` and
 `sourceLayoutMask` attributes from the metadata-requested output layout; these
 also remain multichannel for binaural output.
@@ -28,6 +35,22 @@ The decoder has two layouts:
 
 - `carrier_layout`: the physical PCM channels present in the WAV carrier.
 - `decoded_layout`: the logical AURO output layout signaled by metadata.
+
+All discrete WAV, RF64, W64, and FLAC exports use canonical Microsoft speaker
+order automatically. Before container writing, PCM planes and channel-mapping
+XML entries are reordered by their WAVE speaker bits, and WAV/W64 receives a
+`WAVE_FORMAT_EXTENSIBLE` PCM header with `dwChannelMask`. There is no separate
+`--wav-standard` mode. If two Auro slots would require the same WAVE speaker bit,
+or a slot has no honest WAVE representation, export fails instead of assigning
+an unrelated speaker position.
+
+Container metadata writes only the decoder comment; the old channel-name
+`Keywords`/WAV `IKEY` field is not emitted because speaker positions now come
+from `WAVE_FORMAT_EXTENSIBLE`, while exact Auro slots remain in the companion
+XML. The comment format is `Decoded by orua3d-decode <version>, @almirus`.
+AuroCX appends the source coding policy reported by the schema, for example
+`source audioCoding=lossless` or
+`source audioCoding=transparent_near_lossless`.
 
 For 7.1 WAV/FLAC carriers decoded through FFmpeg, physical PCM planes follow
 WAVEFORMATEXTENSIBLE order (`BL,BR` before `SL,SR`). The input mapper preserves
@@ -268,12 +291,28 @@ derived from sample rate or container type. `Config_initialize` (`0x52D7B0`)
 requires the host block to be divisible by 32, and `FormatDetector_process`
 (`0x52D060`) feeds the sync detector in fixed 32-sample chunks.
 
-The file decoder chooses `lcm(metadata_block, 32)` as its internal host block:
-1024-sample codec frames use 1024 and 1000-sample codec frames use 4000. If the
-first sync is not already on a host boundary, zero input is prefixed so that it
-is; this prefix is removed together with pipeline latency on export. Thus every
-embedded codec frame is processed whole without dropping or shifting source
-samples. This scheduling is independent of sample rate and container type.
+The normal host block is 832 samples, matching native A3DENG. Embedded frames
+are allowed to cross host-call boundaries; no LCM block selection, sync-alignment
+prefix, export trimming, or PCM repair is used.
+
+The split-frame defect was a non-native payload-refresh step between parser and
+OutputGenerator. On every host call it rewound the active frame's Golomb-Rice
+word pointer, accumulator, bit index, and 32-sample counter while leaving the
+Extrapolate phase intact. The carrier and the first piece of decoded errors were
+correct, but the continued piece restarted from the wrong GR cursor and drove
+mix2/mix3 reconstruction into clicks and PCM24 rails. Native `Decoder_process`
+does not perform this refresh: its order is delay-line write, format detector,
+parser, OutputGenerator, then delay-line advance. Removing the refresh preserves
+the GR and Extrapolate state until the frame is complete.
+
+The Trinnov file `Prism - Auro-3D - 16-9.mkv` exercises the 1000/1024 case
+(`metadata_block=1000`, `sync_sample=1024`, carrier `7.1`, output
+`7.1_5H_1T`). With host block 832 its full 10,095,616-sample decode contains no
+PCM24 rail samples and no adjacent jumps above 8,000,000 in any of 14 channels.
+`auro2d.flac` produces byte-identical WAV output at host blocks 832 and 1024,
+and the Amplitude16 regression likewise has no rails or such jumps. The
+deterministic split-equivalence self-test covers modes 2 and 3, including a
+776+224 split, and requires exact PCM plus final GR/Extrapolate state equality.
 
 The three consumers keep independent absolute cursors initialized exactly as in
 the constructors (the missing x86 call arguments are visible in the ARM build):
@@ -394,13 +433,47 @@ decoded bed, LFE, and height channels. DSP strength remains limited to
 synthesized/non-carrier channels. AuroCX uses the same global output-headroom
 rule.
 
+### CLI option applicability
+
+Numeric CLI values are parsed strictly: trailing characters, overflow, and
+non-finite floating-point values such as `nan` or `inf` are rejected before an
+output file is opened. `--rate` and `--channels` are meaningful only together
+with `--raw`; otherwise the CLI reports that they are ignored.
+
+The codec-v3 and AuroCX paths share `--output-bits`, `--clear-output-lsb`,
+`--dsp-headroom-db`, `--binaural`, `--room-preset`, and `--hrtf-preset` where
+applicable. AuroCX writes true PCM16 or PCM24 and true RIFF/RF64 or Sony Wave64;
+`--output-format` is authoritative even when an explicit output filename has a
+different extension, in which case a warning is printed. AuroCX FLAC output
+above eight channels is rejected before decode and before an output file is
+created.
+
+`--block` and `--dsp-strength` are codec-v3 controls. `--restore-lfe` and
+`--mono-tracks` are currently implemented only by the codec-v3 file path.
+Supplying any of these to AuroCX produces an explicit ignored-option warning.
+For AuroCX, `--dsp-output-channels` / `--dsp-output-layout` validates an exact
+source layout only; it does not remap or downmix, and the CLI says so.
+`--virtualizer-mode` currently updates diagnostic runtime state but does not
+alter the discrete or explicit binaural PCM path, so an explicit request also
+produces a warning.
+
+The bundled binaural IR contains four room presets but only two HRTF banks:
+native preset `0` (`HPV2`) and preset `2` (`GENERIC_2`). Binaural requests for
+presets `1` or `3` are rejected instead of silently aliasing them to Generic2.
+`--room-preset` affects binaural rendering and codec-v3 XinN upmix;
+`--hrtf-preset` affects binaural rendering only. Irrelevant discrete-output
+requests produce a warning. `--channel-diagram` has dedicated non-decoding
+dispatch for both codec-v3 and AuroCX.
+
 ### Binaural output
 
 `--binaural` is available for both classic AURO and AuroCX. AuroCX feeds each
 decoded access unit directly into the embedded AHP/HRTF convolution renderer;
 FFT overlap-add state is retained across AU boundaries, so no intermediate
 multichannel WAV or whole-file PCM buffer is required. The output is stereo
-PCM24 and its XML contains two `binaural_renderer` channels.
+PCM16 or PCM24 according to `--output-bits`, and its XML contains two
+`binaural_renderer` channels. When a non-48-kHz source is resampled for
+binaural output, the requested final bit depth is restored after rendering.
 
 ## Probe (`--probe`)
 
@@ -549,8 +622,12 @@ each PDU's `payload_bit_offset` (recorded during schema parse), not at
 `consumed_bits`.
 
 Known declared layouts from `acxd`: `0x01bf` (7.1), `0x663f` (5.1+4H),
-`0x7fbf` (7.1+5H+T). Some lossless files carry `0x8060`; their explicit schema
-channel list is authoritative over the declared mask name.
+`0x67bf` (7.1+4H), and `0x7fbf` (7.1+5H+T). The `acxd` configuration section
+is variable-length: corpus payloads are 39 or 53 bytes. Its fixed trailer is a
+big-endian 16-bit declared layout followed by a reserved zero byte, so the
+layout is read at `size-3`, not a fixed offset 36. In the extended form, offset
+36 contains `0x8060` and is not a channel mask. Markus therefore declares
+`0x7fbf` (Auro 13.1), while Ola declares `0x663f` (Auro 9.1).
 
 ## Current limitations
 
