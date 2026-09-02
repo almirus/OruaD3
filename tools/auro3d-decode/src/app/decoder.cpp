@@ -2342,7 +2342,11 @@ unsigned parse_probe_unsigned(const std::string& value) {
     return end && *end == '\0' ? static_cast<unsigned>(parsed) : 0u;
 }
 
-bool find_supported_audio_stream(const std::string& path, unsigned& stream_index, std::string& err) {
+bool find_supported_audio_stream(
+    const std::string& path,
+    unsigned& stream_index,
+    std::string& err,
+    bool allow_pcm16 = false) {
     const std::string command =
         "ffprobe -v error -probesize 32M -analyzeduration 20M -select_streams a "
         "-show_entries stream=index,codec_name,profile,bits_per_sample,bits_per_raw_sample "
@@ -2386,13 +2390,17 @@ bool find_supported_audio_stream(const std::string& path, unsigned& stream_index
             ? bits_per_raw_sample
             : bits_per_sample;
         const bool flac24 = codec == "flac" && bit_depth == 24u;
+        const bool flac16 = allow_pcm16 && codec == "flac" && bit_depth == 16u;
         const bool pcm24 = (codec == "pcm_s24le" || codec == "pcm_s24be")
             && (bit_depth == 0u || bit_depth == 24u);
+        const bool pcm16 = allow_pcm16
+            && (codec == "pcm_s16le" || codec == "pcm_s16be")
+            && (bit_depth == 0u || bit_depth == 16u);
         const bool dts_hd_ma = codec == "dts"
             && profile.find("dts-hd ma") != std::string::npos
             && (bit_depth == 0u || bit_depth == 24u);
         if (index != std::numeric_limits<unsigned>::max()
-            && (flac24 || pcm24 || dts_hd_ma)) {
+            && (flac24 || flac16 || pcm24 || pcm16 || dts_hd_ma)) {
             stream_index = index;
             return true;
         }
@@ -2416,13 +2424,14 @@ bool demux_supported_audio_to_temp_wav(
     std::string& tmp_wav_out,
     std::string& err,
     std::uint32_t target_sample_rate = 0u,
-    const auro3d::ProgressFn& progress = {}) {
+    const auro3d::ProgressFn& progress = {},
+    bool allow_pcm16 = false) {
     err.clear();
     tmp_wav_out.clear();
     if (progress)
         progress(target_sample_rate != 0u ? "resampling" : "demux", -1);
     unsigned stream_index = 0u;
-    if (!find_supported_audio_stream(path, stream_index, err))
+    if (!find_supported_audio_stream(path, stream_index, err, allow_pcm16))
         return false;
 
     const std::string tmp_wav = temp_wav_path();
@@ -3163,6 +3172,7 @@ void Decoder::rebuild_native_xinn_partial_state() {
     native_xinn_state_before_tail_.clear();
     native_xinn_scratch_before_tail_.clear();
     native_xinn_tail_samples_ = 0u;
+    native_upmix_limiter_envelope_ = 0.0;
 
     if (!kEnableAuroMaticXinNUpmix)
         return;
@@ -3667,15 +3677,73 @@ bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
                 dst_f[2u * s + 1u] = src_x[s];
             }
         }
-        if (output_desc_.channel_ptr[slot] == 0u)
+    }
+
+    // Native A3DENG keeps XinN in Float32 through the remaining upmix stages
+    // and quantizes only after the output PeakLimiter. Direct PCM24 conversion
+    // here used to destroy every XinN excursion above 1.0 before the linked
+    // limiter could see it, most visibly in HL/HR.
+    // PeakLimiter::prepare @ 0x360950 installs {attack=0, release=.15,
+    // ratio=50, knee=0, threshold=-.5 dB}; its follower and gain computer are
+    // at 0x599E30 and 0x5980E0.
+    constexpr double kReleaseSeconds = 0.15;
+    constexpr double kRatio = 50.0;
+    constexpr double kEnvelopeTarget = 0.368;
+    const double limiter_threshold = std::pow(10.0, -0.5 / 20.0);
+    const double release_coefficient = std::exp(
+        std::log(kEnvelopeTarget)
+        / (kReleaseSeconds * static_cast<double>(sample_rate_)));
+    const double compression_exponent = -(1.0 - 1.0 / kRatio);
+    const std::uint32_t limiter_mask =
+        native_config_state_.effective_output_mask & 0x7FFFFFFu;
+    for (std::size_t s = 0; s < frame_samples; ++s) {
+        double peak = 0.0;
+        for (std::uint32_t slot = 0; slot < channel_count; ++slot) {
+            if ((limiter_mask & (1u << slot)) == 0u)
+                continue;
+            peak = std::max(
+                peak,
+                std::abs(static_cast<double>(
+                    output[static_cast<std::size_t>(slot) * frame_samples + s])));
+        }
+        if (peak > native_upmix_limiter_envelope_) {
+            native_upmix_limiter_envelope_ = peak;
+        } else {
+            native_upmix_limiter_envelope_ =
+                release_coefficient * native_upmix_limiter_envelope_
+                + (1.0 - release_coefficient) * peak;
+        }
+        const double gain = native_upmix_limiter_envelope_ > limiter_threshold
+            ? std::pow(
+                native_upmix_limiter_envelope_ / limiter_threshold,
+                compression_exponent)
+            : 1.0;
+        for (std::uint32_t slot = 0; slot < channel_count; ++slot) {
+            if ((limiter_mask & (1u << slot)) == 0u)
+                continue;
+            float& sample = output[static_cast<std::size_t>(slot) * frame_samples + s];
+            sample = static_cast<float>(static_cast<double>(sample) * gain);
+        }
+    }
+
+    // The limiter is linked across the complete output layout. Apply its gain
+    // to passthrough bed channels as well as the channels synthesized by XinN.
+    const std::uint32_t write_back_mask = limiter_mask
+        & (copy_back_mask | native_config_state_.input_mask);
+    for (std::uint32_t slot = 0;
+         slot < auro_codec_v3_ida::kAuroProcessorIoChannelPtrCount;
+         ++slot) {
+        if ((write_back_mask & (1u << slot)) == 0u
+            || output_desc_.channel_ptr[slot] == 0u) {
             continue;
+        }
         auto* dst = reinterpret_cast<std::int32_t*>(
             static_cast<std::uintptr_t>(output_desc_.channel_ptr[slot]));
-        if (!dst)
-            continue;
-        for (unsigned s = 0; s < block_size_; ++s)
+        const float* src = output.data() + static_cast<std::size_t>(slot) * frame_samples;
+        for (std::size_t s = 0; s < frame_samples; ++s) {
             dst[s] = clamp_i32_to_pcm24(
-                static_cast<std::int64_t>(std::lrintf(dst_f[s] * 8388608.0f)));
+                static_cast<std::int64_t>(std::lrintf(src[s] * 8388608.0f)));
+        }
     }
     return true;
 }
@@ -4179,6 +4247,7 @@ DecodeError Decoder::open(const std::string& path) {
     native_xinn_state_before_tail_.clear();
     native_xinn_scratch_before_tail_.clear();
     native_xinn_tail_samples_ = 0u;
+    native_upmix_limiter_envelope_ = 0.0;
     native_xinn_partial_ready_ = false;
     native_xinn_partial_input_mask_ = 0u;
     native_xinn_partial_output_mask_ = 0u;
@@ -4219,6 +4288,8 @@ DecodeError Decoder::open(const std::string& path) {
     uint16_t wav_ch = 0;
     uint32_t wav_rate = 0;
     uint32_t wav_channel_mask = 0;
+    const bool upmix_layout_requested =
+        dsp_output_layout_mask_specified_ || dsp_output_channels_req_ != 0u;
 
     const auto adopt_wave = [&](const std::string& wave_path) -> bool {
         if (!probe_wav_pcm_s24le(wave_path, pcm_b, pcm_len, wav_rate, wav_ch, wav_err))
@@ -4265,12 +4336,33 @@ DecodeError Decoder::open(const std::string& path) {
     if (!raw_forced_ && is_wave_container_prefix(prefix)) {
         // Always stream WAV/RF64/BW64 from disk so >4 GiB inputs work.
         if (!adopt_wave(path)) {
-            last_error_detail_ = wav_err.empty() ? "invalid or unsupported WAV input" : wav_err;
-            return DecodeError::BadInput;
+            if (!upmix_layout_requested) {
+                last_error_detail_ = wav_err.empty()
+                    ? "invalid or unsupported WAV input"
+                    : wav_err;
+                return DecodeError::BadInput;
+            }
+            std::string tmp_wav;
+            if (!demux_supported_audio_to_temp_wav(
+                    path, tmp_wav, input_err, 0u, progress_, true)) {
+                last_error_detail_ = input_err.empty()
+                    ? "invalid or unsupported WAV input"
+                    : input_err;
+                return DecodeError::BadInput;
+            }
+            demux_temp_path_ = tmp_wav;
+            owns_demux_temp_ = true;
+            if (!adopt_wave(tmp_wav)) {
+                last_error_detail_ = wav_err.empty()
+                    ? "demuxed audio is not PCM24 WAV"
+                    : wav_err;
+                return DecodeError::BadInput;
+            }
         }
     } else if (!raw_forced_ && is_ffmpeg_audio_input(prefix, path)) {
         std::string tmp_wav;
-        if (!demux_supported_audio_to_temp_wav(path, tmp_wav, input_err, 0u, progress_)) {
+        if (!demux_supported_audio_to_temp_wav(
+                path, tmp_wav, input_err, 0u, progress_, upmix_layout_requested)) {
             last_error_detail_ = input_err.empty()
                 ? "invalid or unsupported input"
                 : input_err;

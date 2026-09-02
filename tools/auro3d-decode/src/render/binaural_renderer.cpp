@@ -42,6 +42,7 @@ struct BinauralStreamRenderer::Impl {
     std::vector<std::vector<C>> ir_right;
     std::vector<double> overlap_left;
     std::vector<double> overlap_right;
+    double limiter_envelope = 0.0;
 };
 
 BinauralStreamRenderer::BinauralStreamRenderer() = default;
@@ -160,13 +161,45 @@ bool BinauralStreamRenderer::process(
     fft(sum_left, true);
     fft(sum_right, true);
 
+    // Native A3DENG does not send the summed AHP signal straight to the PCM
+    // convertor.  pipeline::step::PeakLimiter::prepare @ 0x360950 installs a
+    // linked compressor after AHP with {attack=0, release=.15, ratio=50,
+    // knee=0, threshold=-.5 dB}.  Its PeakFollower update @ 0x599E30 uses
+    // exp(log(.368)/(time*sample_rate)) for the release coefficient, and the
+    // gain computer @ 0x5980E0 applies (peak/threshold)^-(1-1/ratio).
+    // Keep this state across FFT blocks; otherwise direct hard clipping in
+    // write_sample turns a loud multichannel sum into long full-scale rails.
+    constexpr double kLimiterReleaseSeconds = 0.15;
+    constexpr double kLimiterRatio = 50.0;
+    constexpr double kEnvelopeTarget = 0.368;
+    constexpr double kSampleRate = 48000.0;
+    const double limiter_threshold = std::pow(10.0, -0.5 / 20.0);
+    const double release_coefficient = std::exp(
+        std::log(kEnvelopeTarget) / (kLimiterReleaseSeconds * kSampleRate));
+    const double compression_exponent = -(1.0 - 1.0 / kLimiterRatio);
+
     out.clear();
     out.reserve(frames * 2u * impl_->bytes_per_sample);
     for (std::size_t frame = 0; frame < frames; ++frame) {
         const double old_left = frame < impl_->overlap_left.size() ? impl_->overlap_left[frame] : 0.0;
         const double old_right = frame < impl_->overlap_right.size() ? impl_->overlap_right[frame] : 0.0;
-        write_sample(out, sum_left[frame].real() + old_left, impl_->bits);
-        write_sample(out, sum_right[frame].real() + old_right, impl_->bits);
+        const double left = sum_left[frame].real() + old_left;
+        const double right = sum_right[frame].real() + old_right;
+        const double peak = std::max(std::abs(left), std::abs(right));
+        if (peak > impl_->limiter_envelope) {
+            impl_->limiter_envelope = peak;
+        } else {
+            impl_->limiter_envelope =
+                release_coefficient * impl_->limiter_envelope
+                + (1.0 - release_coefficient) * peak;
+        }
+        const double gain = impl_->limiter_envelope > limiter_threshold
+            ? std::pow(
+                impl_->limiter_envelope / limiter_threshold,
+                compression_exponent)
+            : 1.0;
+        write_sample(out, left * gain, impl_->bits);
+        write_sample(out, right * gain, impl_->bits);
     }
     std::vector<double> next_left(impl_->overlap_left.size(), 0.0);
     std::vector<double> next_right(impl_->overlap_right.size(), 0.0);
