@@ -275,6 +275,297 @@ void asc4he_elevation_eq_section(
 
 } // namespace
 
+// Native auro_centergen_v3_Processor_t_update_peak_amplitude @ 0x58C830.
+// FrontManager keeps the three reported front peaks synchronized; this is a
+// metadata operation and must not be confused with audio-channel mixing.
+void auro_centergen_v3_Processor_t_update_peak_amplitude(
+    float* left_peak,
+    float* right_peak,
+    float* center_peak) {
+    if (!left_peak || !right_peak || !center_peak)
+        return;
+    const float peak = std::fmax(*left_peak, *right_peak);
+    *left_peak = peak;
+    *right_peak = peak;
+    *center_peak = peak;
+}
+
+static bool auromatic_front_input_rate_supported(std::uint32_t sample_rate) {
+    switch (sample_rate) {
+    case 16000u:
+    case 22050u:
+    case 24000u:
+    case 32000u:
+    case 44100u:
+    case 48000u:
+    case 88200u:
+    case 96000u:
+    case 176400u:
+    case 192000u:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Native auro_matic_v3_FrontManager_Input_configure @ 0x552F70.  The
+// callback addresses are retained as native identifiers; the v4 wrapper can
+// dispatch them without collapsing the mode-specific ABI into one callback.
+std::int64_t auro_matic_v3_FrontManager_Input_configure(
+    std::uint8_t* proc,
+    std::uint32_t sample_rate,
+    const std::uint8_t* config) {
+    if (!proc || !config || !auromatic_front_input_rate_supported(sample_rate))
+        return 1;
+
+    std::memset(proc + 1152u, 0, 16u);
+    std::memcpy(proc + 1072u, config + 4u, 16u);
+    std::memcpy(proc + 1088u, config + 20u, 16u);
+    std::memcpy(proc + 1104u, config + 36u, 16u);
+    std::memcpy(proc + 1120u, config + 52u, 12u);
+    std::memcpy(proc + 1132u, config + 64u, 16u);
+
+    const std::uint32_t mode = *reinterpret_cast<const std::uint32_t*>(config);
+    switch (mode) {
+    case 0u:
+        *reinterpret_cast<std::uint64_t*>(proc + 1152u) = 1u;
+        *reinterpret_cast<std::uint64_t*>(proc + 1160u) = 1u;
+        return 0;
+    case 2u:
+        *reinterpret_cast<std::uint64_t*>(proc + 1152u) = 0x5531D0u;
+        *reinterpret_cast<std::uint64_t*>(proc + 1160u) = 0x553410u;
+        *reinterpret_cast<std::uint64_t*>(proc + 1168u) = 0x100000000ull;
+        return 0;
+    case 3u:
+        *reinterpret_cast<std::uint64_t*>(proc + 1152u) = 0x553440u;
+        *reinterpret_cast<std::uint64_t*>(proc + 1160u) = 0x5537C0u;
+        *reinterpret_cast<std::uint64_t*>(proc + 1168u) = 0x100000000ull;
+        return 0;
+    case 1u: {
+        *reinterpret_cast<std::uint64_t*>(proc + 1152u) = 0x5531A0u;
+        *reinterpret_cast<std::uint64_t*>(proc + 1160u) = 0x5531C0u;
+        *reinterpret_cast<std::uint64_t*>(proc + 1168u) = 1u;
+        std::int32_t init_args[2] = {48000, 1};
+        // The native SIMD comparison is a fixed-parameter equality check.
+        // It compares the first four words and the two 16-bit fields at +16.
+        const bool fixed_matches =
+            std::memcmp(proc, proc + 1072u, 16u) == 0
+            && *reinterpret_cast<const std::uint16_t*>(proc + 16u)
+                == *reinterpret_cast<const std::uint16_t*>(proc + 1088u)
+            && *reinterpret_cast<const std::uint16_t*>(proc + 18u)
+                == *reinterpret_cast<const std::uint16_t*>(proc + 1090u);
+        if (!fixed_matches) {
+            if (!auro_centergen_v3_Processor_t_construct(proc, init_args))
+                return 1;
+            // Native 0x552F70 ignores this function's mode-valued return;
+            // mode 1 is success here, not an errno.
+            (void)auro_centergen_v3_Processor_set_fixed_parameters(
+                proc, proc + 1072u);
+        }
+        if (*reinterpret_cast<const float*>(proc + 1096u) == 0.0f) {
+            auro_centergen_v3_Processor_set_dynamic_parameters(proc, proc + 1092u);
+            return 0;
+        }
+        return 1;
+    }
+    default:
+        return 1;
+    }
+}
+
+// Native FrontManager_t_construct @ 0x550A50.  The object-level layout is
+// Input at offset 0 and Output at offset 1176; this is distinct from the v4
+// pipeline step wrapper, whose embedded processor starts at step +40.
+std::int64_t auro_matic_v3_FrontManager_construct_portable(
+    std::uint8_t* manager) {
+    if (!manager)
+        return 0;
+    *reinterpret_cast<std::uint64_t*>(manager + 1152u) = 0u;
+    std::int32_t init_args[2] = {48000, 1};
+    if (!auro_centergen_v3_Processor_t_construct(manager, init_args))
+        return 0;
+    if (!auro_matic_v3_FrontManager_Output_construct_object(manager + 1176u))
+        return 0;
+    return reinterpret_cast<std::int64_t>(manager);
+}
+
+// Native FrontManager::Output_t_construct in libauro(1).so.c initializes the
+// complete 16-byte state vector: front/center scales are 1 and source-select
+// is disabled.  Keep this as an object-level constructor because Engine_t's
+// constructor calls it explicitly after constructing FrontManager::Input.
+std::int64_t auro_matic_v3_FrontManager_Output_construct_object(
+    std::uint8_t* state) {
+    if (!state)
+        return 0;
+    std::memset(state, 0, 16u);
+    *reinterpret_cast<float*>(state + 0u) = 1.0f;
+    *reinterpret_cast<float*>(state + 4u) = 1.0f;
+    return reinterpret_cast<std::int64_t>(state);
+}
+
+// Native FrontManager_configure @ 0x550AF0.  Output receives the second
+// 88-byte sub-block; this offset is observable in the native call, not a
+// layout heuristic.
+std::int64_t auro_matic_v3_FrontManager_configure_portable(
+    std::uint8_t* manager,
+    std::uint32_t sample_rate,
+    const std::uint8_t* config) {
+    if (!manager || !config)
+        return 1;
+    const auto rc = auro_matic_v3_FrontManager_Input_configure(
+        manager, sample_rate, config);
+    if (rc != 0)
+        return rc;
+    return auro_matic_v3_FrontManager_Output_configure(
+        manager + 1176u, sample_rate, config + 88u);
+}
+
+std::int64_t auro_matic_v3_FrontManager_Input_process(
+    std::uint8_t* proc,
+    void* const* input_channels,
+    float* output_left,
+    float* output_right,
+    float* output_center) {
+    if (!proc || !input_channels || !output_left || !output_right || !output_center)
+        return 1;
+
+    const auto copy_or_zero = [](float* dst, const void* source) {
+        if (source)
+            std::memcpy(dst, source, 32u * sizeof(float));
+        else
+            std::memset(dst, 0, 32u * sizeof(float));
+    };
+
+    // 0x5537E0 first selects the center source and then, when enabled, copies
+    // L/R before invoking the configured mode callback.
+    if (*reinterpret_cast<const std::uint32_t*>(proc + 1172u) != 0u)
+        copy_or_zero(output_center, input_channels[2]);
+    else
+        std::memset(output_center, 0, 32u * sizeof(float));
+
+    if (*reinterpret_cast<const std::uint32_t*>(proc + 1168u) == 0u)
+        return 0;
+    copy_or_zero(output_left, input_channels[0]);
+    copy_or_zero(output_right, input_channels[1]);
+
+    const std::uint64_t callback =
+        *reinterpret_cast<const std::uint64_t*>(proc + 1152u);
+    constexpr float kSqrtHalf = 0.7071067811865476f;
+    if (callback == 0x5531A0u) {
+        // Native callback receives the original plane table; scratch holds
+        // the unprocessed signal for the later Output blend.
+        return auro_centergen_v3_Processor_process(
+            proc,
+            reinterpret_cast<std::uint64_t>(input_channels[0]),
+            reinterpret_cast<std::uint64_t>(input_channels[1]),
+            reinterpret_cast<std::uint8_t*>(input_channels[2]),
+            32);
+    }
+    if (callback == 0x5531D0u) {
+        for (std::size_t i = 0; i != 32u; ++i) {
+            const float center = output_center[i] * kSqrtHalf;
+            output_left[i] = center;
+            output_right[i] = center;
+            output_center[i] = 0.0f;
+        }
+    } else if (callback == 0x553440u || callback == 0x5537C0u) {
+        for (std::size_t i = 0; i != 32u; ++i) {
+            const float center = output_center[i] * kSqrtHalf;
+            output_left[i] = center;
+            output_right[i] = center;
+        }
+    }
+    return 0;
+}
+
+// Object-level transcription of FrontManager::Output::process @ 0x551C80.
+// The object call receives one 32-sample span; the v4 wrapper merely obtains
+// these three source vectors from its per-block record before making the same
+// call.
+std::int64_t auro_matic_v3_FrontManager_Output_process_object(
+    std::uint8_t* state,
+    float* const* io_channels,
+    const float* source_left,
+    const float* source_right,
+    const float* source_center,
+    const float* gains) {
+    if (!state || !io_channels || !source_left || !source_right
+        || !source_center || !gains)
+        return 1;
+    auto* left = io_channels[0];
+    auto* right = io_channels[1];
+    auto* center = io_channels[2];
+    if (!left || !right || !center)
+        return 1;
+    const float center_scale = *reinterpret_cast<const float*>(state + 0u);
+    const float front_scale = *reinterpret_cast<const float*>(state + 4u);
+    std::array<float, 32u> out_left{};
+    std::array<float, 32u> out_right{};
+    std::array<float, 32u> out_center{};
+    for (std::uint32_t i = 0u; i < 32u; ++i) {
+        // Native Output_process works in-place on the three Engine channel
+        // buffers. It copies the FrontManager sources only when +8 is set;
+        // otherwise the XinN/p3D3D result already in io_channels is retained.
+        out_left[i] = left[i];
+        out_right[i] = right[i];
+        out_center[i] = center[i];
+        if (*reinterpret_cast<const std::uint32_t*>(state + 8u) != 0u) {
+            out_left[i] = source_left[i];
+            out_right[i] = source_right[i];
+            out_center[i] = source_center[i];
+        }
+        if (center_scale != 1.0f)
+            out_center[i] *= center_scale;
+        if (front_scale != 1.0f) {
+            out_left[i] *= front_scale;
+            out_right[i] *= front_scale;
+        }
+        const float gain = std::min(gains[i], 1.0f);
+        out_center[i] = gain * out_center[i] + (1.0f - gain) * source_center[i];
+        out_left[i] = gain * out_left[i] + (1.0f - gain) * source_left[i];
+        out_right[i] = gain * out_right[i] + (1.0f - gain) * source_right[i];
+    }
+    std::memcpy(left, out_left.data(), sizeof(out_left));
+    std::memcpy(right, out_right.data(), sizeof(out_right));
+    std::memcpy(center, out_center.data(), sizeof(out_center));
+    return 0;
+}
+
+float auro_matic_v3_FrontManager_Output_update_peak_amplitude(
+    const std::uint8_t* state,
+    float* peaks,
+    float source_left,
+    float source_right,
+    float source_center) {
+    if (!state || !peaks)
+        return 0.0f;
+    if (*reinterpret_cast<const std::uint32_t*>(state + 8u) != 0u) {
+        peaks[0] = source_left;
+        peaks[1] = source_right;
+        peaks[2] = source_center;
+    }
+    if (*reinterpret_cast<const float*>(state) != 1.0f)
+        peaks[2] *= *reinterpret_cast<const float*>(state);
+    const float left_scale = *reinterpret_cast<const float*>(state + 4u);
+    if (left_scale != 1.0f) {
+        peaks[0] *= left_scale;
+        peaks[1] *= left_scale;
+    }
+    return left_scale;
+}
+
+std::int64_t auro_matic_v3_FrontManager_Output_configure(
+    std::uint8_t* state,
+    std::uint32_t /*sample_rate*/,
+    const std::uint8_t* config) {
+    if (!state || !config)
+        return 1;
+    // Native code is a 16-byte vector assignment (*a1 = *a3), not three
+    // scalar stores.  The fourth word is part of the ABI-visible state.
+    std::memcpy(state, config, 16u);
+    return 0;
+}
+
 std::int64_t auro_asc4he_v1_CrossTalkCompensation_initialize(
     std::uint8_t* a1,
     const std::uint8_t* a2,
@@ -989,7 +1280,11 @@ auro_centergen_v3_Processor_float32_t_process(
         float acc = 0.0f;
         for (std::uint32_t i = 0; i != 32u; ++i)
             acc += energy_src[n][i] * energy_src[n][i] * energy_gain;
-        ring[32u * n + ring_index] = acc;
+        // Native 0x58AA36 addresses each 16-entry history slot with an
+        // eight-byte stride.  The backing float array therefore uses its even
+        // indices; writing contiguous indices caused every odd block to be
+        // absent from the subsequent even-slot accumulation.
+        ring[32u * n + 2u * ring_index] = acc;
         for (std::uint32_t i = 0; i != 16u; ++i)
             v255[n] += ring[32u * n + 2u * i];
     }
@@ -1026,7 +1321,11 @@ auro_centergen_v3_Processor_float32_t_process(
     const float ctrl0_raw = (std::fabs(lr) - cg_read_f32(proc, 120u)) / cg_read_f32(proc, 128u);
     const float ctrl1_raw = (cg_clamp01_positive(sr) - cg_read_f32(proc, 152u)) / cg_read_f32(proc, 160u);
     const float ctrl0 = (ctrl0_raw > 0.0f) ? 1.0f - std::min(1.0f, ctrl0_raw) : 1.0f;
-    const float ctrl1 = (ctrl1_raw > 0.0f) ? std::min(1.0f, ctrl1_raw) : 1.0f;
+    // Native 0x58ACCA..0x58ACEE forms this as the high lane of an
+    // insert/blend sequence.  Its non-positive default lane is zero (the
+    // scalar reduction previously promoted it to one), so silence and a
+    // one-sided signal must not accumulate cross-channel insertion gain.
+    const float ctrl1 = (ctrl1_raw > 0.0f) ? std::min(1.0f, ctrl1_raw) : 0.0f;
     const bool dynamic_center = cg_read_u32(proc, 104u) != 0u;
     float v207 = cg_read_f32(proc, 136u);
     float mix0 = 0.0f;
@@ -1046,6 +1345,9 @@ auro_centergen_v3_Processor_float32_t_process(
     } else if (ctrl0 == 0.0f || ctrl1 == 0.0f) {
         use_mix = cg_read_u32(proc, 108u) == 0u;
     } else {
+        // Native static CenterGen promotes the center target from the packed
+        // control product when it exceeds the retained floor.  This matters
+        // after a preset graph swap, where the previous target can be lower.
         v207 = std::max(ctrl0 * ctrl1, v207);
         const float q0 = p0 + 0.00000011920929f;
         const float q1 = p1 + 0.00000011920929f;
@@ -1080,9 +1382,18 @@ auro_centergen_v3_Processor_float32_t_process(
             a2[i] = v71[i] * ins0;
             a3[i] = v21[i] * ins1;
         } else {
-            const float side = ins1 * v71[i];
-            a2[i] = a2[i] - v21[i] * ins0;
-            a3[i] = a3[i] - side;
+            // Native 0x58AF6B..0x58AF98 reads both cross-feed sources
+            // before either destination store.  v71 aliases a2 in the
+            // standard profile, so evaluating the right channel after the
+            // left store feeds back the already-mutated left sample.
+            const float left_source = v71[i];
+            const float right_source = v21[i];
+            const float left = a2[i];
+            const float right = a3[i];
+            const float left_cross = right_source * ins0;
+            const float right_cross = ins1 * left_source;
+            a2[i] = left - left_cross;
+            a3[i] = right - right_cross;
         }
     }
     cg_write_f32(proc, 1024u, v229);

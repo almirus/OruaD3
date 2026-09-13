@@ -16,6 +16,8 @@ namespace auro3deng {
 // channel is reconstructed as one call and as several consecutive pieces;
 // PCM plus final Golomb-Rice/Extrapolate state must match exactly.
 bool codec_v3_split_equivalence_self_test(std::string& detail);
+bool auromatic_layout_transform_self_test(std::string& detail);
+bool auromatic_layout_transform_self_test(std::string& detail);
 
 /// Начало объекта Processor перекрыто полями Analyser (см. auro_a3deng_v3_Processor_t_construct → Analyser_t_construct).
 constexpr std::uintptr_t kProcessor_Analyser_ctx_ptr = 8;   // второй аргумент construct: снова Processor*
@@ -124,8 +126,447 @@ float auro_a3deng_v3_strength_translate_to_dB(std::uint32_t value);
 std::int64_t auro_a3deng_v3_strength_check_range(std::uint32_t value);
 std::int64_t auro_a3deng_v3_strength_get_default();
 std::int64_t auro_a3deng_v3_pipeline_Manager_set_initial_latency(std::uint32_t* manager_base, float latency);
+std::int64_t auro_matic_v3_OutputGate_configure(
+    std::uint8_t* gate,
+    std::uint32_t sample_rate,
+    std::uint32_t channel_mask);
+std::int64_t auro_matic_v3_OutputGate_construct_portable(std::uint8_t* gate);
+void auro_matic_v3_OutputGate_set_bypass(std::uint8_t* gate, std::int64_t bypass);
+std::int64_t auro_matic_v3_OutputGate_reset_audio_state(std::uint8_t* gate);
+bool auro_matic_v3_OutputGate_process(
+    std::uint8_t* gate,
+    void** channel_span,
+    float* gains,
+    std::uint32_t* output_silent,
+    std::uint32_t* transition_silent);
+std::int64_t auro_a3deng_v4_Gate_construct_portable(std::uint8_t* gate);
+std::int64_t auro_a3deng_v4_Gate_reset_audio_state(std::uint8_t* gate);
+std::int64_t auro_a3deng_v4_Gate_process(
+    std::uint8_t* gate,
+    void** io_channels);
+bool auromatic_gate_self_test(std::string& detail);
+bool auromatic_xinn_tuning_self_test(std::string& detail);
+bool auromatic_front_stage_self_test(std::string& detail);
+bool auromatic_runtime_configure_self_test(std::string& detail);
+bool auromatic_xinn_tuning_self_test(std::string& detail);
+bool auro_matic_v3_OutputGate_process(
+    std::uint8_t* gate,
+    void** channel_span,
+    float* gains,
+    std::uint32_t* output_silent,
+    std::uint32_t* transition_silent);
+std::int64_t auro_a3deng_v4_Gate_construct_portable(std::uint8_t* gate);
+std::int64_t auro_a3deng_v4_Gate_reset_audio_state(std::uint8_t* gate);
+std::int64_t auro_a3deng_v4_Gate_process(
+    std::uint8_t* gate,
+    void** io_channels);
+bool auromatic_gate_self_test(std::string& detail);
+bool auromatic_xinn_tuning_self_test(std::string& detail);
+bool auromatic_front_stage_self_test(std::string& detail);
+bool auromatic_runtime_configure_self_test(std::string& detail);
+bool auromatic_xinn_tuning_self_test(std::string& detail);
 std::int64_t auro_a3deng_v3_pipeline_Manager_configure(std::uint32_t* manager_base, void* cfg_blob, std::int32_t initial);
 std::int64_t auro_a3deng_v3_pipeline_Manager_process_audio(std::uint32_t* manager_base, void** io_channels);
+std::int64_t auro_a3deng_v3_pipeline_Manager_calculate_info(
+    std::uint32_t* manager_base,
+    std::uint8_t* info_base);
+/// Native RemapOutput_set_output_layout @ 0x4CE100. The object stores the
+/// computed internal mask at +0 and the requested external mask at +4.
+bool auro_a3deng_v3_RemapOutput_set_output_layout(
+    std::uint8_t* remap,
+    std::uint32_t input_layout,
+    std::uint32_t output_layout);
+bool manager_partial_clear_step_chain(std::uint8_t* step_chain, std::uint32_t* remaining);
+std::int64_t auro_a3deng_v3_pipeline_Manager_calculate_info(
+    std::uint32_t* manager_base,
+    std::uint8_t* info_base);
+/// Native RemapOutput_set_output_layout @ 0x4CE100. The object stores the
+/// computed internal mask at +0 and the requested external mask at +4.
+bool auro_a3deng_v3_RemapOutput_set_output_layout(
+    std::uint8_t* remap,
+    std::uint32_t input_layout,
+    std::uint32_t output_layout);
+bool manager_partial_clear_step_chain(std::uint8_t* step_chain, std::uint32_t* remaining);
+
+/// Explicit portable equivalent of auro_matic_v3_Engine_process @ 0x5500F0.
+/// Each pointer names a fully initialized v4 step object; ownership and
+/// allocation remain with the native pipeline builder.
+struct AuromaticV3EngineStages {
+    std::uint8_t* input = nullptr;
+    std::uint8_t* front_manager_input = nullptr;
+    std::uint8_t* xinn = nullptr;
+    std::uint8_t* p3d3d = nullptr;
+    std::uint8_t* front_manager_output = nullptr;
+    std::uint8_t* gain = nullptr;
+    std::uint8_t* silence = nullptr;
+};
+std::int64_t auro_matic_v3_Engine_process_portable(
+    const AuromaticV3EngineStages& stages,
+    void** io_channels_31);
+/// Portable transcription of auro_matic_v3_Engine_configure @ 0x550030.
+/// `engine_params` is the native 124-byte parameter block; its sub-blocks are
+/// passed at the same offsets as the decompiled Engine call.
+std::int64_t auro_matic_v3_Engine_configure_portable(
+    const AuromaticV3EngineStages& stages,
+    std::uint32_t sample_rate,
+    const std::uint32_t* engine_params);
+/// Portable transcription of auro_matic_v3_Engine_configure @ 0x550030.
+/// `engine_params` is the native 124-byte parameter block; its sub-blocks are
+/// passed at the same offsets as the decompiled Engine call.
+std::int64_t auro_matic_v3_Engine_configure_portable(
+    const AuromaticV3EngineStages& stages,
+    std::uint32_t sample_rate,
+    const std::uint32_t* engine_params);
+std::int64_t auro_matic_v3_FrontManager_construct_portable(std::uint8_t* manager);
+std::int64_t auro_matic_v3_FrontManager_Output_construct_object(
+    std::uint8_t* state);
+std::int64_t auro_matic_v3_FrontManager_configure_portable(
+    std::uint8_t* manager,
+    std::uint32_t sample_rate,
+    const std::uint8_t* config);
+std::int64_t auro_matic_v3_FrontManager_Output_process_object(
+    std::uint8_t* state,
+    float* const* io_channels,
+    const float* source_left,
+    const float* source_right,
+    const float* source_center,
+    const float* gains);
+/// Native FrontManager::Output_update_peak_amplitude @ 0x4EA2A4 in the
+/// supplied variant. `peaks` is the three-word L/R/C peak record.
+float auro_matic_v3_FrontManager_Output_update_peak_amplitude(
+    const std::uint8_t* state,
+    float* peaks,
+    float source_left,
+    float source_right,
+    float source_center);
+std::int64_t auro_matic_v3_FrontManager_Output_construct_object(
+    std::uint8_t* state);
+std::int64_t auro_matic_v3_FrontManager_configure_portable(
+    std::uint8_t* manager,
+    std::uint32_t sample_rate,
+    const std::uint8_t* config);
+std::int64_t auro_matic_v3_FrontManager_Output_process_object(
+    std::uint8_t* state,
+    float* const* io_channels,
+    const float* source_left,
+    const float* source_right,
+    const float* source_center,
+    const float* gains);
+/// Native FrontManager::Output_update_peak_amplitude @ 0x4EA2A4 in the
+/// supplied variant. `peaks` is the three-word L/R/C peak record.
+float auro_matic_v3_FrontManager_Output_update_peak_amplitude(
+    const std::uint8_t* state,
+    float* peaks,
+    float source_left,
+    float source_right,
+    float source_center);
+std::int64_t auro_matic_v3_Gain_configure_object(
+    std::uint8_t* gain,
+    std::uint32_t channel_mask);
+std::int64_t auro_matic_v3_Gain_construct_object(std::uint8_t* gain);
+std::int64_t auro_matic_v3_Gain_prepare_step(
+    std::uint8_t* step,
+    std::uint32_t channel_mask);
+std::int64_t auro_matic_v3_Gain_reset_audio_state_object(std::uint8_t* gain);
+std::int64_t auro_matic_Silence_configure_object(
+    std::uint8_t* silence,
+    std::uint32_t channel_mask);
+std::int64_t auro_matic_Silence_construct_object(std::uint8_t* silence);
+std::int64_t auro_matic_Silence_prepare_step(
+    std::uint8_t* step,
+    std::uint32_t output_layout);
+std::int64_t auro_matic_Silence_reset_audio_state_object(std::uint8_t* silence);
+std::int64_t auro_matic_v3_Gain_process_object(
+    const std::uint8_t* gain,
+    float* const* io_channels,
+    const float* gains);
+std::int64_t auro_matic_Silence_process_object(
+    const std::uint8_t* silence,
+    float* const* io_channels,
+    bool transition_silent);
+std::int64_t auro_matic_v3_3d3d_construct_object(
+    std::uint8_t* state,
+    const std::uint64_t* line_plans_4);
+std::int64_t auro_matic_v3_3d3d_reset_audio_state_object(std::uint8_t* state);
+std::int64_t auro_matic_v3_3d3d_process_object(
+    std::uint8_t* state,
+    void** channel_span_31);
+std::int64_t auro_matic_v3_Gain_process_object(
+    const std::uint8_t* gain,
+    float* const* io_channels,
+    const float* gains);
+std::int64_t auro_matic_Silence_process_object(
+    const std::uint8_t* silence,
+    float* const* io_channels,
+    bool transition_silent);
+std::int64_t auro_matic_v3_3d3d_construct_object(
+    std::uint8_t* state,
+    const std::uint64_t* line_plans_4);
+std::int64_t auro_matic_v3_3d3d_reset_audio_state_object(std::uint8_t* state);
+std::int64_t auro_matic_v3_3d3d_process_object(
+    std::uint8_t* state,
+    void** channel_span_31);
+/// Explicit component map for the native Engine object. The constructor body
+/// and member offsets are confirmed by `decopiled/libauro(1).so.c`; the
+/// caller still owns the allocations and provides the native plan maps.
+struct AuromaticV3EngineObjectParts {
+    std::uint8_t* output_gate = nullptr;
+    std::uint8_t* front_manager = nullptr;
+    std::uint8_t* xinn = nullptr;
+    std::uint8_t* p3d3d = nullptr;
+    std::uint8_t* gain = nullptr;
+    std::uint8_t* silence = nullptr;
+    const std::uint64_t* xinn_memory_args = nullptr;
+    const std::uint64_t* p3d3d_line_plans = nullptr;
+    /// Native Engine +4848/+4852 masks, when the caller owns the enclosing
+    /// object. Optional for standalone component tests.
+    std::uint32_t* output_masks = nullptr;
+};
+
+/// Optional diagnostic snapshots for a single 32-frame Engine quantum.
+/// Kept outside the production object state and populated only on request.
+struct AuromaticV3EngineStageTrace {
+    std::array<std::array<float, 32u>, 31u> after_output_gate{};
+    std::array<std::array<float, 32u>, 31u> after_front_input{};
+    std::array<std::array<float, 32u>, 31u> after_xinn{};
+    std::array<std::array<float, 32u>, 31u> after_3d3d{};
+    std::array<std::array<float, 32u>, 31u> after_front_output{};
+    std::array<std::array<float, 32u>, 31u> after_gain{};
+    std::array<float, 32u> gain_curve{};
+};
+
+/// Optional diagnostic snapshots for a single 32-frame Engine quantum.
+/// Kept outside the production object state and populated only on request.
+struct AuromaticV3EngineStageTrace {
+    std::array<std::array<float, 32u>, 31u> after_output_gate{};
+    std::array<std::array<float, 32u>, 31u> after_front_input{};
+    std::array<std::array<float, 32u>, 31u> after_xinn{};
+    std::array<std::array<float, 32u>, 31u> after_3d3d{};
+    std::array<std::array<float, 32u>, 31u> after_front_output{};
+    std::array<std::array<float, 32u>, 31u> after_gain{};
+    std::array<float, 32u> gain_curve{};
+};
+
+/// Owning runtime for the confirmed discrete Float32 Upmix object.
+///
+/// This is deliberately separate from the full Manager: the supplied
+/// decompilations confirm the Engine constructor and Upmix arena map, but the
+/// full Manager constructor still contains non-upmix steps not represented by
+/// this portable runtime.  The object keeps every address passed into
+/// XinN/p3D3D stable across calls.
+class AuromaticV3UpmixRuntime {
+public:
+    AuromaticV3UpmixRuntime() = default;
+    AuromaticV3UpmixRuntime(const AuromaticV3UpmixRuntime&) = delete;
+    AuromaticV3UpmixRuntime& operator=(const AuromaticV3UpmixRuntime&) = delete;
+
+    /// Construct the Manager-facing Upmix step and its embedded Engine.
+    /// engine_arg3/4 are the two external arguments passed by native
+    /// Upmix_t_construct to Engine_t_construct.
+    std::int64_t construct(
+        std::uint64_t engine_arg3 = 0,
+        std::uint64_t engine_arg4 = 0);
+    std::int64_t bind_block_state(std::uint64_t block_state);
+    std::int64_t configure(
+        std::uint32_t sample_rate,
+        const std::uint32_t* engine_params);
+    /// Configure the object from the portable native preset resource and the
+    /// same compact parameter block used by the v4 Upmix step.
+    std::int64_t configure_default(
+        std::uint32_t sample_rate,
+        std::uint32_t input_mask,
+        std::uint32_t output_mask,
+        bool surround_mode,
+        std::uint32_t room_preset);
+    /// Set the native outer Upmix bypass field consumed by Upmix::process.
+    std::int64_t set_bypass(std::int64_t bypass);
+    /// Apply the native Engine dynamic-update entry points without rebuilding
+    /// the owning Manager/Upmix storage.
+    std::int64_t update_xinn_preset(std::uint64_t preset);
+    std::int64_t update_xinn_parameters(const std::uint8_t* dynamic_120);
+    std::int64_t update_front_manager(const std::uint8_t* dynamic_56);
+    std::int64_t reset_audio_state();
+    /// Native Upmix::update callback: update the 31-channel peak record.
+    std::int64_t update_peak_amplitude(float* peak_31);
+    std::int64_t process(float* const* io_channels_31);
+    /// Run the outer native Manager_process_audio adapter. The pointers name
+    /// host-rate planes; the bound block state supplies the 32-sample count.
+    std::int64_t process_manager(void** io_channels_31);
+
+    bool constructed() const { return constructed_; }
+    std::uint8_t* manager_storage() { return manager_.data(); }
+    std::uint8_t* step_chain_storage() { return step_chain_.data(); }
+
+private:
+    static constexpr std::size_t kManagerBytes = 4096u;
+    // Manager_t_construct's current step table reaches the final
+    // SampleConvertor wrapper at base 61784, whose block-state field is +32.
+    // Keep the complete zero-initialized chain addressable even when only
+    // the confirmed Upmix step is constructed.
+    // sub_4CD6C0 binds the final SampleConvertor at +61784 and copies its
+    // predecessor FramesMeta through +61840 (inclusive, four bytes).
+    static constexpr std::size_t kStepChainBytes = 61844u;
+    // The third p3D3D plan starts at +467544 and owns a complete Line3:
+    // 726 floats for the first delay allocation plus 770 for the second.
+    // The old 4096-byte tail was enough while this callback stayed inactive,
+    // but side/rear synthesis clears all 1496 floats during configure/reset.
+    static constexpr std::size_t kUpmixArenaBytes = 467544u + 5984u;
+    static constexpr std::size_t kBlockStateBytes = 64u;
+
+    std::vector<std::uint8_t> manager_;
+    std::vector<std::uint8_t> step_chain_;
+    std::vector<std::uint8_t> upmix_arena_;
+    std::vector<std::uint8_t> block_state_;
+    std::vector<std::uint8_t> processed_preset_;
+    std::vector<std::uint8_t> dynamic_parameters_;
+    std::vector<std::uint32_t> engine_parameters_;
+    bool constructed_ = false;
+};
+std::int64_t auro_matic_v3_Engine_construct_objects(
+    const AuromaticV3EngineObjectParts& parts);
+/// Construct the confirmed outer Upmix step at step_chain +7944. The caller
+/// owns `manager`, `step_chain`, and the native XinN/p3D3D plan storage.
+std::int64_t auro_a3deng_v3_pipeline_Manager_construct_upmix_objects(
+    std::uint8_t* manager,
+    std::uint8_t* step_chain,
+    const std::uint64_t* xinn_memory_args,
+    const std::uint64_t* p3d3d_line_plans);
+/// Native Upmix_t_construct argument mapping from 0x4CB9B0/0x4CF330:
+/// `storage` is the a2 arena, followed by the two external Engine args.
+std::int64_t auro_a3deng_v3_pipeline_Manager_construct_upmix_native(
+    std::uint8_t* manager,
+    std::uint8_t* step_chain,
+    std::uint64_t storage,
+    std::uint64_t engine_arg3,
+    std::uint64_t engine_arg4);
+std::int64_t auro_a3deng_v3_pipeline_Manager_bind_upmix_block_state(
+    std::uint32_t* manager_base,
+    std::uint64_t block_state);
+std::int64_t auro_a3deng_v3_pipeline_Manager_configure_upmix_objects(
+    std::uint32_t* manager_base,
+    std::uint32_t sample_rate,
+    const std::uint32_t* engine_params);
+/// Portable body of Upmix::configure @ 0x4CF440. `config_blob` contains the
+/// native 0xC8-byte step configuration source; its first eight bytes are the
+/// callback envelope and are therefore skipped, as in the decompiled memcpy.
+std::int64_t auro_a3deng_v3_pipeline_Upmix_configure(
+    std::uint8_t* step,
+    const std::uint8_t* block_state,
+    const std::uint8_t* config_blob);
+/// Construct the confirmed outer Upmix step at step_chain +7944. The caller
+/// owns `manager`, `step_chain`, and the native XinN/p3D3D plan storage.
+std::int64_t auro_a3deng_v3_pipeline_Manager_construct_upmix_objects(
+    std::uint8_t* manager,
+    std::uint8_t* step_chain,
+    const std::uint64_t* xinn_memory_args,
+    const std::uint64_t* p3d3d_line_plans);
+/// Native Upmix_t_construct argument mapping from 0x4CB9B0/0x4CF330:
+/// `storage` is the a2 arena, followed by the two external Engine args.
+std::int64_t auro_a3deng_v3_pipeline_Manager_construct_upmix_native(
+    std::uint8_t* manager,
+    std::uint8_t* step_chain,
+    std::uint64_t storage,
+    std::uint64_t engine_arg3,
+    std::uint64_t engine_arg4);
+std::int64_t auro_a3deng_v3_pipeline_Manager_bind_upmix_block_state(
+    std::uint32_t* manager_base,
+    std::uint64_t block_state);
+std::int64_t auro_a3deng_v3_pipeline_Manager_configure_upmix_objects(
+    std::uint32_t* manager_base,
+    std::uint32_t sample_rate,
+    const std::uint32_t* engine_params);
+/// Portable body of Upmix::configure @ 0x4CF440. `config_blob` contains the
+/// native 0xC8-byte step configuration source; its first eight bytes are the
+/// callback envelope and are therefore skipped, as in the decompiled memcpy.
+std::int64_t auro_a3deng_v3_pipeline_Upmix_configure(
+    std::uint8_t* step,
+    const std::uint8_t* block_state,
+    const std::uint8_t* config_blob);
+std::int64_t auro_matic_v3_Engine_reset_audio_state_objects(
+    const AuromaticV3EngineObjectParts& parts);
+std::int64_t auro_matic_v3_Engine_configure_objects(
+    const AuromaticV3EngineObjectParts& parts,
+    std::uint32_t sample_rate,
+    const std::uint32_t* engine_params);
+std::int64_t auro_a3deng_v3_pipeline_Upmix_update_peak_amplitude(
+    std::uint8_t* step,
+    float* peak_31);
+std::int64_t auro_matic_v3_Engine_configure_objects(
+    const AuromaticV3EngineObjectParts& parts,
+    std::uint32_t sample_rate,
+    const std::uint32_t* engine_params);
+std::int64_t auro_matic_v3_Engine_update_xinn_preset(
+    const AuromaticV3EngineObjectParts& parts,
+    std::uint64_t preset);
+std::int64_t auro_matic_v3_Engine_update_xinn_parameters(
+    const AuromaticV3EngineObjectParts& parts,
+    const std::uint8_t* dynamic_120);
+std::int64_t auro_matic_v3_Engine_update_front_manager(
+    const AuromaticV3EngineObjectParts& parts,
+    const std::uint8_t* dynamic_56);
+std::int64_t auro_matic_v3_Engine_update_peak_amplitude_objects(
+    const AuromaticV3EngineObjectParts& parts,
+    float* peak_31);
+std::int64_t auro_matic_v3_Engine_process_objects(
+    const AuromaticV3EngineObjectParts& parts,
+    float* const* io_channels_31,
+    AuromaticV3EngineStageTrace* trace = nullptr);
+std::int64_t auro_matic_v3_Engine_update_peak_amplitude_objects(
+    const AuromaticV3EngineObjectParts& parts,
+    float* peak_31);
+std::int64_t auro_matic_v3_Engine_process_objects(
+    const AuromaticV3EngineObjectParts& parts,
+    float* const* io_channels_31,
+    AuromaticV3EngineStageTrace* trace = nullptr);
+/// Native auro_matic_v3_Configurator_t_get_downmix_layout @ 0x4E8950.
+/// Returns the output mask after applying the configurator's downmix
+/// additions for the source (`input_mask`) and requested (`output_mask`)
+/// layouts.
+std::uint32_t auro_matic_v3_Configurator_get_downmix_layout(
+    std::uint32_t input_mask,
+    std::uint32_t output_mask);
+/// Native auro_a3deng_v3_get_direct_firing_speakers @ 0x426319.
+std::uint32_t auro_a3deng_v3_get_direct_firing_speakers(
+    std::uint32_t layout,
+    std::uint32_t mode);
+/// Native Scene::get_remix_layout @ 0x4D28E0.
+std::int64_t auro_a3deng_v3_scene_get_remix_layout(
+    std::uint32_t* remix_layout,
+    std::uint32_t* pass_through,
+    std::uint32_t* processor_layout,
+    std::int32_t processor_type,
+    std::uint32_t source_layout,
+    std::uint32_t target_layout,
+    std::uint32_t mode);
+std::int64_t auro_a3deng_v3_Headroom_construct_object(
+    std::uint8_t* state,
+    float initial_headroom_db);
+std::int64_t auro_a3deng_v3_Headroom_recalculate_gains(
+    std::uint8_t* state);
+std::int64_t auro_a3deng_v3_Headroom_process_object(
+    std::uint8_t* state,
+    float* const* io_channels);
+/// Native auro_a3deng_v3_get_direct_firing_speakers @ 0x426319.
+std::uint32_t auro_a3deng_v3_get_direct_firing_speakers(
+    std::uint32_t layout,
+    std::uint32_t mode);
+/// Native Scene::get_remix_layout @ 0x4D28E0.
+std::int64_t auro_a3deng_v3_scene_get_remix_layout(
+    std::uint32_t* remix_layout,
+    std::uint32_t* pass_through,
+    std::uint32_t* processor_layout,
+    std::int32_t processor_type,
+    std::uint32_t source_layout,
+    std::uint32_t target_layout,
+    std::uint32_t mode);
+std::int64_t auro_a3deng_v3_Headroom_construct_object(
+    std::uint8_t* state,
+    float initial_headroom_db);
+std::int64_t auro_a3deng_v3_Headroom_recalculate_gains(
+    std::uint8_t* state);
+std::int64_t auro_a3deng_v3_Headroom_process_object(
+    std::uint8_t* state,
+    float* const* io_channels);
 using AuroMaticV3XinNFl32ProcessFn = std::int64_t (*)(std::uint64_t xinn_state, void** channel_span_31);
 using AuroA3dengV4XinNResetFn = std::int64_t (*)(std::uint64_t step_base);
 using AuroMaticEngine2Fl32ProcessFn =
@@ -273,6 +714,44 @@ void /* Decompiled name: auro_matic_XinN_parameter_Dynamic_t_default */
 auro_matic_XinN_parameter_Dynamic_t_default(std::uint8_t* dynamic_48);
 void /* Decompiled name: auro_matic_v3_XinN_parameter_Dynamic_t_default */
 auro_matic_v3_XinN_parameter_Dynamic_t_default(std::uint8_t* dynamic_120);
+void auro_matic_v3_XinN_parameter_Dynamic_set_stereo_Xs(
+    std::uint8_t*, std::int32_t, std::int32_t, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_set_stereo_HX(
+    std::uint8_t*, std::int32_t, std::int32_t, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_set_stereo_HXs(
+    std::uint8_t*, std::int32_t, std::int32_t, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_set_surround_HX(
+    std::uint8_t*, std::int32_t, std::int32_t, std::int32_t, float, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_set_surround_HXs(
+    std::uint8_t*, std::int32_t, std::int32_t, std::int32_t, float, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_set_surround_HC_T(
+    std::uint8_t*, std::int32_t, std::int32_t, std::int32_t,
+    float, float, float, float, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_stereo_Xs(std::uint8_t*);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_stereo_HX(std::uint8_t*);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_stereo_HXs(std::uint8_t*);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_surround_HX(std::uint8_t*);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_surround_HXs(std::uint8_t*);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_surround_HC_T(std::uint8_t*);
+void auro_matic_v3_XinN_parameter_Dynamic_set_stereo_Xs(
+    std::uint8_t*, std::int32_t, std::int32_t, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_set_stereo_HX(
+    std::uint8_t*, std::int32_t, std::int32_t, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_set_stereo_HXs(
+    std::uint8_t*, std::int32_t, std::int32_t, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_set_surround_HX(
+    std::uint8_t*, std::int32_t, std::int32_t, std::int32_t, float, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_set_surround_HXs(
+    std::uint8_t*, std::int32_t, std::int32_t, std::int32_t, float, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_set_surround_HC_T(
+    std::uint8_t*, std::int32_t, std::int32_t, std::int32_t,
+    float, float, float, float, float, float);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_stereo_Xs(std::uint8_t*);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_stereo_HX(std::uint8_t*);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_stereo_HXs(std::uint8_t*);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_surround_HX(std::uint8_t*);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_surround_HXs(std::uint8_t*);
+void auro_matic_v3_XinN_parameter_Dynamic_mute_surround_HC_T(std::uint8_t*);
 void /* Decompiled name: auro_matic_v3_XinN_Routing_fl32_construct */
 auro_matic_v3_XinN_Routing_fl32_construct(std::uint8_t* routing_state);
 std::uint64_t /* Decompiled name: auro_matic_v3_XinN_Routing_fl32_set_routing */
@@ -312,6 +791,14 @@ std::int64_t /* Decompiled name: auro_matic_v3_XinN_fl32_construct */
 auro_matic_v3_XinN_fl32_construct(
     std::uint8_t* xinn_v3_state,
     const std::uint64_t* memory_args_5);
+// Native AM4HP Upmixing_t_construct calls this direct initializer with a
+// sample-rate argument and an already-retargeted runtime preset pointer.
+std::int64_t auro_matic_v3_XinN_fl32_initialize(
+    std::uint8_t* xinn_v3_state,
+    std::uint32_t input_mask,
+    std::uint32_t output_mask,
+    std::uint32_t sample_rate,
+    std::uint64_t preset);
 std::int64_t /* Decompiled name: auro_matic_v3_XinN_fl32_configure */
 auro_matic_v3_XinN_fl32_configure(
     std::uint8_t* xinn_v3_state,
@@ -1681,6 +2168,46 @@ std::int64_t /* Decompiled name: auro_asc4he_v1_CenterGen_reset_audio_state */
 auro_asc4he_v1_CenterGen_reset_audio_state(std::uint8_t* proc);
 std::int64_t /* Decompiled name: auro_centergen_v3_Processor_reset_audio_state */
 auro_centergen_v3_Processor_reset_audio_state(std::uint8_t* proc);
+/// Native 0x58C830: synchronizes the three front peak values to their maximum.
+void /* Decompiled name: auro_centergen_v3_Processor_t_update_peak_amplitude */
+auro_centergen_v3_Processor_t_update_peak_amplitude(
+    float* left_peak,
+    float* right_peak,
+    float* center_peak);
+/// Native auro_matic_v3_FrontManager_Input_configure @ 0x552F70.
+std::int64_t auro_matic_v3_FrontManager_Input_configure(
+    std::uint8_t* proc,
+    std::uint32_t sample_rate,
+    const std::uint8_t* config);
+/// Native auro_matic_v3_FrontManager_Input_process @ 0x5537E0.
+std::int64_t auro_matic_v3_FrontManager_Input_process(
+    std::uint8_t* proc,
+    void* const* input_channels,
+    float* output_left,
+    float* output_right,
+    float* output_center);
+/// Native auro_matic_v3_FrontManager_Output_configure @ 0x551C70.
+std::int64_t auro_matic_v3_FrontManager_Output_configure(
+    std::uint8_t* state,
+    std::uint32_t sample_rate,
+    const std::uint8_t* config);
+/// Native auro_matic_v3_FrontManager_Input_configure @ 0x552F70.
+std::int64_t auro_matic_v3_FrontManager_Input_configure(
+    std::uint8_t* proc,
+    std::uint32_t sample_rate,
+    const std::uint8_t* config);
+/// Native auro_matic_v3_FrontManager_Input_process @ 0x5537E0.
+std::int64_t auro_matic_v3_FrontManager_Input_process(
+    std::uint8_t* proc,
+    void* const* input_channels,
+    float* output_left,
+    float* output_right,
+    float* output_center);
+/// Native auro_matic_v3_FrontManager_Output_configure @ 0x551C70.
+std::int64_t auro_matic_v3_FrontManager_Output_configure(
+    std::uint8_t* state,
+    std::uint32_t sample_rate,
+    const std::uint8_t* config);
 std::int64_t /* Decompiled name: auro_centergen_v3_Processor_get_fixed_parameters */
 auro_centergen_v3_Processor_get_fixed_parameters(const std::uint8_t* proc, std::uint8_t* out20);
 std::int64_t /* Decompiled name: auro_centergen_v3_Processor_get_dynamic_parameters */

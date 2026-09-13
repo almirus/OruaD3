@@ -323,6 +323,18 @@ public:
     void set_virtualizer_mode(unsigned mode);
     void set_output_audio_devices(bool headphone_connected, bool stereo_device_connected);
 
+    /// Binaural is a mutually exclusive native virtualization route, not a
+    /// discrete Auromatic-export-then-AHP chain. Plain PCM in a captured AHP
+    /// bed/height layout enters AHP directly; stereo selects the integrated
+    /// AM4HP Core/Manager path. Internal DSP remains float until final export.
+    void set_direct_binaural_pcm(bool enabled) { direct_binaural_pcm_ = enabled; }
+
+    /// Binaural is a mutually exclusive native virtualization route, not a
+    /// discrete Auromatic-export-then-AHP chain. Plain PCM in a captured AHP
+    /// bed/height layout enters AHP directly; stereo selects the integrated
+    /// AM4HP Core/Manager path. Internal DSP remains float until final export.
+    void set_direct_binaural_pcm(bool enabled) { direct_binaural_pcm_ = enabled; }
+
     DecodeError open(const std::string& path);
     DecodeError decode_next(std::vector<std::uint8_t>& pcm_out);
     bool exhausted() const;
@@ -418,13 +430,17 @@ private:
     bool opened_ = false;
     bool raw_forced_ = false;
     bool legacy_auromatic_upmix_ = false;
+    bool direct_binaural_pcm_ = false;
+    bool direct_binaural_pcm_ = false;
     bool legacy_auromatic_ffmpeg_downsampled_ = false;
     std::uint32_t legacy_auromatic_source_rate_hz_ = 0;
     /// Encoded stream: dematrix to metadata layout, then XinN/bed-synth to a
     /// compatible larger --dsp-output-layout (e.g. 5.1 → 5.1_4H).
     bool meta_auromatic_upmix_ = false;
     std::uint32_t meta_upmix_source_mask_ = 0;
-    /// 2 when host is 96 kHz and XinN runs at 48 kHz (pair average / hold).
+    /// Native XinN rate factor.  The discrete Float32 path currently uses 1;
+    /// rate conversion, when required by another pipeline, must stay inside
+    /// the native resampler rather than being emulated at the host boundary.
     std::uint32_t meta_xinn_rate_decimation_ = 1;
     unsigned dsp_strength_ = 12;
     unsigned room_preset_ = kDefaultRoomPreset;
@@ -446,6 +462,17 @@ private:
     std::vector<float> native_xinn_tail_input_storage_;
     std::vector<std::uint8_t> native_xinn_state_before_tail_;
     std::vector<float> native_xinn_scratch_before_tail_;
+    std::vector<std::uint8_t> native_auromatic_front_input_state_;
+    std::vector<std::uint8_t> native_auromatic_front_output_state_;
+    std::vector<std::uint8_t> native_auromatic_gain_state_;
+    std::vector<std::uint8_t> native_auromatic_silence_state_;
+    auro3deng::AuromaticV3UpmixRuntime native_auromatic_runtime_;
+    bool native_auromatic_runtime_ready_ = false;
+    std::vector<std::uint8_t> native_auromatic_front_output_state_;
+    std::vector<std::uint8_t> native_auromatic_gain_state_;
+    std::vector<std::uint8_t> native_auromatic_silence_state_;
+    auro3deng::AuromaticV3UpmixRuntime native_auromatic_runtime_;
+    bool native_auromatic_runtime_ready_ = false;
     std::uint32_t native_xinn_tail_samples_ = 0;
     double native_upmix_limiter_envelope_ = 0.0;
     bool native_xinn_partial_ready_ = false;
