@@ -304,8 +304,10 @@ public:
     /// Post-dematrix / legacy XinN upmix active after open.
     bool meta_auromatic_upmix() const { return meta_auromatic_upmix_; }
     bool legacy_auromatic_upmix() const { return legacy_auromatic_upmix_; }
-    /// >1 when XinN ran at a lower rate than the host (e.g. 96→48 via 2:1 bridge).
+    /// >1 when XinN ran at a lower rate than the host (e.g. 96→48).
     std::uint32_t meta_xinn_rate_decimation() const { return meta_xinn_rate_decimation_; }
+    /// Core rate the Matic/XinN engine was configured at (0 = host rate).
+    std::uint32_t meta_xinn_core_rate() const { return meta_xinn_core_rate_; }
     /// Legacy (no metadata) path: whole-file FFmpeg downsample before XinN.
     bool legacy_auromatic_ffmpeg_downsampled() const {
         return legacy_auromatic_ffmpeg_downsampled_;
@@ -424,8 +426,11 @@ private:
     /// compatible larger --dsp-output-layout (e.g. 5.1 → 5.1_4H).
     bool meta_auromatic_upmix_ = false;
     std::uint32_t meta_upmix_source_mask_ = 0;
-    /// 2 when host is 96 kHz and XinN runs at 48 kHz (pair average / hold).
+    /// 2 when the host rate is above 48 kHz and the 48 kHz Matic/XinN engine is
+    /// fed through the native factor-2 matic_resample Down/Up pair.
     std::uint32_t meta_xinn_rate_decimation_ = 1;
+    /// Core rate the Matic/XinN engine is configured at (0 = host rate).
+    std::uint32_t meta_xinn_core_rate_ = 0;
     unsigned dsp_strength_ = 12;
     unsigned room_preset_ = kDefaultRoomPreset;
     unsigned hrtf_preset_ = kDefaultHrtfPreset;
@@ -447,6 +452,9 @@ private:
     std::vector<std::uint8_t> native_xinn_state_before_tail_;
     std::vector<float> native_xinn_scratch_before_tail_;
     std::uint32_t native_xinn_tail_samples_ = 0;
+    /// Persistent native matic_resample factor-2 FIR state (one per channel).
+    std::vector<float> native_xinn_down_history_;
+    std::vector<float> native_xinn_up_history_;
     double native_upmix_limiter_envelope_ = 0.0;
     bool native_xinn_partial_ready_ = false;
     std::uint32_t native_xinn_partial_input_mask_ = 0;

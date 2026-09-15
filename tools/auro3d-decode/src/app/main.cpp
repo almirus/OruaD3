@@ -1547,13 +1547,15 @@ int app_main(int argc, char** argv) {
     }
     if (dec.meta_auromatic_upmix() && dec.meta_xinn_rate_decimation() > 1u) {
         const std::uint32_t host_hz = cfg_open.sample_rate;
-        const std::uint32_t xinn_hz = host_hz / dec.meta_xinn_rate_decimation();
+        const std::uint32_t core_hz = dec.meta_xinn_core_rate() != 0u
+            ? dec.meta_xinn_core_rate()
+            : host_hz / dec.meta_xinn_rate_decimation();
         print_warning(
             "Orua-Matic/XinN: host "
             + std::to_string(host_hz)
-            + " Hz downsampled to "
-            + std::to_string(xinn_hz)
-            + " Hz for XinN (pair-average bridge);");
+            + " Hz runs on the native factor-2 matic_resample FIR at core "
+            + std::to_string(core_hz)
+            + " Hz;");
     } else if (dec.legacy_auromatic_upmix() && dec.legacy_auromatic_ffmpeg_downsampled()) {
         print_warning(
             "Orua-Matic/XinN: input "

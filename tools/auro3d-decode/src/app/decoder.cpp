@@ -2,6 +2,7 @@
 #include "output_layout.hpp"
 
 #include "../auro3deng/detail/codec_v3_ida.hpp"
+#include "../auro3deng/detail/matic_resample.hpp"
 #include "../auro3deng/detail/runtime_api.hpp"
 #include "../io/wav_writer.hpp"
 #include "../render/java_auro_decode_pcm.hpp"
@@ -3198,13 +3199,20 @@ void Decoder::rebuild_native_xinn_partial_state() {
         ? (input_mask | (requested_output_mask & xinn_supported_additions))
         : requested_output_mask;
 
-    // XinN configure: 32/44.1/48 only. At 96 kHz host, run XinN at 48 kHz with
-    // 2:1 pair-average / hold (stand-in for native factor-2 pre-XinN resampler).
+    // Native Matic/XinN is a 48 kHz engine: auro_matic_v3_XinN_fl32_configure
+    // accepts only 32/44.1/48 kHz (IDB 0x556330).  For a host rate above 48 kHz
+    // native therefore runs the upmix core at the normalized core rate and
+    // brackets it with its factor-2 matic_resample FIR (Down input, Up output):
+    // IDB MetaInfo::resample_to_1fs 0x3658B0 and configure_resamplers 0x365960.
+    // Mirror that here instead of the pair-average / sample-hold stand-in.
     meta_xinn_rate_decimation_ = 1u;
+    meta_xinn_core_rate_ = 0u;
     std::uint32_t xinn_sample_rate = sample_rate_;
-    if (meta_auromatic_upmix_ && sample_rate_ == 96000u) {
+    if ((legacy_auromatic_upmix_ || meta_auromatic_upmix_)
+        && (sample_rate_ == 88200u || sample_rate_ == 96000u)) {
         meta_xinn_rate_decimation_ = 2u;
-        xinn_sample_rate = 48000u;
+        xinn_sample_rate = sample_rate_ / 2u; // 44100 / 48000
+        meta_xinn_core_rate_ = xinn_sample_rate;
     } else if (
         sample_rate_ != 32000u && sample_rate_ != 44100u && sample_rate_ != 48000u) {
         return;
@@ -3216,6 +3224,17 @@ void Decoder::rebuild_native_xinn_partial_state() {
         block_size_ / meta_xinn_rate_decimation_;
     if (xinn_host_samples == 0u || (xinn_host_samples % 32u) != 0u)
         return;
+    // The factor-2 Down FIR consumes 64 host samples per quantum.
+    if (meta_xinn_rate_decimation_ == 2u && (block_size_ % 64u) != 0u)
+        return;
+    native_xinn_down_history_.assign(
+        static_cast<std::size_t>(auro_engine_v4_ida::kChannelCount)
+            * auro3deng::matic_resample::kTapCount,
+        0.0f);
+    native_xinn_up_history_.assign(
+        static_cast<std::size_t>(auro_engine_v4_ida::kChannelCount)
+            * auro3deng::matic_resample::kPhaseTaps,
+        0.0f);
     native_xinn_sample_rate_words_[1] = xinn_host_samples / 32u;
     native_xinn_sample_rate_words_[2] = xinn_sample_rate;
     const std::uint32_t xinn_subblocks = native_xinn_sample_rate_words_[1];
@@ -3546,11 +3565,26 @@ bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
     if (decim == 1u) {
         xinn_buf = input;
     } else {
+        // Native factor-2 Down (26 taps, one 32-sample output per 64 input
+        // samples) replaces the former pair-average stand-in.
+        if ((frame_samples % 64u) != 0u
+            || native_xinn_down_history_.size()
+                != channel_count * auro3deng::matic_resample::kTapCount) {
+            native_xinn_partial_ready_ = false;
+            return false;
+        }
         for (std::size_t slot = 0; slot < channel_count; ++slot) {
             const float* src = input.data() + slot * frame_samples;
             float* dst = xinn_buf.data() + slot * xinn_samples;
-            for (std::size_t s = 0; s < xinn_samples; ++s)
-                dst[s] = 0.5f * (src[2u * s] + src[2u * s + 1u]);
+            float* hist = native_xinn_down_history_.data()
+                + slot * auro3deng::matic_resample::kTapCount;
+            for (std::size_t frame = 0u; frame < frame_samples; frame += 64u) {
+                auro3deng::matic_resample::w32_down_channel(
+                    hist,
+                    src + frame,
+                    dst + frame / 2u,
+                    auro3deng::matic_resample::kFactor2Tap26);
+            }
         }
     }
 
@@ -3664,6 +3698,12 @@ bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
 
     std::vector<float> output = input;
     copy_back_mask &= native_config_state_.effective_output_mask & 0x7FFFFFFu;
+    if (decim != 1u
+        && native_xinn_up_history_.size()
+            != channel_count * auro3deng::matic_resample::kPhaseTaps) {
+        native_xinn_partial_ready_ = false;
+        return false;
+    }
     for (std::uint32_t slot = 0; slot < auro_codec_v3_ida::kAuroProcessorIoChannelPtrCount; ++slot) {
         if ((copy_back_mask & (1u << slot)) == 0u)
             continue;
@@ -3672,9 +3712,21 @@ bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
         if (decim == 1u) {
             std::copy(src_x, src_x + xinn_samples, dst_f);
         } else {
-            for (std::size_t s = 0; s < xinn_samples; ++s) {
-                dst_f[2u * s] = src_x[s];
-                dst_f[2u * s + 1u] = src_x[s];
+            // Native factor-2 Up (13-tap phase history, 32 core samples -> 64
+            // host samples) replaces the former sample-hold stand-in.
+            if ((xinn_samples % 32u) != 0u) {
+                native_xinn_partial_ready_ = false;
+                return false;
+            }
+            float* hist = native_xinn_up_history_.data()
+                + static_cast<std::size_t>(slot)
+                    * auro3deng::matic_resample::kPhaseTaps;
+            for (std::size_t frame = 0u; frame < xinn_samples; frame += 32u) {
+                auro3deng::matic_resample::w32_up_channel(
+                    hist,
+                    src_x + frame,
+                    dst_f + 2u * frame,
+                    auro3deng::matic_resample::kFactor2Tap26);
             }
         }
     }
@@ -4247,6 +4299,8 @@ DecodeError Decoder::open(const std::string& path) {
     native_xinn_state_before_tail_.clear();
     native_xinn_scratch_before_tail_.clear();
     native_xinn_tail_samples_ = 0u;
+    native_xinn_down_history_.clear();
+    native_xinn_up_history_.clear();
     native_upmix_limiter_envelope_ = 0.0;
     native_xinn_partial_ready_ = false;
     native_xinn_partial_input_mask_ = 0u;
@@ -4268,6 +4322,7 @@ DecodeError Decoder::open(const std::string& path) {
     meta_auromatic_upmix_ = false;
     meta_upmix_source_mask_ = 0u;
     meta_xinn_rate_decimation_ = 1u;
+    meta_xinn_core_rate_ = 0u;
     legacy_auromatic_ffmpeg_downsampled_ = false;
     legacy_auromatic_source_rate_hz_ = 0u;
 
@@ -4430,6 +4485,7 @@ DecodeError Decoder::open(const std::string& path) {
     meta_auromatic_upmix_ = false;
     meta_upmix_source_mask_ = 0u;
     meta_xinn_rate_decimation_ = 1u;
+    meta_xinn_core_rate_ = 0u;
     if (!auro_metadata_.found) {
         std::uint32_t requested_mask = 0u;
         if (dsp_output_layout_mask_specified_) {
@@ -4651,37 +4707,50 @@ DecodeError Decoder::open(const std::string& path) {
     input_signal_channel_mask_ = input_layout.mask;
     // Decoder_process @ 0x52AD60 accepts a per-call input mask that is a
     // subset of the configured carrier mask. SyncDetector_process_block
-    // @ 0x52C680 combines the metadata bits of every channel in that mask;
-    // padding planes without the embedded carrier bits must stay outside it.
-    const std::size_t total_frames = pcm_length_ / sample_frame_b;
-    constexpr std::size_t kMaxSilenceScanBytes = 64u << 20;
-    const std::size_t silence_scan_bytes =
-        std::min(pcm_length_, kMaxSilenceScanBytes) / sample_frame_b * sample_frame_b;
-    const std::size_t silence_scan_frames = silence_scan_bytes / sample_frame_b;
-    std::vector<std::uint8_t> silence_scan_buf(silence_scan_bytes);
-    if (silence_scan_bytes != 0
-        && !read_pcm_bytes(pcm_begin_, silence_scan_bytes, silence_scan_buf.data())) {
-        opened_ = false;
-        return DecodeError::IoError;
+    // @ 0x52C680 combines the metadata bits of every channel in that mask, so
+    // a completely zero plane must stay outside it or it clears the common
+    // sync preamble. The scan must cover the entire stream: a plane can be
+    // silent in a bounded prefix yet zero for the whole title (e.g. the LFE
+    // bed channel of a 2.1 carrier), and a prefix-limited scan would retain it.
+    std::vector<bool> channel_carries(channel_count_, false);
+    unsigned remaining_silent = channel_count_;
+    {
+        constexpr std::size_t kSilenceScanChunkBytes = 4u << 20; // 4 MiB
+        std::size_t chunk_bytes =
+            std::min(pcm_length_, kSilenceScanChunkBytes) / sample_frame_b * sample_frame_b;
+        if (chunk_bytes == 0u)
+            chunk_bytes = sample_frame_b;
+        std::vector<std::uint8_t> scan_buf(chunk_bytes);
+        std::size_t offset = 0u;
+        while (offset < pcm_length_ && remaining_silent != 0u) {
+            std::size_t bytes = std::min(chunk_bytes, pcm_length_ - offset);
+            bytes -= bytes % sample_frame_b;
+            if (bytes == 0u)
+                break;
+            if (!read_pcm_bytes(pcm_begin_ + offset, bytes, scan_buf.data())) {
+                opened_ = false;
+                return DecodeError::IoError;
+            }
+            const std::size_t frames = bytes / sample_frame_b;
+            for (unsigned physical_ch = 0; physical_ch < channel_count_; ++physical_ch) {
+                if (channel_carries[physical_ch])
+                    continue;
+                const std::uint8_t* sample =
+                    scan_buf.data() + static_cast<std::size_t>(physical_ch) * 3u;
+                for (std::size_t frame_index = 0; frame_index < frames;
+                     ++frame_index, sample += sample_frame_b) {
+                    if (decode_pcm24_sample(sample) != 0) {
+                        channel_carries[physical_ch] = true;
+                        --remaining_silent;
+                        break;
+                    }
+                }
+            }
+            offset += bytes;
+        }
     }
     for (unsigned physical_ch = 0; physical_ch < channel_count_; ++physical_ch) {
-        bool carries_pcm_or_metadata = false;
-        const std::uint8_t* sample =
-            silence_scan_buf.data() + static_cast<std::size_t>(physical_ch) * 3u;
-        for (std::size_t frame_index = 0;
-             frame_index < silence_scan_frames;
-             ++frame_index, sample += sample_frame_b) {
-            const std::int32_t value = decode_pcm24_sample(sample);
-            if (value != 0) {
-                carries_pcm_or_metadata = true;
-                break;
-            }
-        }
-        // If the bounded prefix is silent, keep the channel — a full-file scan
-        // would be required for certainty on multi-GB RF64 inputs.
-        if (!carries_pcm_or_metadata && silence_scan_frames < total_frames)
-            carries_pcm_or_metadata = true;
-        if (!carries_pcm_or_metadata)
+        if (!channel_carries[physical_ch])
             input_signal_channel_mask_ &= ~(1u << input_layout.slots[physical_ch]);
     }
     if (input_signal_channel_mask_ == 0u)
@@ -5009,6 +5078,8 @@ void Decoder::close() {
     native_xinn_state_before_tail_.clear();
     native_xinn_scratch_before_tail_.clear();
     native_xinn_tail_samples_ = 0u;
+    native_xinn_down_history_.clear();
+    native_xinn_up_history_.clear();
     native_xinn_partial_ready_ = false;
     native_xinn_partial_input_mask_ = 0u;
     native_xinn_partial_output_mask_ = 0u;
@@ -5032,6 +5103,7 @@ void Decoder::close() {
     meta_auromatic_upmix_ = false;
     meta_upmix_source_mask_ = 0u;
     meta_xinn_rate_decimation_ = 1u;
+    meta_xinn_core_rate_ = 0u;
     legacy_auromatic_ffmpeg_downsampled_ = false;
     legacy_auromatic_source_rate_hz_ = 0u;
     native_config_state_ = {};

@@ -182,12 +182,18 @@ requests a **compatible strict superset** of metadata `layout_id` (both known
 named layouts; added slots ⊆ XinN additions for the decoded bed and/or C/LFE
 bed-synth), `orua3d-decode` dematrixes to the metadata layout first, then runs
 XinN (and simple C/silent-LFE fill) for the missing slots. Example: meta `5.1`
-→ request `5.1_4H`. Native XinN configure only accepts **32 / 44.1 / 48 kHz**.
-For **96 kHz** hosts the codec dematrix stays at 96 kHz (ADOL LSBs intact); XinN
-runs at 48 kHz via a temporary 2:1 pair-average / sample-hold bridge (stand-in
-for the native factor-2 pre-XinN resampler). Do **not** FFmpeg-resample the
-carrier before dematrix — that destroys embedded metadata. Legacy PCM without
-metadata still uses whole-file FFmpeg→48 kHz before XinN.
+→ request `5.1_4H`. Native XinN configure only accepts **32 / 44.1 / 48 kHz**
+(`auro_matic_v3_XinN_fl32_configure`, IDA `0x556330`; the v4 step reaches the
+same predicate from `XinN::prepare`, IDA `0x35B330`). For a host rate above
+48 kHz native normalizes the core rate (`MetaInfo::resample_to_1fs`, IDA
+`0x3658B0`) and brackets the 48 kHz upmix core with its exact factor-2
+`matic_resample` FIR (`configure_resamplers`, IDA `0x365960`; 26-tap Down input,
+26-tap Up output, per-channel phase history). The codec dematrix stays at the
+host rate (ADOL LSBs intact) and the synthesized height slots are produced at
+44.1/48 kHz, then resampled back with the same native FIR — no pair-average or
+sample-hold stand-in. Do **not** FFmpeg-resample the carrier before dematrix —
+that destroys embedded metadata. Legacy PCM without metadata still uses
+whole-file FFmpeg→48 kHz before XinN.
 
 XinN mode/additions (port of native prepare): stereo-ish input mode adds from
 mask `0x6630`; surround mode from `0x7E00` (height-oriented bits). Unsupported
