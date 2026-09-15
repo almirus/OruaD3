@@ -6,7 +6,6 @@
 #include "output_layout.hpp"
 #include "progress.hpp"
 #include "restore_lfe.hpp"
-#include "support_qr.hpp"
 #include "../io/wav_writer.hpp"
 #include "../render/binaural_renderer.hpp"
 #include "../util/auro3deng_strength.hpp"
@@ -44,20 +43,12 @@ struct Options {
     bool mono_tracks = false;
     bool channel_diagram = false;
     bool binaural = false;
-    bool binaural_reference_ir = false;
-    bool auromatic_oracle_f32 = false;
     bool restore_lfe = false;
     /// 0 = off; 1..8 = clear that many low PCM bits on export (toward zero).
     unsigned clear_output_lsb = 0;
     bool help_only = false;
     bool version_only = false;
     bool codec_v3_split_self_test = false;
-    bool auromatic_layout_self_test = false;
-    bool auromatic_gate_self_test = false;
-    bool auromatic_xinn_tuning_self_test = false;
-    bool auromatic_front_stage_self_test = false;
-    bool auromatic_runtime_configure_self_test = false;
-    bool auromatic_plan_creator_self_test = false;
     bool probe = false;
     unsigned sample_rate = 0;
     bool sample_rate_specified = false;
@@ -183,7 +174,6 @@ void print_banner() {
     auto draw_version = [&]() {
         print_app_version(std::cerr, color);
         std::cerr << "\033[K\n";
-        auro3d::print_support_author(std::cerr, color);
     };
 
     std::cerr << "\n\n";
@@ -548,15 +538,12 @@ std::filesystem::path mono_channel_output_path(
     const std::string& output,
     const std::string& channel_name,
     const std::string& extension) {
-    const std::size_t separator = output.find_last_of("/\\");
-    const std::size_t filename = separator == std::string::npos ? 0 : separator + 1;
-    const std::size_t dot = output.find_last_of('.');
-    const std::size_t stem_end = dot != std::string::npos && dot >= filename
-        ? dot : output.size();
-    const std::string name = output.substr(filename, stem_end - filename)
-        + " (" + channel_name + ")" + extension;
-    return std::filesystem::u8path(
-        output.substr(0, filename) + name);
+    const std::filesystem::path out_path = std::filesystem::u8path(output);
+    const std::filesystem::path dir = out_path.parent_path();
+    const std::string stem = out_path.stem().u8string();
+    const std::filesystem::path mono_name =
+        std::filesystem::u8path(stem + " (" + channel_name + ")" + extension);
+    return dir.empty() ? mono_name : (dir / mono_name);
 }
 
 std::string lowercase(std::string value) {
@@ -593,15 +580,8 @@ void warn_output_extension_mismatch(const Options& opt, const std::string& forma
 }
 
 std::string default_output_path(const Options& opt) {
-    // opt.input is UTF-8 (wmain converts the Windows command line once).  Do
-    // this lexical operation on the UTF-8 bytes so a filesystem string
-    // conversion cannot turn "Tiësto" into the CP1251 mojibake "TiГ«sto".
-    const std::size_t separator = opt.input.find_last_of("/\\");
-    const std::size_t filename = separator == std::string::npos ? 0 : separator + 1;
-    const std::size_t dot = opt.input.find_last_of('.');
-    const std::size_t stem_end = dot != std::string::npos && dot >= filename
-        ? dot : opt.input.size();
-    const std::string stem = opt.input.substr(filename, stem_end - filename);
+    const std::filesystem::path input = std::filesystem::u8path(opt.input);
+    const std::string stem = input.stem().u8string();
     const std::string tag = opt.binaural ? "_decoded_binaural" : "_decoded";
     std::string ext = ".wav";
     if (!opt.output_format.empty()) {
@@ -610,7 +590,9 @@ std::string default_output_path(const Options& opt) {
         else if (opt.output_format == "w64")
             ext = ".w64";
     }
-    return opt.input.substr(0, filename) + stem + tag + ext;
+    const std::filesystem::path name = std::filesystem::u8path(stem + tag + ext);
+    const std::filesystem::path parent = input.parent_path();
+    return (parent.empty() ? name : (parent / name)).u8string();
 }
 
 std::string shell_quote(const std::filesystem::path& path) {
@@ -763,7 +745,7 @@ wav::OutputMetadata make_output_metadata() {
 }
 
 bool write_audio_file(
-    const std::string& output,
+    const std::filesystem::path& output,
     const std::string& format,
     unsigned bits,
     unsigned sample_rate,
@@ -776,23 +758,16 @@ bool write_audio_file(
     const bool is_w64 = format == "w64";
     const char* save_stage = format == "flac" ? "save flac" : (is_w64 ? "save w64" : "save wav");
     if (format == "wav" || is_w64) {
-        if (bits == 32u) {
-            if (is_w64) {
-                error_out = "Float32 oracle output supports RIFF WAV only";
-                return false;
-            }
-            return wav::write_float32_le(output, sample_rate, channels, pcm, error_out, channel_mask);
-        }
         if (progress)
             progress(save_stage, -1);
         const wav::PcmContainer container =
             is_w64 ? wav::PcmContainer::W64 : wav::PcmContainer::WavAuto;
         const bool ok = bits == 24
             ? wav::write_pcm24_le(
-                  output, sample_rate, channels, pcm, error_out, channel_mask, metadata,
+                  output.u8string(), sample_rate, channels, pcm, error_out, channel_mask, metadata,
                   container)
             : wav::write_pcm16_le(
-                  output, sample_rate, channels, pcm, error_out, channel_mask, metadata,
+                  output.u8string(), sample_rate, channels, pcm, error_out, channel_mask, metadata,
                   container);
         if (ok && progress)
             progress(save_stage, 100);
@@ -813,7 +788,7 @@ bool write_audio_file(
         return false;
 
     const bool flac_ok =
-        wav::encode_wav_to_flac(temp.u8string(), output, error_out, metadata);
+        wav::encode_wav_to_flac(temp.u8string(), output.u8string(), error_out, metadata);
     std::error_code remove_error;
     std::filesystem::remove(temp, remove_error);
     if (!flac_ok)
@@ -1073,12 +1048,6 @@ void print_usage() {
         << "  --rate HZ            sample rate for --raw\n"
         << "  --channels N         channel count for --raw\n"
         << "  --block N            codec-v3 host block; default: 832 (ignored for AuroCX)\n"
-        << "  --self-test-auromatic-layout  verify native Configurator mask cases\n"
-        << "  --self-test-auromatic-gate    verify native Gate ramp/reset\n"
-        << "  --self-test-auromatic-tuning  verify native XinN tuning layouts\n"
-        << "  --self-test-auromatic-stages  verify FrontManager/Gain/Silence\n"
-        << "  --self-test-auromatic-runtime verify owning Engine configuration\n"
-        << "  --self-test-auromatic-plan-creator verify Plan_Creator_make + activation\n"
         << "  --dsp-strength N     codec-v3 decoded/upmix gain (0..15; default: 12)\n"
         << "  --dsp-output-channels LAYOUT  codec-v3 output layout; AuroCX exact-layout check\n"
         << "  --dsp-output-layout LAYOUT    alias of --dsp-output-channels\n"
@@ -1090,18 +1059,17 @@ void print_usage() {
         << "  --mono-tracks        codec-v3: additionally write one file per output channel\n"
         << "  --channel-diagram    print structural input-to-output channel diagram (no decode; -o not required)\n"
         << "  --probe              print format diagnostics without decoding to a file; -o is not required\n"
-        << "  --binaural           stateful AHP HRTF stereo (room-0 HPV2; 32/44.1/48/88.2/96 kHz; source-length output, no tail append)\n"
-        << "  --binaural-reference-ir  explicitly use the finite bundled IR reference path\n"
-        << "  --auromatic-oracle-f32  diagnostic: emit pre-limiter IEEE Float32 WAV (codec-v3 only)\n"
+        << "  --binaural           render decoded channels to HRTF stereo (force 48 kHz)\n"
         << "  --restore-lfe        codec-v3 only, experimental: if LFE is silent/absent,\n"
         << "                       synthesize LFE from bed channels (mono sum + 120 Hz LPF, −10 dB);\n"
         << "  --dsp-headroom-db X  headroom in dB (0..24; default: 0)\n"
-        << "  --room-preset N      binaural/XinN room (stateful AHP: captured 0; reference IR: 0..3)\n"
-        << "  --hrtf-preset N      stateful binaural: 0=HPV2; reference IR: 0 or 2=GENERIC_2\n"
+        << "  --room-preset N      binaural/XinN room: 0=HOME,1=CONCERT,2=LOUNGE,3=CINEMA\n"
+        << "  --hrtf-preset N      binaural HRTF bank: 0=HPV2 or 2=GENERIC_2\n"
         << "                       GENERIC_1/GENERIC_3 are absent from the bundled IR resource\n"
         << "  --virtualizer-mode N reserved runtime state (0/1); current PCM path ignores it\n"
-        << "  --headphone N        headphone connected (0/1; default: 1)\n"
-        << "  --stereo-device N    stereo device connected (0/1; default: 1)\n"
+        // Disabled until headphone/stereo-device state affects the PCM path.
+        // << "  --headphone N        headphone connected (0/1; default: 1)\n"
+        // << "  --stereo-device N    stereo device connected (0/1; default: 1)\n"
         << "  -v, --verbose\n"
         << "  --version\n"
         << "  -h, --help\n\n"
@@ -1167,30 +1135,6 @@ bool parse_args(int argc, char** argv, Options& opt) {
             opt.codec_v3_split_self_test = true;
             return true;
         }
-        if (a == "--self-test-auromatic-layout") {
-            opt.auromatic_layout_self_test = true;
-            return true;
-        }
-        if (a == "--self-test-auromatic-gate") {
-            opt.auromatic_gate_self_test = true;
-            return true;
-        }
-        if (a == "--self-test-auromatic-tuning") {
-            opt.auromatic_xinn_tuning_self_test = true;
-            return true;
-        }
-        if (a == "--self-test-auromatic-stages") {
-            opt.auromatic_front_stage_self_test = true;
-            return true;
-        }
-        if (a == "--self-test-auromatic-runtime") {
-            opt.auromatic_runtime_configure_self_test = true;
-            return true;
-        }
-        if (a == "--self-test-auromatic-plan-creator") {
-            opt.auromatic_plan_creator_self_test = true;
-            return true;
-        }
         if (a == "--probe") {
             opt.probe = true;
             continue;
@@ -1209,15 +1153,6 @@ bool parse_args(int argc, char** argv, Options& opt) {
         }
         if (a == "--binaural") {
             opt.binaural = true;
-            continue;
-        }
-        if (a == "--binaural-reference-ir") {
-            opt.binaural = true;
-            opt.binaural_reference_ir = true;
-            continue;
-        }
-        if (a == "--auromatic-oracle-f32") {
-            opt.auromatic_oracle_f32 = true;
             continue;
         }
         if (a == "--clear-output-lsb") {
@@ -1354,8 +1289,8 @@ bool parse_args(int argc, char** argv, Options& opt) {
             const char* v = need("--room-preset");
             if (!v || !parse_unsigned_arg(v, &opt.room_preset, "--room-preset"))
                 return false;
-            if (opt.room_preset > 4) {
-                std::cerr << "--room-preset: expected range 0..4\n";
+            if (opt.room_preset > 3) {
+                std::cerr << "--room-preset: expected range 0..3\n";
                 return false;
             }
             opt.room_preset_specified = true;
@@ -1383,22 +1318,9 @@ bool parse_args(int argc, char** argv, Options& opt) {
             opt.virtualizer_mode_specified = true;
             continue;
         }
-        if (a == "--headphone" || a == "--stereo-device") {
-            const char* option = a == "--headphone" ? "--headphone" : "--stereo-device";
-            const char* v = need(option);
-            unsigned value = 0u;
-            if (!v || !parse_unsigned_arg(v, &value, option))
-                return false;
-            if (value > 1u) {
-                std::cerr << option << ": expected range 0..1\n";
-                return false;
-            }
-            if (a == "--headphone")
-                opt.headphone_connected = value;
-            else
-                opt.stereo_device_connected = value;
-            continue;
-        }
+        // Disabled until headphone/stereo-device state affects the PCM path.
+        // if (a == "--headphone") { ... }
+        // if (a == "--stereo-device") { ... }
 
         std::cerr << "Unknown argument: " << a << "\n";
         return false;
@@ -1414,28 +1336,8 @@ bool parse_args(int argc, char** argv, Options& opt) {
         std::cerr << "--raw requires --rate and --channels\n";
         return false;
     }
-    if (opt.binaural && opt.binaural_reference_ir
-        && opt.room_preset > 3u) {
-        std::cerr << "--binaural-reference-ir: bundled finite IR supports "
-                     "--room-preset 0..3\n";
-        return false;
-    }
-    // Plain --binaural is always stateful AHP/AM4HP. The finite IR renderer
-    // is reachable only through its separately named command-line mode.
-    if (opt.binaural && !opt.binaural_reference_ir
-        && (opt.room_preset != 0u || opt.hrtf_preset != 0u)) {
-        std::cerr << "--binaural: stateful AHP/AM4HP supports only the captured "
-                     "--room-preset 0 and --hrtf-preset 0 profile\n";
-        return false;
-    }
-    if (opt.binaural && opt.binaural_reference_ir
-        && opt.hrtf_preset != 0u && opt.hrtf_preset != 2u) {
-        std::cerr << "--binaural-reference-ir: bundled finite IR supports only "
-                     "--hrtf-preset 0=HPV2 or 2=GENERIC_2\n";
-        return false;
-    }
-    if (opt.binaural && opt.auromatic_oracle_f32) {
-        std::cerr << "--auromatic-oracle-f32 cannot be combined with --binaural\n";
+    if (opt.binaural && opt.hrtf_preset != 0u && opt.hrtf_preset != 2u) {
+        std::cerr << "--hrtf-preset: bundled binaural IR supports only 0=HPV2 or 2=GENERIC_2\n";
         return false;
     }
     return true;
@@ -1462,57 +1364,12 @@ int app_main(int argc, char** argv) {
             std::cout,
             auro3d::console_style::color_enabled_for_stdout());
         std::cout << '\n';
-        auro3d::print_support_author(
-            std::cout,
-            auro3d::console_style::color_enabled_for_stdout());
         return 0;
     }
     if (opt.codec_v3_split_self_test) {
         std::string detail;
         const bool ok = auro3deng::codec_v3_split_equivalence_self_test(detail);
         std::cout << "codec_v3_split_equivalence=" << (ok ? "PASS" : "FAIL")
-                  << " " << detail << '\n';
-        return ok ? 0 : 5;
-    }
-    if (opt.auromatic_layout_self_test) {
-        std::string detail;
-        const bool ok = auro3deng::auromatic_layout_transform_self_test(detail);
-        std::cout << "auromatic_layout_transform=" << (ok ? "PASS" : "FAIL")
-                  << " " << detail << '\n';
-        return ok ? 0 : 5;
-    }
-    if (opt.auromatic_gate_self_test) {
-        std::string detail;
-        const bool ok = auro3deng::auromatic_gate_self_test(detail);
-        std::cout << "auromatic_gate=" << (ok ? "PASS" : "FAIL")
-                  << " " << detail << '\n';
-        return ok ? 0 : 5;
-    }
-    if (opt.auromatic_xinn_tuning_self_test) {
-        std::string detail;
-        const bool ok = auro3deng::auromatic_xinn_tuning_self_test(detail);
-        std::cout << "auromatic_tuning=" << (ok ? "PASS" : "FAIL")
-                  << " " << detail << '\n';
-        return ok ? 0 : 5;
-    }
-    if (opt.auromatic_front_stage_self_test) {
-        std::string detail;
-        const bool ok = auro3deng::auromatic_front_stage_self_test(detail);
-        std::cout << "auromatic_stages=" << (ok ? "PASS" : "FAIL")
-                  << " " << detail << '\n';
-        return ok ? 0 : 5;
-    }
-    if (opt.auromatic_runtime_configure_self_test) {
-        std::string detail;
-        const bool ok = auro3deng::auromatic_runtime_configure_self_test(detail);
-        std::cout << "auromatic_runtime=" << (ok ? "PASS" : "FAIL")
-                  << " " << detail << '\n';
-        return ok ? 0 : 5;
-    }
-    if (opt.auromatic_plan_creator_self_test) {
-        std::string detail;
-        const bool ok = auro3deng::auromatic_plan_creator_self_test(detail);
-        std::cout << "auromatic_plan_creator=" << (ok ? "PASS" : "FAIL")
                   << " " << detail << '\n';
         return ok ? 0 : 5;
     }
@@ -1588,10 +1445,7 @@ int app_main(int argc, char** argv) {
                       << " room_preset=" << opt.room_preset
                       << " hrtf_preset=" << opt.hrtf_preset << "\n";
             if (opt.binaural) {
-                std::cerr << "binaural_renderer="
-                          << (opt.binaural_reference_ir
-                              ? "reference_embedded_ir"
-                              : "stateful_ahp_captured_layout")
+                std::cerr << "binaural_renderer=original_auro_ahp_ir"
                           << " room_preset=" << opt.room_preset
                           << " hrtf_bank=" << (opt.hrtf_preset == 0 ? "HPv2" : "Generic2")
                           << "\n";
@@ -1627,8 +1481,7 @@ int app_main(int argc, char** argv) {
             opt.hrtf_preset,
             output_format,
             progress.callback(),
-            &decode_warnings,
-            opt.binaural_reference_ir);
+            &decode_warnings);
         progress.finish();
         if (!ok) {
             print_error("OruaCX decode: " + err);
@@ -1665,18 +1518,11 @@ int app_main(int argc, char** argv) {
     }
     dec.set_output_bits(opt.output_bits);
     dec.set_dsp_headroom_db(opt.dsp_headroom_db);
-    dec.set_apply_upmix_peak_limiter(!opt.binaural && !opt.auromatic_oracle_f32);
     dec.set_room_preset(opt.room_preset);
     dec.set_hrtf_preset(opt.hrtf_preset);
     dec.set_virtualizer_mode(opt.virtualizer_mode);
-    dec.set_output_audio_devices(
-        opt.headphone_connected != 0,
-        opt.stereo_device_connected != 0);
-    // Match native pipeline selection: binaural is direct AHP for supported
-    // multichannel layouts or integrated AM4HP for stereo. It never exports a
-    // discrete Auromatic PCM24 intermediate and reads it back into headphone
-    // DSP, so there is no float -> PCM24 -> float inter-stage quantization.
-    dec.set_direct_binaural_pcm(opt.binaural);
+    // Disabled until headphone/stereo-device state affects the PCM path.
+    // dec.set_output_audio_devices(opt.headphone_connected != 0, opt.stereo_device_connected != 0);
     if (opt.block_size != 0)
         dec.set_block_size(opt.block_size);
     if (opt.raw)
@@ -1832,11 +1678,8 @@ int app_main(int argc, char** argv) {
             }
         } else {
             std::cerr << "auro_layout_id=0 layout= metadata_channels=0\n";
-            std::cerr << "plain_pcm=1 legacy_auromatic="
-                      << (dec.legacy_auromatic_upmix() ? 1 : 0)
-                      << " direct_binaural=" << (opt.binaural ? 1 : 0)
-                      << " discrete_output=1 virtualizer_bypassed=1"
-                      << " hrtf_bypassed=" << (opt.binaural ? 0 : 1) << "\n";
+            std::cerr << "legacy_auromatic=1 discrete_output=1"
+                      << " virtualizer_bypassed=1 hrtf_bypassed=1\n";
         }
         std::cerr << "dsp_strength=" << opt.dsp_strength
                   << " gain=" << auro3deng::strength_translate(opt.dsp_strength) << "\n";
@@ -1947,207 +1790,10 @@ int app_main(int argc, char** argv) {
         && !opt.binaural
         && !opt.restore_lfe
         && !opt.mono_tracks;
-    const unsigned binaural_output_bits = opt.output_bits == 16u ? 16u : 24u;
-    const bool stream_binaural_out = (output_format == "wav" || output_format == "w64")
-        && opt.binaural
-        && !opt.binaural_reference_ir
-        && cfg.bits_per_sample == 24u
-        && !opt.restore_lfe
-        && !opt.mono_tracks;
 
     std::vector<std::uint8_t> pcm_all;
     std::vector<std::uint8_t> chunk;
     progress.update("decode", 0);
-
-    if (stream_binaural_out) {
-        if (source_sample_count == 0u) {
-            progress.finish();
-            print_error("No PCM data.");
-            dec.close();
-            return 3;
-        }
-        const bool stateful_ahp_rate_supported = cfg.sample_rate == 32000u
-            || cfg.sample_rate == 44100u || cfg.sample_rate == 48000u
-            || cfg.sample_rate == 88200u || cfg.sample_rate == 96000u;
-        if (!stateful_ahp_rate_supported) {
-            progress.finish();
-            print_error("Binaural: stateful AHP has captured graphs only for "
-                        "32/44.1/48/88.2/96 kHz; use "
-                        "--binaural-reference-ir for explicit reference resampling");
-            dec.close();
-            return 4;
-        }
-
-        std::string err;
-        const std::size_t renderer_block_frames =
-            std::max<std::size_t>(32u, (cfg.block_size / 32u) * 32u);
-        auro3d::BinauralStreamRenderer renderer;
-        if (!renderer.initialize(
-                cfg.bits_per_sample, cfg.sample_rate, cfg.channels, output_slots,
-                opt.room_preset, opt.hrtf_preset, renderer_block_frames, err)) {
-            progress.finish();
-            print_error("Binaural: " + err);
-            dec.close();
-            return 4;
-        }
-
-        wav::PcmStreamWriter wav_out;
-        wav_out.set_metadata(output_meta);
-        const wav::PcmContainer container =
-            output_format == "w64" ? wav::PcmContainer::W64 : wav::PcmContainer::WavAuto;
-        if (!wav_out.open(
-                opt.output, cfg.sample_rate, 2u, source_sample_count, err, 3u,
-                container, binaural_output_bits)) {
-            progress.finish();
-            print_error(std::string(output_format == "w64" ? "W64: " : "WAV: ") + err);
-            dec.close();
-            return 4;
-        }
-
-        const std::size_t input_bytes_per_frame =
-            static_cast<std::size_t>(cfg.channels) * 3u;
-        std::vector<std::uint8_t> pending;
-        // This is codec-v3 decoder-delay compensation before the headphone
-        // renderer, not compensation of AHP/AM4HP latency. Native A3DENG
-        // reports total latency in samples but its process calls remain 1:1;
-        // BinauralStreamRenderer therefore retains its own algorithmic delay.
-        std::uint64_t skip_frames = latency_samples;
-        std::uint64_t remain_frames = source_sample_count;
-        std::uint64_t written_frames = 0u;
-
-        auto render_piece = [&](std::vector<std::uint8_t>& piece,
-                                std::size_t actual_frames) -> bool {
-            std::vector<std::uint8_t> stereo;
-            if (!renderer.process(piece, stereo, err))
-                return false;
-            if (actual_frames * 2u * 3u < stereo.size())
-                stereo.resize(actual_frames * 2u * 3u);
-            if (binaural_output_bits == 16u) {
-                std::vector<std::uint8_t> pcm16;
-                if (!wav::convert_pcm24_to_pcm16(stereo, pcm16, err))
-                    return false;
-                stereo.swap(pcm16);
-            }
-            if (!wav_out.write(stereo, err))
-                return false;
-            written_frames += actual_frames;
-            return true;
-        };
-
-        auto drain_aligned_pending = [&]() -> bool {
-            for (;;) {
-                const std::size_t pending_frames = pending.size() / input_bytes_per_frame;
-                std::size_t process_frames = std::min(pending_frames, renderer_block_frames);
-                process_frames &= ~std::size_t{31u};
-                if (process_frames == 0u)
-                    return true;
-                const std::size_t process_bytes = process_frames * input_bytes_per_frame;
-                std::vector<std::uint8_t> piece(
-                    pending.begin(), pending.begin() + static_cast<std::ptrdiff_t>(process_bytes));
-                if (!render_piece(piece, process_frames))
-                    return false;
-                pending.erase(
-                    pending.begin(), pending.begin() + static_cast<std::ptrdiff_t>(process_bytes));
-            }
-        };
-
-        while (!dec.exhausted()) {
-            e = dec.decode_next(chunk);
-            if (e != auro3d::DecodeError::Ok) {
-                progress.finish();
-                print_error(std::string("decode: ") + auro3d::decode_error_message(e));
-                dec.close();
-                return 3;
-            }
-            if (chunk.size() % input_bytes_per_frame != 0u) {
-                progress.finish();
-                print_error("decode: PCM frame size mismatch");
-                dec.close();
-                return 3;
-            }
-            std::size_t frames = chunk.size() / input_bytes_per_frame;
-            std::size_t frame_offset = 0u;
-            if (skip_frames != 0u) {
-                const std::uint64_t skip_now = std::min<std::uint64_t>(skip_frames, frames);
-                frame_offset = static_cast<std::size_t>(skip_now);
-                skip_frames -= skip_now;
-                frames -= frame_offset;
-            }
-            if (frames != 0u && remain_frames != 0u) {
-                const std::size_t take = static_cast<std::size_t>(
-                    std::min<std::uint64_t>(remain_frames, frames));
-                const auto begin = chunk.begin()
-                    + static_cast<std::ptrdiff_t>(frame_offset * input_bytes_per_frame);
-                pending.insert(
-                    pending.end(), begin,
-                    begin + static_cast<std::ptrdiff_t>(take * input_bytes_per_frame));
-                remain_frames -= take;
-                if (!drain_aligned_pending()) {
-                    progress.finish();
-                    print_error("Binaural: " + err);
-                    dec.close();
-                    return 4;
-                }
-            }
-            progress.update("decode", dec.decode_percent());
-        }
-        progress.done("decode");
-        const std::uint64_t dsp_clipped = dec.dsp_clipped_samples();
-        dec.close();
-
-        if (skip_frames != 0u || remain_frames != 0u) {
-            progress.finish();
-            print_error("decode: native latency drain produced insufficient PCM");
-            return 3;
-        }
-        // Native A3DENG exposes reset/reset_audio_state but no tail-producing
-        // flush. Pad only the final portable 32-frame process quantum, then
-        // write only the source frames; never append a reverb tail at EOF.
-        const std::size_t tail_frames = pending.size() / input_bytes_per_frame;
-        if (tail_frames != 0u) {
-            std::vector<std::uint8_t> padded = pending;
-            padded.resize(32u * input_bytes_per_frame, 0u);
-            if (!render_piece(padded, tail_frames)) {
-                progress.finish();
-                print_error("Binaural: " + err);
-                return 4;
-            }
-        }
-        if (written_frames != source_sample_count) {
-            progress.finish();
-            print_error("Binaural: streaming frame count mismatch");
-            return 4;
-        }
-
-        progress.update(output_format == "w64" ? "save w64" : "save wav", -1);
-        if (!wav_out.close(err)) {
-            progress.finish();
-            print_error(std::string(output_format == "w64" ? "W64: " : "WAV: ") + err);
-            return 4;
-        }
-        progress.done(output_format == "w64" ? "save w64" : "save wav");
-        const std::vector<std::uint32_t> binaural_slots{0u, 1u};
-        if (!write_channel_mapping_xml(
-                std::filesystem::u8path(opt.output),
-                std::filesystem::u8path(opt.input),
-                cfg.sample_rate, source_sample_rate, binaural_output_bits, 2u,
-                native_cfg.requested_output_mask,
-                auro_meta.found ? auro_meta.carrier_layout_id : native_cfg.input_mask,
-                binaural_slots, native_cfg.input_mask, native_mask, auromatic_mask,
-                dematrix_routes, true, auro_meta.found, err)) {
-            progress.finish();
-            print_error("XML: " + err);
-            return 4;
-        }
-        progress.finish();
-        if (opt.verbose) {
-            std::cerr << "binaural_streaming=1\n";
-            std::cerr << "bits_per_sample=" << binaural_output_bits << "\n";
-            std::cerr << "dsp_clipped_samples=" << dsp_clipped << "\n";
-        }
-        print_ok("Done: " + opt.output);
-        return 0;
-    }
 
     if (stream_pcm_out) {
         wav::PcmStreamWriter wav_out;
@@ -2301,7 +1947,7 @@ int app_main(int argc, char** argv) {
     dec.close();
 
     if (latency_samples != 0u) {
-        const std::size_t bytes_per_sample = auro3d::pcm_bytes_per_sample(cfg.bits_per_sample);
+        const std::size_t bytes_per_sample = cfg.bits_per_sample == 24u ? 3u : 2u;
         const std::size_t bytes_per_frame = static_cast<std::size_t>(cfg.channels) * bytes_per_sample;
         const std::uint64_t trim_begin_u64 = latency_samples * bytes_per_frame;
         const std::uint64_t trim_size_u64 = source_sample_count * bytes_per_frame;
@@ -2327,7 +1973,7 @@ int app_main(int argc, char** argv) {
 
     std::string err;
     if (opt.clear_output_lsb != 0u && !opt.binaural) {
-        const std::size_t bytes_per_sample = auro3d::pcm_bytes_per_sample(cfg.bits_per_sample);
+        const std::size_t bytes_per_sample = cfg.bits_per_sample == 24u ? 3u : 2u;
         clear_interleaved_pcm_lsbs(
             pcm_all, cfg.channels, static_cast<unsigned>(bytes_per_sample), opt.clear_output_lsb);
         if (opt.verbose)
@@ -2359,17 +2005,7 @@ int app_main(int argc, char** argv) {
     }
 
     if (opt.binaural) {
-        const bool stateful_ahp_rate_supported = cfg.sample_rate == 32000u
-            || cfg.sample_rate == 44100u || cfg.sample_rate == 48000u
-            || cfg.sample_rate == 88200u || cfg.sample_rate == 96000u;
-        if (!opt.binaural_reference_ir && !stateful_ahp_rate_supported) {
-            progress.finish();
-            print_error("Binaural: stateful AHP has captured graphs only for "
-                        "32/44.1/48/88.2/96 kHz; use "
-                        "--binaural-reference-ir for explicit reference resampling");
-            return 4;
-        }
-        if (cfg.sample_rate != 48000u && opt.binaural_reference_ir) {
+        if (cfg.sample_rate != 48000u) {
             std::vector<std::uint8_t> resampled;
             if (!auro3d::resample_interleaved_pcm_to_rate(
                     pcm_all,
@@ -2390,47 +2026,13 @@ int app_main(int argc, char** argv) {
             }
             pcm_all.swap(resampled);
             cfg.sample_rate = 48000u;
+            cfg.bits_per_sample = 24u;
         }
         std::vector<std::uint8_t> stereo;
-        bool rendered = false;
-        if (opt.binaural_reference_ir) {
-            rendered = auro3d::render_binaural_from_embedded_ir(
+        if (!auro3d::render_binaural_from_embedded_ir(
                 pcm_all, cfg.bits_per_sample, cfg.sample_rate, cfg.channels,
                 output_slots, opt.room_preset, opt.hrtf_preset, stereo, err,
-                progress.callback());
-        } else {
-            auro3d::BinauralStreamRenderer renderer;
-            const std::size_t binaural_frames = pcm_all.size()
-                / (static_cast<std::size_t>(cfg.channels)
-                   * (cfg.bits_per_sample / 8u));
-            // Batch follows the same native EOF contract as streaming: process
-            // one internally padded final quantum, retain renderer latency,
-            // and return exactly the source frame count without a tail flush.
-            const std::size_t aligned_binaural_frames =
-                (binaural_frames + 31u) & ~std::size_t{31u};
-            std::vector<std::uint8_t> aligned_binaural_pcm;
-            const std::vector<std::uint8_t>* binaural_input = &pcm_all;
-            if (aligned_binaural_frames != binaural_frames) {
-                aligned_binaural_pcm = pcm_all;
-                aligned_binaural_pcm.resize(
-                    aligned_binaural_frames * static_cast<std::size_t>(cfg.channels)
-                    * (cfg.bits_per_sample / 8u),
-                    0u);
-                binaural_input = &aligned_binaural_pcm;
-            }
-            rendered = renderer.initialize(
-                cfg.bits_per_sample, cfg.sample_rate, cfg.channels, output_slots,
-                opt.room_preset, opt.hrtf_preset, aligned_binaural_frames, err)
-                && renderer.process(*binaural_input, stereo, err);
-            if (rendered && aligned_binaural_frames != binaural_frames) {
-                const unsigned renderer_output_bits =
-                    cfg.bits_per_sample == 32u ? 24u : cfg.bits_per_sample;
-                stereo.resize(
-                    binaural_frames * 2u
-                    * auro3d::pcm_bytes_per_sample(renderer_output_bits));
-            }
-        }
-        if (!rendered) {
+                progress.callback())) {
             progress.finish();
             print_error("Binaural: " + err);
             return 4;
@@ -2439,8 +2041,6 @@ int app_main(int argc, char** argv) {
         cfg.channels = 2;
         cfg.channel_mask = 3;
         output_slots = {0u, 1u};
-        if (cfg.bits_per_sample == 32u)
-            cfg.bits_per_sample = 24u;
         if (opt.output_bits == 16u && cfg.bits_per_sample == 24u) {
             std::vector<std::uint8_t> pcm16;
             if (!wav::convert_pcm24_to_pcm16(pcm_all, pcm16, err)) {
@@ -2459,9 +2059,7 @@ int app_main(int argc, char** argv) {
                 opt.clear_output_lsb);
         }
         if (opt.verbose) {
-            std::cerr << "binaural_renderer="
-                      << (opt.binaural_reference_ir
-                          ? "reference_embedded_ir" : "stateful_ahp")
+            std::cerr << "binaural_renderer=original_auro_ahp_ir"
                       << " room_preset=" << opt.room_preset
                       << " hrtf_bank=" << (opt.hrtf_preset == 0 ? "HPv2" : "Generic2") << "\n";
         }
@@ -2479,7 +2077,7 @@ int app_main(int argc, char** argv) {
             write_slots = wav_std_plan.slots;
             output_wav_channel_mask = wav_std_plan.channel_mask;
         }
-        const unsigned bytes_per_sample = auro3d::pcm_bytes_per_sample(cfg.bits_per_sample);
+        const unsigned bytes_per_sample = cfg.bits_per_sample == 24u ? 3u : 2u;
         std::vector<std::uint8_t> remapped = remap_interleaved_pcm(
             pcm_all, cfg.channels, bytes_per_sample, wav_std_src_index);
         if (remapped.size() != pcm_all.size()) {
@@ -2545,7 +2143,7 @@ int app_main(int argc, char** argv) {
             wav::OutputMetadata mono_meta;
             mono_meta.comment = auro3d_decode::make_decode_comment();
             const bool mono_ok = write_audio_file(
-                mono_path.u8string(), output_format, cfg.bits_per_sample, cfg.sample_rate, 1,
+                mono_path, output_format, cfg.bits_per_sample, cfg.sample_rate, 1,
                 0u, mono_pcm, err, {}, mono_meta);
             if (!mono_ok) {
                 progress.finish();

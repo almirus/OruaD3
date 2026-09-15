@@ -946,14 +946,9 @@ bool wav_speaker_bit_to_auro_slot(unsigned bit, std::uint32_t& slot) {
     case 12: slot = kAuroChannelIdHeightLeft; return true;
     case 13: slot = kAuroChannelIdHeightCenter; return true;
     case 14: slot = kAuroChannelIdHeightRight; return true;
-    // WAVE has only TOP_BACK_LEFT/RIGHT for both Auro HLS/HRS and HLB/HRB.
-    // The mandatory 5.1.4/7.1.4 export policy writes the native AHP routes
-    // HLS/HRS (slots 13/14) to these bits, so import must select the same
-    // routes. Distinct HLB/HRB needs metadata; a bare WAVE mask cannot encode
-    // that semantic distinction.
-    case 15: slot = kAuroChannelIdHeightLeftSurround; return true;
+    case 15: slot = kAuroChannelIdHeightLeftBack; return true;
     case 16: slot = kAuroChannelIdHeightCenterSurround; return true;
-    case 17: slot = kAuroChannelIdHeightRightSurround; return true;
+    case 17: slot = kAuroChannelIdHeightRightBack; return true;
     default:
         return false;
     }
@@ -982,15 +977,6 @@ NativeChannelLayoutPlan build_native_channel_layout_from_wav_mask(
 NativeChannelLayoutPlan build_native_input_channel_layout(
     unsigned channel_count,
     std::uint32_t wav_channel_mask) {
-    // WAVEFORMATEXTENSIBLE has no distinct 5.1 "side" layout: the canonical
-    // 0x3f mask names channels 4/5 BL/BR, while ordinary 5.1 programme material
-    // uses that sole surround pair as LS/RS.  Auromatic's native 5.1 contract is
-    // mask 0x3f (FL/FR/C/LFE/LS/RS), so retaining the literal BL/BR mapping here
-    // both rejected 5.1 -> 5.1.4 and misidentified the pair in 5.1 -> 7.1.4.
-    // Keep true BL/BR semantics for 7.1, where the additional SL/SR bits make
-    // the two pairs unambiguous.
-    if (channel_count == 6u && wav_channel_mask == 0x3fu)
-        return build_native_channel_layout_from_mask(0x3fu, channel_count);
     NativeChannelLayoutPlan plan = build_native_channel_layout_from_wav_mask(wav_channel_mask, channel_count);
     if (plan.slot_count == channel_count)
         return plan;
@@ -2724,14 +2710,7 @@ void Decoder::apply_native_output_channel_mapping() {
         requested_output_channel_mask_ |= (1u << logical_slot);
     }
 
-    // Configurator_t::get_downmix_layout @ 0x4E8950 is the native mask
-    // transform.  It is intentionally not equivalent to blindly unioning
-    // input and requested output masks: native configuration may retain only
-    // the channels required by the selected downmix class.
-    const std::uint32_t effective_output_mask =
-        auro3deng::auro_matic_v3_Configurator_get_downmix_layout(
-            input_channel_mask_, requested_output_channel_mask_)
-        & 0x7FFFFFFu;
+    const std::uint32_t effective_output_mask = (requested_output_channel_mask_ | input_channel_mask_) & 0x7FFFFFFu;
 
     unsigned buffer_idx = 0;
     for (std::uint32_t logical_slot = 0; logical_slot < auro_codec_v3_ida::kAuroProcessorIoChannelPtrCount; ++logical_slot) {
@@ -2860,10 +2839,7 @@ void Decoder::rebuild_native_a3deng_static_configuration_state() {
 
 void Decoder::rebuild_native_runtime_configuration_state() {
     native_runtime_configuration_ = {};
-    // Native A3DENG uses mode 0 for PCM/AuroMatic input and mode 2 for the
-    // codec-v3 decoder path.  The live v4 Artist Connection instance reports
-    // mode 0 for its decoded 6-channel PCM route.
-    const std::uint32_t decoder_mode = legacy_auromatic_upmix_ ? 0u : 2u;
+    constexpr std::uint32_t decoder_mode = 2u;
 
     native_runtime_configuration_.auro_update_is_stereo_device = stereo_device_connected_;
     native_runtime_configuration_.auro_update_headset_connected = headphone_connected_;
@@ -2917,7 +2893,7 @@ void Decoder::rebuild_native_dynamic_parameters_state() {
 
 void Decoder::rebuild_native_a3deng_render_state() {
     native_a3deng_render_state_ = {};
-    native_a3deng_render_state_.decoder_mode = legacy_auromatic_upmix_ ? 0u : 2u;
+    native_a3deng_render_state_.decoder_mode = 2u;
     native_a3deng_render_state_.input_sample_rate = sample_rate_;
     native_a3deng_render_state_.input_sample_type = auro_engine_v4_ida::kOutputSampleTypeInt32;
     native_a3deng_render_state_.input_channel_mask = input_channel_mask_ & 0x7FFFFFFu;
@@ -3183,7 +3159,6 @@ bool Decoder::apply_native_dynamic_parameters_update() {
 }
 
 void Decoder::rebuild_native_xinn_partial_state() {
-    native_auromatic_runtime_ready_ = false;
     native_xinn_partial_ready_ = false;
     native_xinn_partial_input_mask_ = 0u;
     native_xinn_partial_output_mask_ = 0u;
@@ -3196,11 +3171,6 @@ void Decoder::rebuild_native_xinn_partial_state() {
     native_xinn_tail_input_storage_.clear();
     native_xinn_state_before_tail_.clear();
     native_xinn_scratch_before_tail_.clear();
-    native_auromatic_front_input_state_.clear();
-    native_auromatic_gain_state_.clear();
-    native_auromatic_silence_state_.clear();
-    native_auromatic_gain_state_.clear();
-    native_auromatic_silence_state_.clear();
     native_xinn_tail_samples_ = 0u;
     native_upmix_limiter_envelope_ = 0.0;
 
@@ -3228,16 +3198,15 @@ void Decoder::rebuild_native_xinn_partial_state() {
         ? (input_mask | (requested_output_mask & xinn_supported_additions))
         : requested_output_mask;
 
-    // Native auro_matic_v3_XinN_fl32_configure accepts the complete engine
-    // rate set.  XinN itself owns the rate-dependent filter setup; do not
-    // insert a host-side pair-average/hold bridge here.
+    // XinN configure: 32/44.1/48 only. At 96 kHz host, run XinN at 48 kHz with
+    // 2:1 pair-average / hold (stand-in for native factor-2 pre-XinN resampler).
     meta_xinn_rate_decimation_ = 1u;
-    const std::uint32_t xinn_sample_rate = sample_rate_;
-    if (xinn_sample_rate != 16000u && xinn_sample_rate != 22050u
-        && xinn_sample_rate != 24000u && xinn_sample_rate != 32000u
-        && xinn_sample_rate != 44100u && xinn_sample_rate != 48000u
-        && xinn_sample_rate != 88200u && xinn_sample_rate != 96000u
-        && xinn_sample_rate != 176400u && xinn_sample_rate != 192000u) {
+    std::uint32_t xinn_sample_rate = sample_rate_;
+    if (meta_auromatic_upmix_ && sample_rate_ == 96000u) {
+        meta_xinn_rate_decimation_ = 2u;
+        xinn_sample_rate = 48000u;
+    } else if (
+        sample_rate_ != 32000u && sample_rate_ != 44100u && sample_rate_ != 48000u) {
         return;
     }
 
@@ -3295,31 +3264,9 @@ void Decoder::rebuild_native_xinn_partial_state() {
     if (prc != 0)
         return;
 
-    // Native FrontManager_t_construct embeds a Centergen processor before
-    // XinN.  Keep this state beside the partial XinN state so it survives
-    // host-block boundaries and follows the same reset/rebuild lifecycle.
-    native_auromatic_front_input_state_.assign(0x490u, 0u);
-    std::int32_t front_init_args[2] = {48000, 1};
-    if (false) {
-        if (!auro3deng::auro_centergen_v3_Processor_t_construct(
-                native_auromatic_front_input_state_.data(), front_init_args)) {
-            native_xinn_partial_ready_ = false;
-            return;
-        }
-    }
-
     native_xinn_partial_input_mask_ = input_mask;
     native_xinn_partial_output_mask_ = requested_output_mask;
     native_xinn_partial_mode_ = mode;
-    if (native_auromatic_runtime_.construct() == 0
-        && native_auromatic_runtime_.configure_default(
-            sample_rate_,
-            input_mask,
-            requested_output_mask,
-            mode == 2u,
-            native_dynamic_parameters_.room_preset) == 0) {
-        native_auromatic_runtime_ready_ = true;
-    }
     native_xinn_partial_ready_ = true;
 }
 
@@ -3574,10 +3521,11 @@ bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
 
     constexpr std::size_t channel_count = auro_engine_v4_ida::kChannelCount;
     const std::size_t frame_samples = static_cast<std::size_t>(block_size_);
-    // The native XinN process receives the host-rate 32-sample subblocks.
-    // A host-side rate bridge changes the samples presented to the codec and
-    // is not part of the auro_matic Engine contract.
-    if (meta_xinn_rate_decimation_ != 1u || (frame_samples % 32u) != 0u)
+    const std::uint32_t decim =
+        meta_xinn_rate_decimation_ == 0u ? 1u : meta_xinn_rate_decimation_;
+    if (decim != 1u && decim != 2u)
+        return false;
+    if (decim == 2u && (frame_samples % 2u) != 0u)
         return false;
 
     std::vector<float> input(channel_count * frame_samples, 0.0f);
@@ -3593,8 +3541,18 @@ bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
             dst[s] = static_cast<float>(src[s]) * (1.0f / 8388608.0f);
     }
 
-    const std::size_t xinn_samples = frame_samples;
-    std::vector<float> xinn_buf = input;
+    const std::size_t xinn_samples = frame_samples / decim;
+    std::vector<float> xinn_buf(channel_count * xinn_samples, 0.0f);
+    if (decim == 1u) {
+        xinn_buf = input;
+    } else {
+        for (std::size_t slot = 0; slot < channel_count; ++slot) {
+            const float* src = input.data() + slot * frame_samples;
+            float* dst = xinn_buf.data() + slot * xinn_samples;
+            for (std::size_t s = 0; s < xinn_samples; ++s)
+                dst[s] = 0.5f * (src[2u * s] + src[2u * s + 1u]);
+        }
+    }
 
     auto process_span = [&](std::vector<float>& work, std::size_t samples) -> bool {
         if (samples == 0u || (samples % 32u) != 0u)
@@ -3603,33 +3561,103 @@ bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
         for (std::size_t slot = 0; slot < channel_count; ++slot)
             span[slot] = work.data() + slot * samples;
         const std::uint32_t subblocks = static_cast<std::uint32_t>(samples / 32u);
-        if (native_auromatic_front_input_state_.empty())
-            return false;
-        for (std::uint32_t block = 0u; block < subblocks; ++block) {
-            const std::size_t offset = static_cast<std::size_t>(block) * 32u;
-            if (auro3deng::auro_centergen_v3_Processor_process(
-                    native_auromatic_front_input_state_.data(),
-                    reinterpret_cast<std::uint64_t>(work.data() + offset),
-                    reinterpret_cast<std::uint64_t>(work.data() + samples + offset),
-                    reinterpret_cast<std::uint8_t*>(work.data() + 2u * samples + offset),
-                    32) != 0) {
-                return false;
-            }
-        }
         native_xinn_sample_rate_words_[1] = subblocks;
-        const auto* records = native_xinn_block_records_storage_.empty()
-            ? nullptr
-            : native_xinn_block_records_storage_.data();
         return auro3deng::auro_a3deng_v4_pipeline_step_upmix_XinN_process_impl(
                    reinterpret_cast<std::uint64_t>(native_xinn_step_state_.data()),
                    span.data(),
                    subblocks,
-                   records,
+                   nullptr,
                    nullptr,
                    auro3deng::auro_a3deng_v4_pipeline_step_upmix_XinN_reset_audio_state_impl) == 0;
     };
 
-    if (!process_span(xinn_buf, xinn_samples)) {
+    // At decimated rate avoid cross-block tail state: host blocks are aligned
+    // (e.g. 1024 @96k → 512 @48k).
+    if (decim == 2u)
+        native_xinn_tail_samples_ = 0u;
+
+    std::size_t input_offset = 0u;
+    if (decim == 1u && native_xinn_tail_samples_ != 0u) {
+        const std::size_t previous_tail = native_xinn_tail_samples_;
+        const std::size_t current_prefix = 32u - previous_tail;
+        if (native_xinn_state_before_tail_.size() != native_xinn_step_state_.size()
+            || native_xinn_scratch_before_tail_.size() != native_xinn_process_scratch_storage_.size()
+            || native_xinn_tail_input_storage_.size() != channel_count * previous_tail
+            || current_prefix > xinn_samples) {
+            native_xinn_partial_ready_ = false;
+            return false;
+        }
+        native_xinn_step_state_ = native_xinn_state_before_tail_;
+        native_xinn_process_scratch_storage_ = native_xinn_scratch_before_tail_;
+        std::vector<float> bridge(channel_count * 32u, 0.0f);
+        for (std::size_t slot = 0; slot < channel_count; ++slot) {
+            float* dst = bridge.data() + slot * 32u;
+            const float* old_tail = native_xinn_tail_input_storage_.data() + slot * previous_tail;
+            const float* current = xinn_buf.data() + slot * xinn_samples;
+            std::copy(old_tail, old_tail + previous_tail, dst);
+            std::copy(current, current + current_prefix, dst + previous_tail);
+        }
+        if (!process_span(bridge, 32u)) {
+            native_xinn_partial_ready_ = false;
+            return false;
+        }
+        for (std::size_t slot = 0; slot < channel_count; ++slot) {
+            const float* src = bridge.data() + slot * 32u + previous_tail;
+            float* dst = xinn_buf.data() + slot * xinn_samples;
+            std::copy(src, src + current_prefix, dst);
+        }
+        input_offset = current_prefix;
+        native_xinn_tail_samples_ = 0u;
+        native_xinn_tail_input_storage_.clear();
+        native_xinn_state_before_tail_.clear();
+        native_xinn_scratch_before_tail_.clear();
+    }
+
+    const std::size_t remaining = xinn_samples - input_offset;
+    const std::size_t full_samples = (remaining / 32u) * 32u;
+    if (full_samples != 0u) {
+        std::vector<float> work(channel_count * full_samples, 0.0f);
+        for (std::size_t slot = 0; slot < channel_count; ++slot) {
+            const float* src = xinn_buf.data() + slot * xinn_samples + input_offset;
+            std::copy(src, src + full_samples, work.data() + slot * full_samples);
+        }
+        if (!process_span(work, full_samples)) {
+            native_xinn_partial_ready_ = false;
+            return false;
+        }
+        for (std::size_t slot = 0; slot < channel_count; ++slot) {
+            const float* src = work.data() + slot * full_samples;
+            float* dst = xinn_buf.data() + slot * xinn_samples + input_offset;
+            std::copy(src, src + full_samples, dst);
+        }
+        input_offset += full_samples;
+    }
+
+    const std::size_t tail_samples = xinn_samples - input_offset;
+    if (decim == 1u && tail_samples != 0u) {
+        native_xinn_state_before_tail_ = native_xinn_step_state_;
+        native_xinn_scratch_before_tail_ = native_xinn_process_scratch_storage_;
+        native_xinn_tail_samples_ = static_cast<std::uint32_t>(tail_samples);
+        native_xinn_tail_input_storage_.assign(channel_count * tail_samples, 0.0f);
+        std::vector<float> tail(channel_count * 32u, 0.0f);
+        for (std::size_t slot = 0; slot < channel_count; ++slot) {
+            const float* src = xinn_buf.data() + slot * xinn_samples + input_offset;
+            float* saved = native_xinn_tail_input_storage_.data() + slot * tail_samples;
+            float* work = tail.data() + slot * 32u;
+            std::copy(src, src + tail_samples, saved);
+            std::copy(src, src + tail_samples, work);
+            std::fill(work + tail_samples, work + 32u, src[tail_samples - 1u]);
+        }
+        if (!process_span(tail, 32u)) {
+            native_xinn_partial_ready_ = false;
+            return false;
+        }
+        for (std::size_t slot = 0; slot < channel_count; ++slot) {
+            const float* src = tail.data() + slot * 32u;
+            float* dst = xinn_buf.data() + slot * xinn_samples + input_offset;
+            std::copy(src, src + tail_samples, dst);
+        }
+    } else if (tail_samples != 0u) {
         native_xinn_partial_ready_ = false;
         return false;
     }
@@ -3641,7 +3669,14 @@ bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
             continue;
         const float* src_x = xinn_buf.data() + static_cast<std::size_t>(slot) * xinn_samples;
         float* dst_f = output.data() + static_cast<std::size_t>(slot) * frame_samples;
-        std::copy(src_x, src_x + xinn_samples, dst_f);
+        if (decim == 1u) {
+            std::copy(src_x, src_x + xinn_samples, dst_f);
+        } else {
+            for (std::size_t s = 0; s < xinn_samples; ++s) {
+                dst_f[2u * s] = src_x[s];
+                dst_f[2u * s + 1u] = src_x[s];
+            }
+        }
     }
 
     // Native A3DENG keeps XinN in Float32 through the remaining upmix stages
@@ -4211,12 +4246,6 @@ DecodeError Decoder::open(const std::string& path) {
     native_xinn_tail_input_storage_.clear();
     native_xinn_state_before_tail_.clear();
     native_xinn_scratch_before_tail_.clear();
-    native_auromatic_front_input_state_.clear();
-    native_auromatic_gain_state_.clear();
-    native_auromatic_silence_state_.clear();
-    native_auromatic_front_input_state_.clear();
-    native_auromatic_gain_state_.clear();
-    native_auromatic_silence_state_.clear();
     native_xinn_tail_samples_ = 0u;
     native_upmix_limiter_envelope_ = 0.0;
     native_xinn_partial_ready_ = false;
@@ -4410,32 +4439,15 @@ DecodeError Decoder::open(const std::string& path) {
             if (requested_mask == 0u)
                 requested_mask = dsp_output_channels_req_; // keep failure path below
         }
-        // Plain PCM has no Auro metadata, so the caller must explicitly name
-        // the desired native output layout.  The native Manager is layout-
-        // driven; do not reduce this to the former 6/10/12-channel shortlist.
-        // Requiring a wider target preserves the legacy upmix-only contract
-        // while allowing every valid Auro mask already understood by the
-        // layout parser and remixer (2H/4H/Top and non-standard bed widths).
         const bool supported_legacy_target =
-            requested_mask != 0u
-            && codec_v3_output_layout_mask_allowed(requested_mask)
-            && mask_count_27(requested_mask) > channel_count_
-            && channel_count_ >= 1u;
-        const NativeChannelLayoutPlan direct_binaural_layout =
-            build_native_input_channel_layout(channel_count_, input_wav_channel_mask_);
-        const bool stateful_ahp_rate_supported = sample_rate_ == 32000u
-            || sample_rate_ == 44100u || sample_rate_ == 48000u
-            || sample_rate_ == 88200u || sample_rate_ == 96000u;
-        const bool supported_direct_binaural_pcm =
-            direct_binaural_pcm_
-            && stateful_ahp_rate_supported
-            && direct_binaural_layout.slot_count == channel_count_
-            && direct_binaural_layout.mask != 0u
-            && (direct_binaural_layout.mask & ~0x7FBFu) == 0u
-            && channel_count_ <= 14u;
-        if ((!supported_legacy_target && !supported_direct_binaural_pcm)
-            || (dsp_output_channels_req_ != 0u && dsp_output_channels_req_ <= channel_count_
-                && !supported_direct_binaural_pcm)) {
+            (requested_mask == 63u && channel_count_ >= 2u && channel_count_ <= 3u)
+            || (requested_mask == 26175u && channel_count_ >= 2u && channel_count_ <= 6u)
+            || (requested_mask == 26559u && channel_count_ == 8u)
+            || (dsp_output_channels_req_ == 6u && channel_count_ >= 2u && channel_count_ <= 3u)
+            || (dsp_output_channels_req_ == 10u && channel_count_ >= 2u && channel_count_ <= 6u)
+            || (dsp_output_channels_req_ == 12u && channel_count_ == 8u);
+        if (!supported_legacy_target
+            || (dsp_output_channels_req_ != 0u && dsp_output_channels_req_ <= channel_count_)) {
             opened_ = false;
             if (requested_mask != 0u
                 && !codec_v3_output_layout_mask_allowed(requested_mask)) {
@@ -4451,8 +4463,8 @@ DecodeError Decoder::open(const std::string& path) {
             }
             last_error_detail_ =
                 "decode impossible: no Auro-Codec metadata found; "
-                "legacy Orua-Matic upmix requires an explicit wider Auro "
-                "--dsp-output-layout on plain PCM";
+                "legacy Orua-Matic upmix requires --dsp-output-channels "
+                "6 (5.1), 10 (5.1_4H), or 12 (7.1_4H) on plain PCM";
             return DecodeError::BadInput;
         }
         // Native XinN accepts 32/44.1/48 kHz. The A3DENG pipeline inserts a
@@ -4502,7 +4514,7 @@ DecodeError Decoder::open(const std::string& path) {
                 return DecodeError::BadInput;
             }
         }
-        legacy_auromatic_upmix_ = !supported_direct_binaural_pcm;
+        legacy_auromatic_upmix_ = true;
     }
     // WAV channel_count is the container/layout width (often includes height slots).
     // carrier_channels is the encoded subset; mismatch is expected for height decode.
@@ -4525,31 +4537,21 @@ DecodeError Decoder::open(const std::string& path) {
         &&
         auro_metadata_.layout_id == kAuroLayout7_1_5H_1T
         && auro_metadata_.carrier_layout_id == kAuroCarrier7_1;
-    const std::uint32_t direct_pcm_mask = direct_binaural_pcm_
-        ? build_native_input_channel_layout(
-            channel_count_, input_wav_channel_mask_).mask
-        : legacy_dsp_channel_count_to_mask(channel_count_);
     const std::uint32_t native_direct_output_mask = legacy_auromatic_upmix_
         ? (dsp_output_layout_mask_specified_
             ? dsp_output_layout_mask_req_
             : legacy_dsp_channel_count_to_mask(dsp_output_channels_req_))
-        : (direct_binaural_pcm_
-            ? direct_pcm_mask
-            : (direct_7_1_2h_output ? kAuroDirect7_1_2H : auro_metadata_.layout_id));
+        : (direct_7_1_2h_output ? kAuroDirect7_1_2H : auro_metadata_.layout_id);
     const unsigned native_direct_output_channels = legacy_auromatic_upmix_
         ? dsp_output_channels_req_
-        : (direct_binaural_pcm_
-            ? channel_count_
-            : (direct_7_1_2h_output
-                ? mask_count_27(kAuroDirect7_1_2H)
-                : auro_metadata_.output_channels));
+        : (direct_7_1_2h_output
+            ? mask_count_27(kAuroDirect7_1_2H)
+            : auro_metadata_.output_channels);
     const unsigned auto_output_channels = legacy_auromatic_upmix_
         ? dsp_output_channels_req_
-        : (direct_binaural_pcm_
-            ? native_direct_output_channels
-            : (kEnableAuroMaticXinNUpmix
-                ? auro_metadata_.output_channels
-                : native_direct_output_channels));
+        : (kEnableAuroMaticXinNUpmix
+            ? auro_metadata_.output_channels
+            : native_direct_output_channels);
 
     std::uint32_t explicit_request_mask = 0u;
     if (dsp_output_layout_mask_specified_)
@@ -4580,8 +4582,9 @@ DecodeError Decoder::open(const std::string& path) {
         dsp_output_layout_mask_req_ = explicit_request_mask;
         dsp_output_channels_req_ = mask_count_27(explicit_request_mask);
         // Do not FFmpeg-resample the carrier here: that destroys ADOL LSBs.
-        // XinN is configured at the native input rate.
-        meta_xinn_rate_decimation_ = 1u;
+        // XinN at 96 kHz uses a 2:1 bridge inside run_native_xinn_partial_step.
+        meta_xinn_rate_decimation_ =
+            (sample_rate_ == 96000u) ? 2u : 1u;
     }
 
     dsp_output_channels_ = dsp_output_channels_req_;
@@ -4787,7 +4790,7 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
             std::memset(dst_plane, 0, plane_bytes);
     }
     // AuroDecoderImpl::Decode → Processor_process → codec-v3 partial step.
-    if (legacy_auromatic_upmix_ || direct_binaural_pcm_) {
+    if (legacy_auromatic_upmix_) {
         for (std::uint32_t slot = 0; slot < auro_codec_v3_ida::kAuroProcessorIoChannelPtrCount; ++slot) {
             if ((native_config_state_.input_mask & (1u << slot)) == 0u)
                 continue;
@@ -5026,7 +5029,6 @@ void Decoder::close() {
     output_channel_mask_ = 0;
     auro_metadata_ = {};
     legacy_auromatic_upmix_ = false;
-    direct_binaural_pcm_ = false;
     meta_auromatic_upmix_ = false;
     meta_upmix_source_mask_ = 0u;
     meta_xinn_rate_decimation_ = 1u;

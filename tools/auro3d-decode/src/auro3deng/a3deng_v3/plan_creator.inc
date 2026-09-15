@@ -587,8 +587,8 @@ std::int64_t auro_remix_v1_Configurator_make_plan(
     std::uint8_t* workspace,
     std::uint32_t source_layout,
     std::uint32_t target_layout,
-    std::uint32_t preset_kind,
-    std::uint32_t room_preset) {
+    std::uint32_t preset_kind = 0u,
+    std::uint32_t room_preset = 0u) {
     if (!configurator || !workspace)
         return 1;
     if (!auro_speaker_layout_is_consistent(source_layout, 13)
