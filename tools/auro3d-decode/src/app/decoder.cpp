@@ -978,6 +978,11 @@ NativeChannelLayoutPlan build_native_channel_layout_from_wav_mask(
 NativeChannelLayoutPlan build_native_input_channel_layout(
     unsigned channel_count,
     std::uint32_t wav_channel_mask) {
+    // Plain 5.1 PCM is Auro 5.1 (FL,FR,C,LFE,LS,RS). WAVEFORMATEXTENSIBLE 5.1
+    // uses BL/BR (WAVE bits 4/5) which would otherwise map to Auro LB/RB and
+    // change the surround planes during a taller upmix.
+    if (channel_count == 6u)
+        return build_native_channel_layout(channel_count);
     NativeChannelLayoutPlan plan = build_native_channel_layout_from_wav_mask(wav_channel_mask, channel_count);
     if (plan.slot_count == channel_count)
         return plan;
@@ -3191,13 +3196,22 @@ void Decoder::rebuild_native_xinn_partial_state() {
     std::uint32_t mode = auro3deng::xinn_prepare_mode_from_input_mask_portable(input_mask);
     const std::uint32_t requested_output_mask =
         native_config_state_.effective_output_mask & 0x7FFFFFFu;
-    const std::uint32_t xinn_supported_additions = mode == 1u
-        ? 0x6630u
-        : (mode == 2u ? 0x7E00u : 0u);
-    const std::uint32_t output_mask =
-        (legacy_auromatic_upmix_ || meta_auromatic_upmix_)
-        ? (input_mask | (requested_output_mask & xinn_supported_additions))
-        : requested_output_mask;
+    // Native XinN must not regenerate the bed: surround consumes input & 0x1F3
+    // and generates 0x7E00 & target; stereo consumes 0x3 and generates
+    // 0x0630 & target (side + front heights only, rear heights stay silent).
+    std::uint32_t xinn_input_mask = input_mask;
+    std::uint32_t output_mask = requested_output_mask;
+    if (legacy_auromatic_upmix_ || meta_auromatic_upmix_) {
+        std::uint32_t xinn_output_base = 0u;
+        if (mode == 1u) {
+            xinn_input_mask = 0x3u;
+            xinn_output_base = 0x0630u;
+        } else if (mode == 2u) {
+            xinn_input_mask = input_mask & 0x1F3u;
+            xinn_output_base = 0x7E00u;
+        }
+        output_mask = xinn_output_base & requested_output_mask;
+    }
 
     // Native Matic/XinN is a 48 kHz engine: auro_matic_v3_XinN_fl32_configure
     // accepts only 32/44.1/48 kHz (IDB 0x556330).  For a host rate above 48 kHz
@@ -3272,7 +3286,7 @@ void Decoder::rebuild_native_xinn_partial_state() {
     auro3deng::xinn_write_plan_update_blobs_portable(
         plan.data(),
         update.data(),
-        input_mask,
+        xinn_input_mask,
         output_mask,
         mode,
         native_dynamic_parameters_.room_preset);
@@ -4487,6 +4501,12 @@ DecodeError Decoder::open(const std::string& path) {
     meta_xinn_rate_decimation_ = 1u;
     meta_xinn_core_rate_ = 0u;
     if (!auro_metadata_.found) {
+        // Binaural with no explicit target: the HRTF renderer works on the
+        // decoded discrete channels, so request the input's own channel count.
+        if (binaural_requested_ && !dsp_output_layout_mask_specified_
+            && dsp_output_channels_req_ == 0u) {
+            dsp_output_channels_req_ = channel_count_;
+        }
         std::uint32_t requested_mask = 0u;
         if (dsp_output_layout_mask_specified_) {
             requested_mask = dsp_output_layout_mask_req_;
@@ -4498,12 +4518,18 @@ DecodeError Decoder::open(const std::string& path) {
         const bool supported_legacy_target =
             (requested_mask == 63u && channel_count_ >= 2u && channel_count_ <= 3u)
             || (requested_mask == 26175u && channel_count_ >= 2u && channel_count_ <= 6u)
-            || (requested_mask == 26559u && channel_count_ == 8u)
+            || (requested_mask == 26559u && channel_count_ >= 2u && channel_count_ <= 8u)
             || (dsp_output_channels_req_ == 6u && channel_count_ >= 2u && channel_count_ <= 3u)
             || (dsp_output_channels_req_ == 10u && channel_count_ >= 2u && channel_count_ <= 6u)
-            || (dsp_output_channels_req_ == 12u && channel_count_ == 8u);
-        if (!supported_legacy_target
-            || (dsp_output_channels_req_ != 0u && dsp_output_channels_req_ <= channel_count_)) {
+            || (dsp_output_channels_req_ == 12u && channel_count_ >= 2u && channel_count_ <= 8u);
+        // Binaural passthrough: the HRTF renderer consumes the discrete input
+        // channels, so the target equals the input layout (no upmix).
+        const bool binaural_passthrough = binaural_requested_
+            && !dsp_output_layout_mask_specified_
+            && requested_mask == legacy_dsp_channel_count_to_mask(channel_count_);
+        if ((!supported_legacy_target
+            || (dsp_output_channels_req_ != 0u && dsp_output_channels_req_ <= channel_count_))
+            && !binaural_passthrough) {
             opened_ = false;
             if (requested_mask != 0u
                 && !codec_v3_output_layout_mask_allowed(requested_mask)) {

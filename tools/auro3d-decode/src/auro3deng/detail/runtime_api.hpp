@@ -343,6 +343,62 @@ auro_matic_v3_XinN_fl32_update_peak_amplitude(
     float* peak_31);
 std::int64_t /* Decompiled name: auro_matic_XinN_fl32_process_inplace */
 auro_matic_XinN_fl32_process_inplace(std::uint64_t xinn_state, void** channel_span_31);
+
+// --- Portable Auro-Matic v3 Engine chain (src/auro3deng/a3deng_v3/auromatic_engine.inc) ---
+// Native x86_64 references: Engine 0x54FEC0..0x5500F0, FrontManager 0x550A50..0x5537E0,
+// 3d3d 0x550E50..0x551B70, Gain 0x550B80..0x550C00, Silence 0x572250..0x5722F0,
+// OutputGate/DetectSilence 0x553ED0..0x555190, Smooth_float 0x5AB4B0..0x5AB780.
+float auro_audio_Smooth_float_calculate_smoothing(std::uint32_t rate, float seconds);
+void auro_audio_Smooth_float_inst_initialize(float* state, std::uint32_t rate, float seconds);
+void auro_audio_Smooth_float_inst_update(float* state, float target);
+void auro_audio_Smooth_float_inst_set_current(float* state, float current);
+void auro_audio_Smooth_float_gains_smooth(
+    float* state, float* gains, std::uint32_t count, float target, float coeff);
+void auro_audio_Smooth_float_inst_gains_smooth(float* state, float* gains, std::uint32_t count);
+
+std::int64_t auro_matic_v3_Engine_t_construct(
+    std::uint8_t* base, const std::uint64_t* memory_args);
+std::int64_t auro_matic_v3_Engine_configure(
+    std::uint8_t* base, std::uint32_t rate, const std::uint8_t* plan);
+std::int64_t auro_matic_v3_Engine_reset_audio_state(std::uint8_t* base);
+void auro_matic_v3_Engine_set_bypass(std::uint8_t* base, std::int32_t bypass);
+void auro_matic_v3_Engine_process(std::uint8_t* base, void** table);
+
+std::int64_t auro_matic_v3_OutputGate_t_construct(std::uint8_t* base);
+std::int64_t auro_matic_v3_OutputGate_configure(
+    std::uint8_t* base, std::uint32_t rate, std::uint32_t watch_mask);
+void auro_matic_v3_OutputGate_set_gain(std::uint8_t* base, float gain);
+std::int64_t auro_matic_v3_OutputGate_reset_audio_state(std::uint8_t* base);
+bool auro_matic_v3_OutputGate_process(
+    std::uint8_t* base, void** table, std::uint32_t* out_active,
+    std::uint32_t* out_reset, float* gains);
+
+std::int64_t auro_matic_v3_FrontManager_t_construct(std::uint8_t* base);
+std::int64_t auro_matic_v3_FrontManager_configure(
+    std::uint8_t* base, std::uint32_t rate, const std::uint8_t* plan);
+std::int64_t auro_matic_v3_FrontManager_reset_audio_state(std::uint8_t* base);
+void auro_matic_v3_FrontManager_input_process(
+    std::uint8_t* base, void** table, float* a3, float* a4, float* a5);
+void auro_matic_v3_FrontManager_output_process(
+    std::uint8_t* base, void** table, const float* a3, const float* a4,
+    const float* a5, const float* ramp);
+
+std::int64_t auro_matic_v3_3d3d_t_construct(std::uint8_t* base, const std::uint8_t* memory);
+std::int64_t auro_matic_v3_3d3d_configure(
+    std::uint8_t* base, std::uint32_t rate, const std::uint8_t* plan);
+std::int64_t auro_matic_v3_3d3d_reset_audio_state(std::uint8_t* base);
+void auro_matic_v3_3d3d_process(std::uint8_t* base, void** table);
+
+std::int64_t auro_matic_v3_Gain_t_construct(std::uint8_t* base);
+std::int64_t auro_matic_v3_Gain_configure(std::uint8_t* base, std::uint32_t mask);
+void auro_matic_v3_Gain_reset_audio_state();
+std::int64_t auro_matic_v3_Gain_process(
+    std::uint8_t* base, void** table, const float* gains);
+
+std::int64_t auro_matic_Silence_t_construct(std::uint8_t* base);
+std::int64_t auro_matic_Silence_configure(std::uint8_t* base, std::uint32_t mask);
+void auro_matic_Silence_reset_audio_state();
+void auro_matic_Silence_process(std::uint8_t* base, void** table);
 std::int64_t /* Decompiled name: auro_matic_XinN_fl32_process_scratch */
 auro_matic_XinN_fl32_process_scratch(std::uint64_t xinn_state, void** channel_span_31);
 constexpr std::size_t kXinnPlanBlobBytesPortable = 96u;

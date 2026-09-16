@@ -43,6 +43,7 @@ struct Options {
     bool mono_tracks = false;
     bool channel_diagram = false;
     bool binaural = false;
+    bool binaural_reference_ir = false;
     bool restore_lfe = false;
     /// 0 = off; 1..8 = clear that many low PCM bits on export (toward zero).
     unsigned clear_output_lsb = 0;
@@ -1155,6 +1156,11 @@ bool parse_args(int argc, char** argv, Options& opt) {
             opt.binaural = true;
             continue;
         }
+        if (a == "--binaural-reference-ir") {
+            opt.binaural = true;
+            opt.binaural_reference_ir = true;
+            continue;
+        }
         if (a == "--clear-output-lsb") {
             opt.clear_output_lsb = 4u;
             if (i + 1 < argc) {
@@ -1334,6 +1340,13 @@ bool parse_args(int argc, char** argv, Options& opt) {
         opt.output = default_output_path(opt);
     if (opt.raw && (opt.sample_rate == 0 || opt.channels == 0)) {
         std::cerr << "--raw requires --rate and --channels\n";
+        return false;
+    }
+    if (opt.binaural && !opt.binaural_reference_ir
+        && (opt.room_preset != 0u || opt.hrtf_preset != 0u)) {
+        std::cerr << "Binaural: stateful AHP/AM4HP supports only the captured "
+                     "room-0/HPV2 configuration; use --binaural-reference-ir for "
+                     "alternate room/HRTF profiles\n";
         return false;
     }
     if (opt.binaural && opt.hrtf_preset != 0u && opt.hrtf_preset != 2u) {
@@ -1521,6 +1534,7 @@ int app_main(int argc, char** argv) {
     dec.set_room_preset(opt.room_preset);
     dec.set_hrtf_preset(opt.hrtf_preset);
     dec.set_virtualizer_mode(opt.virtualizer_mode);
+    dec.set_binaural(opt.binaural);
     // Disabled until headphone/stereo-device state affects the PCM path.
     // dec.set_output_audio_devices(opt.headphone_connected != 0, opt.stereo_device_connected != 0);
     if (opt.block_size != 0)
@@ -2007,6 +2021,11 @@ int app_main(int argc, char** argv) {
     }
 
     if (opt.binaural) {
+        // The bundled renderer runs at 48 kHz; the stateful AHP/AM4HP path then
+        // restores the input rate on its stereo output.
+        const std::uint32_t binaural_input_rate = cfg.sample_rate;
+        const bool restore_binaural_rate = !opt.binaural_reference_ir
+            && binaural_input_rate != 48000u;
         if (cfg.sample_rate != 48000u) {
             std::vector<std::uint8_t> resampled;
             if (!auro3d::resample_interleaved_pcm_to_rate(
@@ -2043,6 +2062,24 @@ int app_main(int argc, char** argv) {
         cfg.channels = 2;
         cfg.channel_mask = 3;
         output_slots = {0u, 1u};
+        if (restore_binaural_rate) {
+            std::vector<std::uint8_t> restored;
+            if (!auro3d::resample_interleaved_pcm_to_rate(
+                    pcm_all,
+                    cfg.bits_per_sample,
+                    cfg.channels,
+                    cfg.sample_rate,
+                    binaural_input_rate,
+                    restored,
+                    err,
+                    progress.callback())) {
+                progress.finish();
+                print_error("Binaural: " + err);
+                return 4;
+            }
+            pcm_all.swap(restored);
+            cfg.sample_rate = binaural_input_rate;
+        }
         if (opt.output_bits == 16u && cfg.bits_per_sample == 24u) {
             std::vector<std::uint8_t> pcm16;
             if (!wav::convert_pcm24_to_pcm16(pcm_all, pcm16, err)) {

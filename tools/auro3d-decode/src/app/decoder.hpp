@@ -298,6 +298,10 @@ public:
         }
     }
 
+    /// Binaural output is rendered downstream by main.cpp; the decoder then
+    /// emits the discrete input channels unchanged when no target is set.
+    void set_binaural(bool on) { binaural_requested_ = on; }
+
     /// Path-specific detail for the last open/decode failure (may be empty).
     const std::string& last_error_detail() const { return last_error_detail_; }
 
@@ -408,6 +412,7 @@ private:
     unsigned channel_count_ = 0;
     unsigned block_size_ = 0;
     unsigned block_request_ = 0;
+    bool binaural_requested_ = false;
     unsigned dsp_output_channels_req_ = 0;
     unsigned dsp_output_channels_ = 0;
     std::uint32_t dsp_output_layout_mask_req_ = 0;

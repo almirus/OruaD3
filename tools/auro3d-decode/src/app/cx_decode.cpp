@@ -560,8 +560,7 @@ bool decode_auro_cx_mp4(
     unsigned hrtf_preset,
     const std::string& output_format,
     const ProgressFn& progress,
-    std::vector<std::string>* warnings,
-    bool binaural_reference_ir) {
+    std::vector<std::string>* warnings) {
     if (warnings)
         warnings->clear();
     if (!std::isfinite(headroom_db) || headroom_db < 0.0f) {
@@ -664,17 +663,6 @@ bool decode_auro_cx_mp4(
     std::vector<std::uint8_t> export_pcm;
     std::vector<std::uint8_t> deferred_multichannel_pcm;
     const bool binaural_needs_resample = binaural && track.rate != 48000u;
-    const bool binaural_reference_path = binaural && binaural_reference_ir;
-    const bool stateful_ahp_rate_supported = track.rate == 32000u
-        || track.rate == 44100u || track.rate == 48000u
-        || track.rate == 88200u || track.rate == 96000u;
-    if (binaural && !binaural_reference_path
-        && !stateful_ahp_rate_supported) {
-        error = "plain --binaural stateful AHP has captured graphs only for "
-                "32/44.1/48/88.2/96 kHz; the separately requested "
-                "--binaural-reference-ir mode is not selected";
-        return false;
-    }
     bool saw_lossless_awc = false;
     bool saw_transparent_awc = false;
     std::vector<bool> output_channel_active;
@@ -940,7 +928,7 @@ bool decode_auro_cx_mp4(
                 stream_buffers[s].assign(samples_per_au, 0);
             const std::uint64_t frame_count =
                 static_cast<std::uint64_t>(track.offsets.size() - 1u) * samples_per_au;
-            if (binaural && !binaural_reference_path
+            if (binaural && !binaural_needs_resample
                 && !binaural_renderer.initialize(
                     24u,
                     track.rate,
@@ -955,7 +943,7 @@ bool decode_auro_cx_mp4(
             output_meta.comment = auro3d_decode::make_decode_comment(
                 auro_cx_awc_coding(schema.pdus, configured_awc_pdus));
             output_channel_active.assign(mapping.channels, false);
-            if (binaural_reference_path) {
+            if (binaural_needs_resample) {
                 deferred_multichannel_pcm.reserve(
                     static_cast<std::size_t>(frame_count)
                     * static_cast<std::size_t>(mapping.channels) * 3u);
@@ -1326,7 +1314,7 @@ bool decode_auro_cx_mp4(
                     static_cast<std::int32_t>(static_cast<float>(sample) * headroom_gain));
             }
         }
-        if (binaural_reference_path) {
+        if (binaural_needs_resample) {
             deferred_multichannel_pcm.insert(
                 deferred_multichannel_pcm.end(), au_pcm.begin(), au_pcm.end());
             continue;
@@ -1352,7 +1340,7 @@ bool decode_auro_cx_mp4(
     if (progress)
         progress("decode", 100);
     // 48 kHz path applies HRTF inline per AU; report the stage once decode finishes.
-    if (progress && binaural && !binaural_reference_path)
+    if (progress && binaural && !binaural_needs_resample)
         progress("encode binaural", 100);
 
     if (stream_buffers.empty()) {
@@ -1361,22 +1349,18 @@ bool decode_auro_cx_mp4(
     }
 
     std::uint32_t xml_rate = track.rate;
-    if (binaural_reference_path) {
+    if (binaural_needs_resample) {
         std::vector<std::uint8_t> resampled;
-        if (binaural_needs_resample) {
-            if (!resample_interleaved_pcm_to_rate(
-                    deferred_multichannel_pcm,
-                    24u,
-                    mapping.channels,
-                    track.rate,
-                    48000u,
-                    resampled,
-                    error,
-                    progress))
-                return false;
-        } else {
-            resampled = std::move(deferred_multichannel_pcm);
-        }
+        if (!resample_interleaved_pcm_to_rate(
+                deferred_multichannel_pcm,
+                24u,
+                mapping.channels,
+                track.rate,
+                48000u,
+                resampled,
+                error,
+                progress))
+            return false;
         std::vector<std::uint8_t> stereo;
         if (!render_binaural_from_embedded_ir(
                 resampled,

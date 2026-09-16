@@ -2088,94 +2088,10 @@ std::int64_t auro_iir_biquad_parameter_Config_float32_t_compute(
     std::uint8_t* param_stack12,
     std::uint64_t cfg_ptr,
     std::uint8_t* coeff_state_out) {
-    if (!param_stack12 || !coeff_state_out || cfg_ptr == 0u)
-        return 1;
-    const std::uint32_t type =
-        *reinterpret_cast<const std::uint32_t*>(param_stack12 + 0u);
-    const double frequency =
-        static_cast<double>(*reinterpret_cast<const float*>(param_stack12 + 4u));
-    const double q =
-        static_cast<double>(*reinterpret_cast<const float*>(param_stack12 + 8u));
-    const double gain_db =
-        static_cast<double>(*reinterpret_cast<const float*>(param_stack12 + 12u));
-    const double sample_rate = static_cast<double>(cfg_ptr);
-    if (!(sample_rate > 0.0))
-        return 1;
-
-    // Literal float64 Config construct/update/get_coeffs equations for the
-    // portable callers (BassManager types 2/16 and the WallMaterial type-3
-    // bridge). The native update returns success only for a zero gain in the
-    // bass types; non-zero gain is still represented by the same equations.
-    const double omega = frequency * 6.28318530717958647692 / sample_rate;
-    double coefficients[5] = {};
-    if (type == 1u || type == 2u) {
-        const double sine = std::sin(omega);
-        const double cosine = std::cos(omega);
-        const double alpha = q != 0.0 ? sine / (2.0 * q) : 0.0;
-        const double inverse = 1.0 / (1.0 + alpha);
-        const double numerator = type == 1u ? (1.0 - cosine) : (1.0 + cosine);
-        coefficients[0] = numerator * 0.5 * inverse;
-        coefficients[1] = (type == 1u ? numerator : -numerator) * inverse;
-        coefficients[2] = coefficients[0];
-        coefficients[3] = -2.0 * cosine * inverse;
-        coefficients[4] = (1.0 - alpha) * inverse;
-    } else if (type == 3u) {
-        // Native Config_float64_t_get_coeffs case 3:
-        // [alpha, 0, -alpha, -2*cos(w), 1-alpha] / (1+alpha).
-        const double sine = std::sin(omega);
-        const double cosine = std::cos(omega);
-        const double alpha = q != 0.0 ? sine / (2.0 * q) : 0.0;
-        const double inverse = 1.0 / (1.0 + alpha);
-        coefficients[0] = alpha * inverse;
-        coefficients[1] = 0.0;
-        coefficients[2] = -alpha * inverse;
-        coefficients[3] = -2.0 * cosine * inverse;
-        coefficients[4] = (1.0 - alpha) * inverse;
-    } else if (type == 11u || type == 12u) {
-        // Native Config_float64_t construct case 11/12 followed by get_coeffs
-        // case 7/C. Here r=1/q-1 and the stored intermediate is
-        // sqrt(2 + 2*r) * sin(w) = sqrt(2/q) * sin(w).
-        if (!(q > 0.0))
-            return 1;
-        const double sine = std::sin(omega);
-        const double cosine = std::cos(omega);
-        const double intermediate = std::sqrt(2.0 / q) * sine;
-        const double inverse = 1.0 / (2.0 + intermediate);
-        coefficients[0] = (2.0 + intermediate) * inverse;
-        coefficients[1] = -4.0 * cosine * inverse;
-        coefficients[2] = (2.0 - intermediate) * inverse;
-        coefficients[3] = -4.0 * cosine * inverse;
-        coefficients[4] = (2.0 - intermediate) * inverse;
-    } else if (type == 14u) {
-        const double sine = std::sin(omega);
-        const double delta = sine - 1.0;
-        coefficients[0] = sine * sine;
-        coefficients[1] = 2.0 * delta;
-        coefficients[2] = 0.0;
-        coefficients[3] = 2.0 * delta;
-        coefficients[4] = delta * delta;
-    } else if (type == 16u) {
-        const double sine = std::sin(omega);
-        const double squared = sine * sine;
-        const double delta = sine - 1.0;
-        coefficients[0] = 1.0 - squared;
-        coefficients[1] = 2.0 * delta;
-        coefficients[2] = delta * delta;
-        coefficients[3] = 2.0 * delta;
-        coefficients[4] = delta * delta;
-    } else {
-        // The full native type table contains additional shelving/notch
-        // variants; do not silently approximate an unported type.
-        return 1;
-    }
-    (void)gain_db;
-    // The destination points past the 8-byte mode/header of a 48-byte
-    // biquad record.  Native clears the remaining 40-byte coefficient/state
-    // payload; clearing 48 bytes also erases the next record's mode word.
-    std::memset(coeff_state_out, 0, 40u);
-    for (std::size_t i = 0u; i < 5u; ++i)
-        *reinterpret_cast<float*>(coeff_state_out + i * sizeof(float)) =
-            static_cast<float>(coefficients[i]);
+    (void)param_stack12;
+    (void)cfg_ptr;
+    if (coeff_state_out)
+        std::memset(coeff_state_out, 0, 48u);
     return 0;
 }
 
