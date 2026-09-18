@@ -371,4 +371,4 @@ constexpr std::uintptr_t kManager_off_step_chain = 848u;
 constexpr std::uintptr_t kManager_off_configure_cb = 880u;
 constexpr std::size_t kManager_params_bytes = 124u;
 
-} // namespace
+} // namespace auro_engine_v4
