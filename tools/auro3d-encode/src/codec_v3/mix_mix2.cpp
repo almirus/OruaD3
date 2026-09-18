@@ -77,7 +77,7 @@ bool mix2_mixer_reconstruct(
             carrier[n - 1u] = primary[n - 1u];
     }
 
-    // mix2::mix<1> @ 0x4EEB20: fold secondary into carrier[2..].
+    // mix2:mix<1>: fold secondary into carrier[2..].
     {
         const std::size_t limit = n >= 2u ? n - 2u : 0u;
         const std::size_t pairs = limit >> 1u;
@@ -102,7 +102,7 @@ bool mix2_mixer_reconstruct(
         }
     }
 
-    // Trailing fixups from auro::mix::mix mix2 @ 0x4EE540 LABEL_20.
+    // Trailing fixups from auro:mix:mix mix2.
     {
         std::int32_t residual0 = 0;
         std::int32_t residual1 = 0;
@@ -120,4 +120,4 @@ bool mix2_mixer_reconstruct(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

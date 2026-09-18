@@ -487,7 +487,7 @@ bool decode_ldc_signaling(
     const LdcEntropyParams& second,
     std::vector<std::int32_t>& out,
     std::string& detail) {
-    // signaling::Decoder::decode (~0x4512D0) always decodes one marker with
+    // signaling:Decoder:decode (~) always decodes one marker with
     // the first entropy policy, advances one output slot, and only when that
     // marker is zero decodes a skip with the second policy. Entropy type 3 is
     // not ordinary Golomb-Rice: its remainder grows by the unary prefix and
@@ -728,7 +728,7 @@ bool decode_ldc_alternating_golomb_unary(
     std::size_t count,
     unsigned golomb_param,
     std::vector<std::int32_t>& out) {
-    // alternating::Decoder (~0x4539D0) case 2 + case 1: 2-bit unary skip, then
+    // alternating:Decoder (~) case 2 + case 1: 2-bit unary skip, then
     // pop_all_ones + (golomb_param+1)-bit payload written as (mask|unary<<g)+1.
     out.assign(count, 0);
     const std::uint32_t mask = ldc_width_mask(golomb_param);
@@ -964,7 +964,7 @@ std::vector<std::uint64_t> clamp_ldc_props_to_total(
     return out;
 }
 
-// read_subelements_granules_ (~0x445490): props length is the subelement count; only
+// read_subelements_granules_ (~): props length is the subelement count; only
 // partitioned mode reads extra syntax from the bitstream.
 bool read_ldc_subelement_granules(
     cx::Bits& bits,
@@ -1065,8 +1065,8 @@ bool decode_ldc_residual_chunks(
     for (std::uint64_t granule : raw_granules)
         total += static_cast<std::size_t>(granule);
 
-    // decode_vector<int> (~0x444860): has_residual already consumed; read diff, then
-    // ldc::v1::Params::read + ldc::v1::decode<int> for the whole subvector.
+    // decode_vector<int> (~): has_residual already consumed; read diff, then
+    // ldc:v1:Params:read + ldc:v1:decode<int> for the whole subvector.
     bool diff = false;
     if (!read_flag(bits, diff)) {
         error = "LDC diff flag read failed";
@@ -1080,7 +1080,7 @@ bool decode_ldc_residual_chunks(
         return true;
     }
 
-    // Params::read (~0x445060): after 'diff', the first flag enables the LDC
+    // Params:read (~): after 'diff', the first flag enables the LDC
     // payload. A clear flag produces an all-zero vector. If set, the next flag
     // selects an optional maximum decoded prefix; granule partitioning is used
     // in both branches.
@@ -1131,7 +1131,7 @@ bool decode_ldc_residual_chunks(
         }
     }
 
-    // Properties::(diff_)subvector_granule_sizes: caller provides the subelement sizes.
+    // Properties:(diff_)subvector_granule_sizes: caller provides the subelement sizes.
     std::vector<std::uint64_t> props;
     if (diff) {
         if (!initialize_diff_granule_sizes(raw_granules, props)) {
@@ -1261,7 +1261,7 @@ bool icc_mix(
         if (source_bitdepth < destination_bitdepth)
             gain <<= destination_bitdepth - source_bitdepth;
     } else {
-        // Policy::icc_decode_subblock (0x449640): toward-zero arithmetic
+        // Policy:icc_decode_subblock: toward-zero arithmetic
         // right-shift — (gain + (((1<<n)-1) & (gain>>63))) >> n.
         const unsigned shift = source_bitdepth - destination_bitdepth;
         const std::int64_t mask =
@@ -1269,7 +1269,7 @@ bool icc_mix(
         gain = (gain + (mask & (gain >> 63))) >> shift;
     }
     // Native: count-1 < 11 (or buffer overlap) → scalar truncating `/`;
-    // else SIMD rounded Q23 (`bias 0x7FFFFF` then `>> 23`). Corpus
+    // else SIMD rounded Q23 (`bias ` then `>> 23`). Corpus
     // subblocks are long, so the SIMD path is the exercised one.
     const bool use_rounded = count >= 12u;
     for (std::size_t i = 0; i < count; ++i) {
@@ -1556,7 +1556,7 @@ bool decode_lossless_frame_body(
         return false;
     }
 
-    // parse_ (0x443340): v27 = audio_block.nr_samples / nr_streams. AWC PDUs
+    // parse_: v27 = audio_block.nr_samples nr_streams. AWC PDUs
     // feeding SASC factor2/factor4 carry one half/quarter of the output AU.
     if (!config.frame_divisor || samples_per_access_unit % config.frame_divisor) {
         error = "AWC per-stream frame length is not integral";

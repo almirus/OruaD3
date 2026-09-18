@@ -1,4 +1,4 @@
-// Plan_Creator_make / Configurator_make_plan / sub_4CD6C0 activation port.
+// Plan_Creator_make Configurator_make_plan activation port.
 // Included from a3deng_v3/implementation.inc inside namespace auro3deng.
 
 void xinn_retarget_processed_runtime_preset_backing(
@@ -13,7 +13,7 @@ bool xinn_initialize_processed_preset_from_portable_spreset(
     std::uint8_t* processed_preset,
     std::uint64_t spreset_u64);
 
-// Native Plan_Creator_make memset()s 0xA10 bytes.  The newer decompile's
+// Native Plan_Creator_make memsets 0xA10 bytes. The newer decompile's
 // Scene callback also addresses the tail fields at +2492..+2519.
 constexpr std::size_t kPlanBufferBytes = 0xA10u;
 constexpr std::size_t kRemixPlanWorkspaceBytes = 0x8F0u;
@@ -25,7 +25,7 @@ constexpr std::uintptr_t kManagerOffConfigureResult = 488u;
 constexpr std::uintptr_t kManagerOffLayoutReady = 480u;
 constexpr std::uintptr_t kManagerOffLayoutEqual = 484u;
 
-// libauro(1).so.c:386043.  The native helper returns 0/1/2 for the
+// libauro(1).so.c:386043. The native helper returns 0/1/2 for the
 // soundbar generation selected from the configured layout.
 std::uint32_t soundbar_category_from_layout_portable(std::uint32_t layout) {
     if ((layout & 0x1B0u) == 0u)
@@ -34,7 +34,7 @@ std::uint32_t soundbar_category_from_layout_portable(std::uint32_t layout) {
         || (~layout & 0x30600u) == 0u) ? 2u : 1u;
 }
 
-// PresetManager_configure @ 0x474A00: a6 selects the preset family.  The
+// PresetManager_configure: a6 selects the preset family. The
 // value stored at Configurator+24 is a private portable bridge field; native
 // Configurator does not expose it, but the dispatch itself is copied exactly.
 std::uint32_t preset_family_from_native_fields(
@@ -242,7 +242,7 @@ std::int64_t manager_link_plan_metadata(
     return 0;
 }
 
-// Headroom::configure @ 0x4D1440. Rate comes from the predecessor metadata at
+// Headroom:configure. Rate comes from the predecessor metadata at
 // step+32 (+8); the fourth activation argument is unused. Leave step+32 set.
 std::int64_t manager_configure_headroom_step(
     std::uint8_t* step,
@@ -267,7 +267,7 @@ std::int64_t manager_configure_headroom_step(
     return 0;
 }
 
-// Gate::configure @ 0x4D1BB0. Unity ramp endpoints at +64; success when
+// Gate:configure. Unity ramp endpoints at +64; success when
 // predecessor+12 and step+52 are both clear. Does not clear step+32.
 std::int64_t manager_configure_gate_step(
     std::uint8_t* step,
@@ -296,7 +296,7 @@ std::int64_t manager_configure_upmix_step(
     (void)first_time;
     if (!step || !plan_entry || !block_state)
         return 1;
-    // Native Upmix::configure @ 0x4CF440 reads the bound record from step+32
+    // Native Upmix:configure reads the bound record from step+32
     // (already linked by activation) and copies engine params from plan+8.
     *reinterpret_cast<std::uint32_t*>(block_state + 12u) = 0u;
     *reinterpret_cast<std::uint32_t*>(step + 52u) = 0u;
@@ -337,7 +337,7 @@ std::int64_t plan_creator_mode_build_default(
     if (!creator || !plan || !meta_info)
         return 1;
     plan[364] = 1u;
-    // Native sub_4D6510 is part of the Plan_Creator mode callback.  Keep its
+    // Native is part of the Plan_Creator mode callback. Keep its
     // fields in the plan even when the current host does not instantiate the
     // optional Scene step yet; Plan_configure_remixer and later activation
     // consume the same offsets.
@@ -386,9 +386,9 @@ std::int64_t plan_creator_mode_build_default(
     return 0;
 }
 
-// Plan_Creator callback sub_4D64D0: native creator type 6 (headphone
+// Plan_Creator callback: native creator type 6 (headphone
 // virtualization) uses the ChannelTest record as its mode-specific plan
-// payload.  Keep this callback separate from the Scene callback; the native
+// payload. Keep this callback separate from the Scene callback; the native
 // constructor selects it from creator[1].
 std::int64_t plan_creator_mode_build_headphones(
     std::uint32_t* plan,
@@ -414,7 +414,7 @@ std::int64_t plan_creator_post_process_default(
     return 0;
 }
 
-// The tail of Plan_configure_remixer @ 0x4D6A00.  The native code chooses
+// The tail of Plan_configure_remixer. The native code chooses
 // the accepted core rate from the remixer flags, then repeatedly halves the
 // MetaInfo rate until one of the exact native rate predicates is satisfied.
 std::int64_t normalize_remixer_core_rate_native(
@@ -497,7 +497,7 @@ std::int64_t auro_matic_v3_Configurator_process(
     std::uint32_t room_preset) {
     if (!plan_region || !layout_io || !upmix_active)
         return 1;
-    // Upmix::configure copies plan_entry+8 (= plan byte 1464 = this region)
+    // Upmix:configure copies plan_entry+8 (= plan byte 1464 = this region)
     // for 0xC8 bytes straight into Engine params. Keep that blob identical to
     // the portable Engine configure contract (target/source/preset/dynamic).
     std::memset(plan_region, 0, 200u);
@@ -505,14 +505,14 @@ std::int64_t auro_matic_v3_Configurator_process(
     const std::uint32_t listening_mode = configurator
         ? *reinterpret_cast<const std::uint32_t*>(configurator + 16u) : 0u;
     const bool surround_mode = listening_mode >= 6u;
-    // +24/+32 are the native wrapper callbacks (sub_4DB940/sub_4DB970),
-    // not configuration words.  Native make_plan obtains the preset kind and
+    // +24/+32 are the native wrapper callbacks (/),
+    // not configuration words. Native make_plan obtains the preset kind and
     // configured layout from MetaInfo before calling this Matic operation;
     // carry those values as explicit portable arguments.
     const std::uint32_t preset_family = preset_family_from_native_fields(
         preset_kind, target_layout);
     // Native Plan_configure_remixer passes MetaInfo+20 as PresetManager's
-    // room argument.  The wrapper's +32 is the native get-bass-config
+    // room argument. The wrapper's +32 is the native get-bass-config
     // callback, never a room index.
     const std::uint32_t native_room_index = std::min<std::uint32_t>(
         room_preset, 4u);
@@ -544,8 +544,8 @@ std::int64_t auro_matic_v3_Configurator_process(
                 76u);
         }
     }
-    // Native sub_54F890 returns the selected XinN preset/parameter pair from
-    // the embedded Matic Configurator.  The wrapper setter offsets alias the
+    // Native returns the selected XinN preset/parameter pair from
+    // the embedded Matic Configurator. The wrapper setter offsets alias the
     // corresponding inner fields: stereo (+152/+168), surround (+160/+176).
     // Preserve the resource-backed default above, but honor an explicitly
     // supplied native preset pointer exactly when one is present.
@@ -920,7 +920,7 @@ std::int64_t auro_a3deng_v3_pipeline_Manager_activate_plan(
             rc = manager_configure_alt3d_mix_step(
                 step, step_chain + 4456u, plan + entry.plan_index);
         } else if (entry.plan_index == 586u) {
-            // Silence::configure @ 0x4D4DD0 consumes block_state+8 and also
+            // Silence:configure consumes block_state+8 and also
             // merges that mask into the linked layout metadata at step+40.
             rc = manager_configure_silence_step(
                 step, manager + kManagerOffBlockRecord);
@@ -929,14 +929,14 @@ std::int64_t auro_a3deng_v3_pipeline_Manager_activate_plan(
                     *reinterpret_cast<const std::uint32_t*>(
                         manager + kManagerOffBlockRecord + 8u);
         } else if (entry.plan_index == 598u) {
-            // ChannelTest::configure @ 0x4D60E0 consumes its own three-word
+            // ChannelTest:configure consumes its own three-word
             // plan record, not the predecessor metadata.
             rc = manager_configure_channel_test_step(
                 step,
                 reinterpret_cast<const std::uint8_t*>(plan + entry.plan_index));
         } else if (entry.plan_index == 589u) {
-            // Scene::configure @ 0x4D26F0 selects the direct callbacks only
-            // for mode 1.  The processor-backed branch requires ASC4HE and
+            // Scene:configure selects the direct callbacks only
+            // for mode 1. The processor-backed branch requires ASC4HE and
             // must not be silently treated as a no-op.
             rc = manager_configure_scene_step(
                 step, plan + entry.plan_index);
@@ -982,7 +982,7 @@ std::int64_t auro_a3deng_v3_pipeline_Manager_activate_plan(
             // cleared as an unknown plan entry.
             return 1;
         } else if (entry.plan_index == 605u || entry.plan_index == 0u) {
-            // SampleConvertor::configure @ 0x4CF840 (input plan[0] / output plan[605]).
+            // SampleConvertor:configure (input plan[0] output plan[605]).
             rc = manager_configure_sample_convertor_step(
                 step,
                 plan + entry.plan_index,
@@ -1001,7 +1001,7 @@ std::int64_t auro_a3deng_v3_pipeline_Manager_activate_plan(
         *reinterpret_cast<std::uint32_t*>(metadata + 16u) =
             *reinterpret_cast<const std::uint32_t*>(predecessor + 16u);
     }
-    // Native sub_4CD6C0 epilogue: build expected FramesMeta from RemapOutput[0]
+    // Native epilogue: build expected FramesMeta from RemapOutput[0]
     // replacing manager+28, then compare 20 bytes against the final predecessor.
     std::array<std::uint32_t, 5u> expected{};
     std::memcpy(expected.data(), manager + 28u, 20u);
@@ -1011,7 +1011,7 @@ std::int64_t auro_a3deng_v3_pipeline_Manager_activate_plan(
     if (!frames_meta_t_equal(produced, expected.data()))
         return 1;
     if (initial != 0) {
-        // Native calls sub_4CC230 (latency/gain table refresh) on initial
+        // Native calls (latency/gain table refresh) on initial
         // activation. Keep the refresh in the same phase as native.
         if (const auto info_rc = manager_refresh_info_native(manager); info_rc != 0)
             return info_rc;
@@ -1053,7 +1053,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
         return false;
     }
     // PresetManager_configure selects every family/variant/room combination
-    // through the native address table.  Exercise the complete matrix here,
+    // through the native address table. Exercise the complete matrix here,
     // including Speech (native room slot 4), rather than validating only the
     // default multichannel preset.
     constexpr std::uint32_t kPresetTestTargets[] = {
@@ -1090,7 +1090,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
         }
     }
     {
-        // ChannelTest::configure/process @ 0x4D60E0/0x4D6150.  The plan
+        // ChannelTest:configure/process. The plan
         // record is {active, source_layout, target_layout}; its enable rule
         // and the 1/sqrt(2) center synthesis are independent of the normal
         // predecessor metadata record.
@@ -1125,7 +1125,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
     {
         // p3D3D's first rate predicate accepts all ten native codec rates,
         // while the callback-rate predicate rejects Line callbacks outside
-        // 32/44.1/48 kHz.  Exercise both sides of that exact split.
+        // 32/44.1/48 kHz. Exercise both sides of that exact split.
         constexpr std::uint32_t kNativeRates[] = {
             16000u, 22050u, 24000u, 32000u, 44100u,
             48000u, 88200u, 96000u, 176400u, 192000u,
@@ -1202,7 +1202,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
             return false;
         }
         {
-            // Native configure() replaces a null Config[4] with its static
+            // Native configure replaces a null Config[4] with its static
             // 14-float coefficient block, even after a previous configure.
             *reinterpret_cast<float**>(callback_state + 272u) = nullptr;
             std::array<std::uint32_t, 16u> fallback_cfg{};
@@ -1289,7 +1289,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
         }
     }
     {
-        // BassManager uses native biquad types 2 and 16.  Verify that the
+        // BassManager uses native biquad types 2 and 16. Verify that the
         // float32 coefficient bridge is populated and finite for both.
         std::array<std::uint8_t, 16u> filter_config{};
         *reinterpret_cast<float*>(filter_config.data() + 4u) = 1000.0f;
@@ -1374,7 +1374,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
         }
     }
     {
-        // Configurator setter offsets from 0x4DB9C0..0x4DBA40.  Exercise the
+        // Configurator setter offsets from Exercise the
         // complete preset/parameter pointer surface, not only the default
         // multichannel path used by the plan smoke test below.
         std::array<std::uint8_t, 248u> configurator{};
@@ -1454,7 +1454,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
         return false;
     }
     // Exercise the native PresetManager argument order used by
-    // Plan_configure_remixer: family selector (a6) and room (a3).  This is
+    // Plan_configure_remixer: family selector (a6) and room (a3). This is
     // intentionally done through make_plan, not only through the lower-level
     // XinN resource table, so a room can no longer be silently discarded.
     for (const std::uint32_t preset_kind : {1u, 2u, 3u}) {
@@ -1578,7 +1578,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
         detail = "SampleConvertor configure did not install float±1 clamp";
         return false;
     }
-    // Isolated PeakLimiter / SampleConvertor process (do not call
+    // Isolated PeakLimiter SampleConvertor process (do not call
     // runtime.process here — Engine paths still need a full channel set).
     {
         std::array<std::uint8_t, 256u> step{};
@@ -1651,7 +1651,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
         }
     }
     {
-        // sub_4CF840 selects 0x4CFF00 for a Float32 predecessor, PCM24
+        // selects for a Float32 predecessor, PCM24
         // converter type 1, and saturation enabled. The callback overwrites
         // planar Float32 storage with truncated, signed PCM24 int32 values.
         std::array<std::uint8_t, 64u> step{};

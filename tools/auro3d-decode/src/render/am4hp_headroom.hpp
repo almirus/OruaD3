@@ -6,7 +6,7 @@
 
 namespace auro3d {
 
-// Native auro_matic_hp_v4_Headroom_process (x86_64 0x54C5E0): copy each
+// Native auro_matic_hp_v4_Headroom_process: copy each
 // mapped 32-sample plane from input to output while applying one scalar gain.
 class Am4hpHeadroom {
 public:

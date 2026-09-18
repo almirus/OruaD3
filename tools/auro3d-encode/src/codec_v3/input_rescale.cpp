@@ -58,7 +58,7 @@ bool apply_input_rescale(
         if (scaler == 1.0f)
             continue;
         for (std::int32_t& sample : codec_planes[id]) {
-            // Native uses cvttps_epi32 / scalar float-to-int conversion:
+            // Native uses cvttps_epi32 scalar float-to-int conversion:
             // truncation toward zero, not rounded fixed-point division.
             sample = cvtt_float_to_i32(static_cast<float>(sample) / scaler);
         }
@@ -107,4 +107,4 @@ bool apply_input_rescale_from_indices(
     return apply_input_rescale(codec_planes, original_layout, scalers, error);
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

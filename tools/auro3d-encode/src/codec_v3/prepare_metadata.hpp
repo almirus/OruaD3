@@ -9,8 +9,8 @@
 
 namespace auro3d::encode {
 
-/// Fixed prefix written by Encoder::prepare_metadata_unit_block_ @ 0x4E5BC0
-/// before optional loudness / downmix / group records. Native construction
+/// Fixed prefix written by Encoder:prepare_metadata_unit_block_
+/// before optional loudness downmix group records. Native construction
 /// shuffles Config+4/+8 into metadata+0/+4 and copies Config+32 to +8.
 struct MetadataUnitHeader {
     /// Native +0/+4 are the shuffled Config words: unit block size followed
@@ -32,7 +32,7 @@ struct MetadataSourceRef {
 };
 
 /// One group record at UnitBlock+552, stride 128 (`index<<7`), filled by
-/// prepare_metadata_unit_block_ @ 0x4E5FC0.
+/// prepare_metadata_unit_block_.
 struct MetadataGroupRecord {
     /// Native record offsets: +0 carrier id, +4 headroom, +8 arity.
     std::uint32_t carrier_channel_id = 0;
@@ -53,9 +53,9 @@ struct MetadataGroupRecord {
     std::int32_t seed2 = 0;
     std::int32_t seed3 = 0;
     std::int32_t seed4 = 0;
-    /// Group+70 from Quantization::run_ (VQ shift).
+    /// Group+70 from Quantization:run_ (VQ shift).
     std::uint8_t vq_shift = 0;
-    /// Group+67 from Quantization::run_ (residual bit width).
+    /// Group+67 from Quantization:run_ (residual bit width).
     std::uint8_t residual_bit_width = 0;
     /// Residuals trimmed to `max(index)+1` (native residual table copy).
     std::vector<std::int32_t> residuals;
@@ -99,13 +99,13 @@ struct MetadataGroupRecord {
     double quality_error_db = -3000.0;
     std::vector<NativeFrameQuality> frame_quality;
 
-    /// Group+392 scaler index; default create leaves 0 / absent.
+    /// Group+392 scaler index; default create leaves 0 absent.
     bool has_scaler_ix = false;
     std::uint8_t scaler_ix = 0;
     std::uint32_t scaler_attempts = 0;
 };
 
-/// Fills the confirmed header fields. Optional loudness / secondary-downmix
+/// Fills the confirmed header fields. Optional loudness secondary-downmix
 /// tables remain separate ports.
 bool prepare_metadata_unit_header(
     std::uint32_t original_layout,
@@ -132,4 +132,4 @@ bool prepare_metadata_group_records(
     std::vector<MetadataGroupRecord>& out,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

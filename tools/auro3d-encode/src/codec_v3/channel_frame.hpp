@@ -31,8 +31,8 @@ struct EncodedChannelFrame {
     std::uint8_t base_scaler_index = 0;
 };
 
-/// Per-source primary downmix from compose::Channel helpers @ 0x5181E0 /
-/// 0x518360 / 0x518630 via from_primary_downmix_gain @ 0x514F50. Becomes
+/// Per-source primary downmix from compose:Channel helpers
+/// / via from_primary_downmix_gain. Becomes
 /// channel-parser opcode 64 (channel id + scaler index).
 struct PrimaryDownmixGain {
     std::uint32_t channel_id = 0;
@@ -83,10 +83,10 @@ bool encode_channel_frame_sequence(
     EncodedChannelFrame& out,
     std::string& error);
 
-/// Serializes the native arity-1/direct channel form.  Its metadata has no
+/// Serializes the native arity-1/direct channel form. Its metadata has no
 /// VQ context (bit width zero, selector zero); the parser therefore advances
 /// directly from the metadata prefix to the empty stream and validates only
-/// the channel CRC.  This is the encoder-side counterpart of Mixer case 1.
+/// the channel CRC. This is the encoder-side counterpart of Mixer case 1.
 bool encode_direct_channel_frame(
     std::uint32_t channel_id,
     std::uint32_t quantization_shift,
@@ -101,7 +101,7 @@ bool encode_direct_channel_frame(
     std::string& error);
 
 /// Serializes a mode-2 or mode-3 channel frame from an explicit signed
-/// residual codebook.  The parser stream remains caller-owned: this helper
+/// residual codebook. The parser stream remains caller-owned: this helper
 /// only joins the native metadata/context prefix with the supplied stream.
 bool encode_codebook_channel_frame(
     std::uint32_t channel_id,
@@ -159,7 +159,7 @@ bool encode_codebook_channel_frame_golomb(
     std::string& error);
 
 /// Extends a serialized payload to the unit sample span with zero carrier
-/// words and recomputes the channel CRC over the complete span.  Composer
+/// words and recomputes the channel CRC over the complete span. Composer
 /// writes a fixed unit-sized channel range even when the parser payload ends
 /// earlier; this helper keeps that padding explicit and deterministic.
 bool finalize_channel_frame_span(
@@ -167,7 +167,7 @@ bool finalize_channel_frame_span(
     EncodedChannelFrame& frame,
     std::string& error);
 
-/// ORs the serialized channel payload into the native carrier PCM span.  The
+/// ORs the serialized channel payload into the native carrier PCM span. The
 /// composer treats payload words as occupied carrier bit positions; source
 /// PCM remains untouched in every other bit and sample.
 bool merge_channel_frame_payload(
@@ -175,7 +175,7 @@ bool merge_channel_frame_payload(
     const EncodedChannelFrame& frame,
     std::string& error);
 
-/// Ports compose::Channel::mux @ 0x518C50's pre-serializer word transform.
+/// Ports compose:Channel:mux 's pre-serializer word transform.
 /// The native channel bit depth is 24 and the configured group shift selects
 /// the number of leading carrier bits retained before mux metadata is added.
 bool prepare_channel_mux_words(
@@ -185,7 +185,7 @@ bool prepare_channel_mux_words(
     std::vector<std::int32_t>& mux_words,
     std::string& error);
 
-/// Complete scalar counterpart of compose::Channel::mux @ 0x518C50: apply
+/// Complete scalar counterpart of compose:Channel:mux: apply
 /// the native 24-bit shift/mask transform and serialize the projector records
 /// into the resulting PCM words. `shift_left` is the native boolean branch.
 bool mux_channel_words(
@@ -198,4 +198,4 @@ bool mux_channel_words(
     std::uint16_t& crc,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

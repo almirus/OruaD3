@@ -52,9 +52,9 @@ bool make_pcm_mux_mask_plan(
     masks.reserve(output_count);
     const std::size_t first_region = static_cast<std::size_t>(bitline_count) * 16u;
     // fill_masks_ emits the first three bitlines as four sixteen-word runs.
-    // Higher bitlines are a cyclic descending run (N-1 ... 3), not separate
-    // sixteen-word powers.  This is the layout consumed by every native
-    // Projector<N>::project specialization.
+    // Higher bitlines are a cyclic descending run (N-1 3), not separate
+    // sixteen-word powers. This is the layout consumed by every native
+    // Projector<N>:project specialization.
     for (std::uint32_t line = 0; line < 3u; ++line) {
         const std::uint32_t mask = std::uint32_t{1} << line;
         for (std::uint32_t sample = 0; sample < 16u; ++sample)
@@ -87,7 +87,7 @@ bool serialize_pcm_mux_projector_selectors(
     std::string& error) {
     if (source_count != 16u || bitline_count > 8u) {
         // Static 36-byte selector prefix covers only the first 16 samples with
-        // N<=8. N in 3..16 / source_count>=16 use serialize_pcm_mux_projector_records.
+        // N<=8. N in 3..16 source_count>=16 use serialize_pcm_mux_projector_records.
         error =
             "codec-v3 PCM mux static selector prefix requires source_count==16 "
             "and bitline_count<=8; use projector records for N>8 or longer spans";
@@ -375,9 +375,9 @@ bool compute_pcm_mux_crc16(
     }
     Crc16 state;
     state.process_words(words.data(), words.size());
-    // Crc16 keeps the table state byte-swapped. Projector::project_crc
+    // Crc16 keeps the table state byte-swapped. Projector:project_crc
     // consumes the native complemented word in wire bit order, which is
-    // exactly stored_word(), not the unswapped complement of raw().
+    // exactly stored_word, not the unswapped complement of raw.
     crc = state.stored_word();
     return true;
 }
@@ -403,7 +403,7 @@ bool apply_pcm_mux_records(
         || !compute_pcm_mux_crc16(words, crc, error)) {
         return false;
     }
-    // Projector::project_crc consumes the CRC-derived mask words after the
+    // Projector:project_crc consumes the CRC-derived mask words after the
     // data CRC has been calculated; including them in the calculation would
     // feed the closure bits back into the checksum.
     if (!apply_pcm_mux_crc_projection(words, masks, error))
@@ -411,4 +411,4 @@ bool apply_pcm_mux_records(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

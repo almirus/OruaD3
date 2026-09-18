@@ -57,7 +57,7 @@ bool make_channel_codebook_prefix(
         return false;
     }
     // Native channel metadata selects a capacity, not the exact number of
-    // residual entries.  The context stream therefore contains zero-filled
+    // residual entries. The context stream therefore contains zero-filled
     // tail entries up to that selected capacity.
     std::vector<std::int32_t> padded0 = values0;
     padded0.resize(base_index, 0);
@@ -100,4 +100,4 @@ bool make_channel_codebook_prefix(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

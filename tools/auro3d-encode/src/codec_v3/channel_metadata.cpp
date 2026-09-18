@@ -96,7 +96,7 @@ bool channel_metadata_selector_from_count(
     if (entry_count == 0u)
         return false;
 
-    // Direct integer form of a3d::details::error_center_index @ 0x50F850.
+    // Direct integer form of a3d:details:error_center_index.
     // The decompiler prints the negative constants as wrapped unsigned
     // values; spelling the piecewise ranges explicitly preserves their
     // intended signed arithmetic.
@@ -121,4 +121,4 @@ bool channel_metadata_selector_from_count(
     return entry_count <= base_index;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

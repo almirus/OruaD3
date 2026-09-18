@@ -187,7 +187,7 @@ bool interpolate_block(
 } // namespace
 
 std::uint32_t default_resample_factor(std::uint32_t sample_rate) {
-    // asc_1E9160, selected by lfe::resample_factor/Processor::initialize.
+    // asc_1E9160, selected by lfe:resample_factor/Processor:initialize.
     switch (sample_rate) {
     case 16000: return 40;
     case 24000:

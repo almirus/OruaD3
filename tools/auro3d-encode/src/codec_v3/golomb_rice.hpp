@@ -8,7 +8,7 @@
 namespace auro3d::encode {
 
 /// Direct scalar equivalent of
-/// bitstream::write_golomb_rice<unsigned int, VectorStorage> at 0x450750.
+/// bitstream:write_golomb_rice<unsigned int, VectorStorage> at.
 /// It writes quotient ones followed by zero, then the low `parameter` bits
 /// through the native LSB-first storage writer.
 bool write_golomb_rice(
@@ -26,4 +26,4 @@ bool golomb_rice_bit_count(
     std::uint32_t parameter,
     std::uint64_t& bit_count);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

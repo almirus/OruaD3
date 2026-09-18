@@ -55,4 +55,4 @@ bool validate_pcm_metadata_block(
         && crc == expected;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

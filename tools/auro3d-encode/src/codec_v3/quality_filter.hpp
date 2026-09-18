@@ -5,7 +5,7 @@
 
 namespace auro3d::encode {
 
-/// One `encode::details::Filter::Point`: candidate bit line and the negated
+/// One `encode:details:Filter:Point`: candidate bit line and the negated
 /// reconstruction-error level stored by ComputeQuality.
 struct NativeQualityFilterPoint {
     std::uint32_t bit_line = 0;
@@ -18,11 +18,11 @@ struct NativeQualityFilterPoint {
 /// connected.
 class NativeQualityFilter {
 public:
-    /// `details::Filter::update` @ 0x4F0C80: insert, sort by bit line, then
+    /// `details:Filter:update`: insert, sort by bit line, then
     /// retain the maximum-quality point and its immediate neighbours.
     void update(std::uint32_t bit_line, float quality);
 
-    /// `encode::Filter::check` @ 0x4ED8D0 result: 0 keeps evaluating the
+    /// `encode:Filter:check` result: 0 keeps evaluating the
     /// candidate and 2 tells the bit-line search to skip it.
     std::uint32_t check(std::uint32_t bit_line) const;
 
@@ -37,4 +37,4 @@ private:
     std::vector<NativeQualityFilterPoint> points_;
 };
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

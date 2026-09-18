@@ -16,7 +16,7 @@ std::uint64_t safe_min_u64(std::uint64_t a, std::uint64_t b) {
 }
 
 bool use_started_decode_path_1024a9(const OutputGeneratorSegment& seg) {
-    // IDA v131 / started[i]: decode-ветка, отдельно от frame_has_started (timeline).
+    // v131 started[i]: decode-ветка, отдельно от frame_has_started (timeline).
     return seg.prefer_started_decode_path;
 }
 
@@ -28,26 +28,26 @@ bool is_frame_finished_at_cursor_1024a9(std::uint64_t frame_ptr, std::uint64_t t
 }
 
 void channel_parse_result_mark_usage(std::uint64_t parse_result_ptr, std::uint32_t in_use) {
-    // IDA ParseResult_mark_usage @ 0x52F2D0: store usage dword at +3664.
+    // ParseResult_mark_usage: store usage dword at +3664.
     *reinterpret_cast<std::uint32_t*>(parse_result_ptr + kParseResultOff_usage_dword) = in_use;
 }
 
 void channel_parse_result_prepare_new(std::uint64_t parse_result_ptr) {
-    // current IDA ParseResultPool_get_new pre-increments cursor, constructs the slot, then marks it in use.
-    // IDA 0x107220 tail: construct(parse_result); mark_usage(parse_result, 1).
+    // current ParseResultPool_get_new pre-increments cursor, constructs the slot, then marks it in use.
+    // tail: construct(parse_result); mark_usage(parse_result, 1).
     channel_parse_result_construct(parse_result_ptr);
     channel_parse_result_mark_usage(parse_result_ptr, 1u);
 }
 
 std::uint64_t parse_result_pool_required_additional_memory(std::uint32_t pool_count) {
-    // current IDA ParseResultPool_t_required_additional_memory: align=8, size=3672 * count.
+    // current ParseResultPool_t_required_additional_memory: align=8, size=3672 * count.
     return static_cast<std::uint64_t>(kParseResultStrideBytes) * static_cast<std::uint64_t>(pool_count);
 }
 
 std::uint32_t memory_parse_result_pool_count(
     std::uint32_t block_samples,
     std::uint32_t channel_count) {
-    // IDA 0x106D20: ParseResultPool_t_required_additional_memory(..., 9 * ((a2[0]*a2[7]+255)>>8) + 9)
+    // ParseResultPool_t_required_additional_memory(..., 9 * ((a2[0]*a2[7]+255)>>8) + 9)
     return 9u * (((block_samples * channel_count + 255u) >> 8) + 1u);
 }
 
@@ -85,7 +85,7 @@ namespace {
 CodecV3ParserRuntimeFns1034e0 codec_v3_default_parser_runtime_1034e0();
 OutputGeneratorRuntimeFns1024a9 codec_v3_default_output_runtime_1024a9();
 
-// IDA .rodata dword_2732C0 @ 0x2732C0 — маски для BitReader_get_unsigned_bits @ 0x105330.
+// rodata — маски для BitReader_get_unsigned_bits.
 constexpr std::uint32_t kDword2732C0[33] = {
     0u,         1u,          3u,          7u,          15u,         31u,
     63u,        127u,        255u,        511u,        1023u,       2047u,
@@ -212,7 +212,7 @@ std::atomic<std::uint8_t> g_crc_table_ready{0};
 
 #if AURO3DENG_CRC_SSE41
 
-// Константы .rodata из IDA (get_bytes @ 0x1C2F60 .. 0x1C3100).
+// Константы.rodata из (get_bytes ).
 alignas(16) static const std::uint8_t kCrcXmm_1c2f60[16] = {
     0x08, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00};
 alignas(16) static const std::uint8_t kCrcXmm_1c2c30[16] = {
@@ -337,7 +337,7 @@ std::uint64_t channel_crc_process(
     std::uint64_t crc_state,
     std::uint64_t words_ptr,
     std::int32_t word_count) {
-    // IDA auro_codec_v3_decoder_CRC_process @ 0x52ECA0.
+    // auro_codec_v3_decoder_CRC_process.
     crc_table_ensure_once();
     auto* a1 = reinterpret_cast<std::uint16_t*>(crc_state);
     std::uint16_t v3 = *a1;
@@ -424,7 +424,7 @@ std::int64_t channel_metadata_combine_info(std::uint64_t frame_channel_ptr) {
     return 1;
 }
 
-std::int64_t /* Decompiled name: channel_get_carrier_layout */
+std::int64_t
 channel_get_carrier_layout(std::uint32_t* out_layout, std::uint32_t original_layout) {
     if (!out_layout)
         return 0;
@@ -465,7 +465,7 @@ std::int64_t channel_parser_construct(
         *reinterpret_cast<const std::uint16_t*>(frame_slot_ptr + 0u);
     const auto* m = reinterpret_cast<const std::uint32_t*>(frame_meta_16b_ptr);
     auto* d = reinterpret_cast<std::uint32_t*>(frame_channel_ptr + 56u);
-    // IDA: _mm_shuffle_epi32(loadu(a3), 147) => [3,0,1,2].
+    // _mm_shuffle_epi32(loadu(a3), 147) => [3,0,1,2].
     d[0] = m[3];
     d[1] = m[0];
     d[2] = m[1];
@@ -476,14 +476,14 @@ std::int64_t channel_parser_construct(
 }
 
 std::uint32_t ida_signed_shift_u32_103840(std::uint32_t value, std::int32_t shift) {
-    // IDA channel_Parser_process: `v << (*(_BYTE *)a1 - *((_BYTE *)a1 + 4))` / `v << -(char)rb`.
+    // channel_Parser_process: `v << (*(_BYTE *)a1 - *((_BYTE *)a1 + 4))` `v << -(char)rb`.
     // Native is x86 SHL with count = (int8_t)shift; 32-bit SHL uses count & 31.
     // Example: rb=5 → count=-5 → 0xFB & 31 = 27 → left-align 5 bits into MSB.
     const auto count = static_cast<std::uint8_t>(static_cast<std::int8_t>(shift));
     return value << (static_cast<std::uint32_t>(count) & 31u);
 }
 
-// libauro3d `0x103840` / libauro `auro_codec_v3_ida::kLibauro_codec_channel_Parser_process`.
+// libauro3d `` libauro `auro_codec_v3_ida:kLibauro_codec_channel_Parser_process`.
 std::int64_t channel_parser_process_103840(
     std::uint64_t parser_base,
     std::uint64_t frame_channel_ptr,
@@ -496,7 +496,7 @@ std::int64_t channel_parser_process_103840(
     auto* a1 = reinterpret_cast<std::uint32_t*>(parser_base);
     auto* br_ok = reinterpret_cast<std::uint32_t*>(parser_base + 52u);
     const std::uint64_t br = parser_base + 24u;
-    // IDA auro_codec_v3_adol_ChannelInputConfig_get_original_layout @ 0x530850.
+    // auro_codec_v3_adol_ChannelInputConfig_get_original_layout.
     // Ops 3/9/10/53/60/61 are only accepted when aliases (a3) != 0.
     auto get_original_layout = [](std::uint32_t op, std::uint32_t* out, bool aliases) -> bool {
         switch (op) {
@@ -560,7 +560,7 @@ std::int64_t channel_parser_process_103840(
     }
 
     channel_bit_reader_set_data(br, channel_ptr, static_cast<std::int32_t>(word_count));
-    // a1[10] == BitReader+16 (words-consumed counter). IDA does not overwrite it with a4.
+    // a1[10] == BitReader+16 (words-consumed counter). does not overwrite it with a4.
     if (a1[2] == 2u)
         a1[2] = 3u;
 
@@ -639,7 +639,7 @@ std::int64_t channel_parser_process_103840(
                 continue;
             }
             case 8u: {
-                // IDA reads signed char opcode; 128..145 == native -128..-112.
+                // reads signed char opcode; 128..145 == native -128..-112.
                 const std::uint32_t op = channel_bit_reader_get_unsigned_bits(br, 8);
                 if (*br_ok == 0u)
                     break;
@@ -690,7 +690,7 @@ std::int64_t channel_parser_process_103840(
                 }
             }
             case 9u: {
-                // IDA: store then check br_ok; on fail exit CRC with state still 9.
+                // store then check br_ok; on fail exit CRC with state still 9.
                 *reinterpret_cast<std::uint32_t*>(frame_channel_ptr + 100u) =
                     channel_bit_reader_get_unsigned_bits(br, 8) & 0xFFu;
                 if (*br_ok == 0u)
@@ -715,7 +715,7 @@ std::int64_t channel_parser_process_103840(
                 continue;
             }
             case 11u: {
-                // IDA: store then check br_ok; on fail exit CRC with state still 11.
+                // store then check br_ok; on fail exit CRC with state still 11.
                 *reinterpret_cast<std::uint32_t*>(frame_channel_ptr + 48u) =
                     channel_bit_reader_get_unsigned_bits(br, 8) & 0xFFu;
                 if (*br_ok == 0u)
@@ -726,7 +726,7 @@ std::int64_t channel_parser_process_103840(
             case 12u: {
                 const std::uint32_t v = channel_bit_reader_get_unsigned_bits(br, 32);
                 std::uint32_t carrier_layout = 0u;
-                if (/* Decompiled name: channel_get_carrier_layout */
+                if (
 channel_get_carrier_layout(
                         &carrier_layout,
                         *reinterpret_cast<const std::uint32_t*>(frame_channel_ptr + 92u)) == 0) {
@@ -744,7 +744,7 @@ channel_get_carrier_layout(
                 std::uintptr_t off_c_flag = 128u, off_c_value = 132u;
                 std::uintptr_t off_d_flag = 152u, off_d_value = 156u;
                 std::uintptr_t off_e_flag = 160u, off_e_value = 164u;
-                // IDA: compact iff layout<=0x3F && bittest(0x8088000000000818, layout)
+                // compact iff layout<=0x3F && bittest(0x8088000000000818, layout)
                 // → 3,4,11,51,55,63 (0x3F==63; bits 51/55/63 are set in the mask).
                 const bool compact_carrier =
                     carrier_layout == 3u || carrier_layout == 4u || carrier_layout == 11u
@@ -887,8 +887,8 @@ channel_get_carrier_layout(
                         frame_channel_ptr + kFrameChannelOff_stream_words + 4u * idx) = vv;
                     continue;
                 }
-                // IDA @ 0x52F330 case 22: br_ok==0; skip tail when frame+56 > a1[10]
-                // (BitReader+16 words-consumed). Tail then LABEL_38 → state 23 → CRC.
+                // case 22: br_ok==0; skip tail when frame+56 > a1[10]
+                // (BitReader+16 words-consumed). Tail then → state 23 → CRC.
                 if (*reinterpret_cast<const std::uint32_t*>(frame_channel_ptr + 56u) > a1[10])
                     break;
                 const std::uint32_t rb = channel_bit_reader_get_remaining_nr_bits(br);
@@ -902,7 +902,7 @@ channel_get_carrier_layout(
                 *reinterpret_cast<std::uint32_t*>(
                     frame_channel_ptr + kFrameChannelOff_stream_words + 4u * idx) =
                     ida_signed_shift_u32_103840(tail, sh);
-                // LABEL_38: v13=1; with br_ok after successful remaining read → a1[2] = 23.
+                // v13=1; with br_ok after successful remaining read → a1[2] = 23.
                 if (*br_ok != 0u)
                     a1[2] = 23u;
                 break;
@@ -935,7 +935,7 @@ bool parse_result_pool_construct(
     std::uint32_t pool_count) {
     if (pool_base_ptr == 0u)
         return false;
-    // IDA 0x1071B0 layout:
+    // layout:
     // [0x00] storage base qword, [0x08] cursor dword, [0x0C] count dword
     *reinterpret_cast<std::uint64_t*>(pool_base_ptr + 0u) = storage_base_ptr;
     *reinterpret_cast<std::uint32_t*>(pool_base_ptr + 8u) = 0u;
@@ -968,7 +968,7 @@ std::uint64_t parse_result_pool_get_new(std::uint64_t pool_base_ptr) {
 void downmix_coefficients_initialize(std::uint64_t coeff_ptr) {
     if (coeff_ptr == 0u)
         return;
-    // IDA 0x105D30: two xmmword constants copied to coeff block (+0, +16).
+    // two xmmword constants copied to coeff block (+0, +16).
     auto* dst = reinterpret_cast<std::uint32_t*>(coeff_ptr);
     dst[0] = 0x3F34FDF4u;
     dst[1] = 0x3F34FDF4u;
@@ -981,7 +981,7 @@ void downmix_coefficients_initialize(std::uint64_t coeff_ptr) {
 }
 
 void channel_parse_result_construct(std::uint64_t parse_result_ptr) {
-    // current IDA ParseResult_t_construct: zero header 0..191 and tail 3648..3667.
+    // current ParseResult_t_construct: zero header 0..191 and tail 3648..3667.
     std::memset(reinterpret_cast<void*>(parse_result_ptr), 0, 192u);
     std::memset(reinterpret_cast<void*>(parse_result_ptr + 3648u), 0, 20u);
 }
@@ -992,7 +992,7 @@ void frame_construct_parse_results(
     if (frame_ptr == 0u || construct_parse_result == nullptr)
         return;
     const std::uint32_t count = *reinterpret_cast<const std::uint32_t*>(frame_ptr + kFrameOff_channel_count_dword);
-    // IDA 0x106CD0-style walk: first parse_result ptr at frame+72, slot stride 32.
+    // -style walk: first parse_result ptr at frame+72, slot stride 32.
     std::uintptr_t slot_parse_result_ptr = frame_ptr + kFrameOff_channel_slot_base + kFrameChSlotOff_channel_ptr_qword;
     for (std::uint32_t i = 0; i < count; ++i) {
         const std::uint64_t parse_result_ptr = *reinterpret_cast<const std::uint64_t*>(slot_parse_result_ptr);
@@ -1015,7 +1015,7 @@ void frame_construct(
     *reinterpret_cast<std::uint32_t*>(frame_ptr + 16u) = span;
     *reinterpret_cast<std::uint32_t*>(frame_ptr + 24u) = 0u;
 
-    // current IDA Frame_t_construct: clear 9 slot descriptors (offsets 48..328, stride 32).
+    // current Frame_t_construct: clear 9 slot descriptors (offsets 48..328, stride 32).
     for (std::uint32_t i = 0; i < 9u; ++i) {
         const std::uintptr_t slot = frame_ptr + 48u + static_cast<std::uintptr_t>(i) * 32u;
         *reinterpret_cast<std::uint64_t*>(slot + 24u) = 0u;
@@ -1081,7 +1081,7 @@ void frame_mark_as_unused(
     if (frame_ptr == 0u || mark_usage == nullptr)
         return;
     const std::uint32_t count = *reinterpret_cast<const std::uint32_t*>(frame_ptr + kFrameOff_channel_count_dword);
-    // IDA 0x106CD0: v3 = frame+72 (first parse_result ptr), stride 32 bytes per slot.
+    // v3 = frame+72 (first parse_result ptr), stride 32 bytes per slot.
     std::uintptr_t slot_parse_result_ptr = frame_ptr + kFrameOff_channel_slot_base + kFrameChSlotOff_channel_ptr_qword;
     for (std::uint32_t i = 0; i < count; ++i) {
         const std::uint64_t parse_result_ptr =
@@ -1125,7 +1125,7 @@ bool read_native_frame_deque_530240(std::uint64_t frame_deque_ptr, NativeFrameDe
     view.count = *reinterpret_cast<const std::uint64_t*>(raw + 8u);
     view.storage = *reinterpret_cast<const std::uint64_t*>(raw + 16u);
     view.capacity = *reinterpret_cast<const std::uint32_t*>(raw + 24u);
-    // IDA FrameDeque_t_construct @ 0x530240: only +0..+27 are defined; +28 is not cleared in native.
+    // FrameDeque_t_construct: only +0..+27 are defined; +28 is not cleared in native.
     if (view.storage == 0u || view.capacity == 0u || view.capacity >= 0x100000u)
         return false;
     out = view;
@@ -1290,7 +1290,7 @@ std::uint64_t frame_deque_pop_back(
     return 0u;
 }
 
-std::uint64_t /* Decompiled name: frame_deque_count */
+std::uint64_t
 frame_deque_count(std::uint64_t frame_deque_ptr) {
     NativeFrameDequeView530240 native{};
     if (read_native_frame_deque_530240(frame_deque_ptr, native))
@@ -1301,7 +1301,7 @@ frame_deque_count(std::uint64_t frame_deque_ptr) {
     return dq->count;
 }
 
-std::uint64_t /* Decompiled name: frame_deque_frame_at */
+std::uint64_t
 frame_deque_frame_at(std::uint64_t frame_deque_ptr, std::uint64_t logical_index) {
     NativeFrameDequeView530240 native{};
     if (read_native_frame_deque_530240(frame_deque_ptr, native)) {
@@ -1318,7 +1318,7 @@ frame_deque_frame_at(std::uint64_t frame_deque_ptr, std::uint64_t logical_index)
     return dq->frame_ptrs[idx];
 }
 
-std::uint64_t /* Decompiled name: frame_deque_back */
+std::uint64_t
 frame_deque_back(std::uint64_t frame_deque_ptr, std::uint64_t* storage_index_out) {
     if (storage_index_out)
         *storage_index_out = 0u;
@@ -1380,7 +1380,7 @@ std::int64_t parser_ready_frame_push_copy(
     }
 
     std::uint64_t ready_tail = 0u;
-    const std::uint64_t ready_frame_ptr = /* Decompiled name: frame_deque_back */
+    const std::uint64_t ready_frame_ptr =
 frame_deque_back(frame_deque_ptr, &ready_tail);
     if (ready_frame_ptr == 0u)
         return 1;
@@ -1744,7 +1744,7 @@ std::int64_t decoder_run_step(DecoderStepRunContext101800* ctx) {
     if (ctx->run_output_stage) {
         (void)ctx->run_output_stage(ctx->output_user);
     }
-    // Decoder_process @ 0x52AD60 advances only after OutputGenerator_process.
+    // Decoder_process advances only after OutputGenerator_process.
     if (ctx->dispatch_ctx && ctx->dispatch_ctx->delay_line)
         (void)delay_line_advance_106b20(ctx->dispatch_ctx->delay_line);
     return 0;

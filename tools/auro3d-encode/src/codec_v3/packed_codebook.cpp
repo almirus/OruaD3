@@ -113,4 +113,4 @@ bool pack_golomb_error_codebook(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

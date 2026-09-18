@@ -292,4 +292,4 @@ bool mix3_unmix_reconstruct(
         carrier, primary, secondary, tertiary, error);
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

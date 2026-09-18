@@ -40,4 +40,4 @@ private:
     std::uint32_t maximum_frame_size_ = 0u;
 };
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

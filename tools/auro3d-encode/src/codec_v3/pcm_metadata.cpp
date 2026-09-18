@@ -287,7 +287,7 @@ bool PcmMetadataFalseWriter::open(
     block_start_ = block_start;
     block_samples_ = block_samples;
     mux_m_ = mux_m;
-    // a3d::serialize<..., Projector<N>> advances past sixteen sync masks and
+    // a3d:serialize<..., Projector<N>> advances past sixteen sync masks and
     // sixteen CRC masks before serializing anything. The fixed sixteen-bit
     // A3D header therefore occupies positions 32..47 for every N, and the
     // Channel stream begins at position 48.
@@ -439,4 +439,4 @@ bool seal_pcm_metadata_crc16(
         crc_closure_residual(carrier_samples, block_start, block_samples) == 0u;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

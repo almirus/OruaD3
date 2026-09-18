@@ -19,8 +19,8 @@ bool LsbBitWriter::write_bits(std::uint64_t value, std::uint32_t bit_count) {
     if (bit_count > 64u || !reserve_bits(bit_count))
         return false;
 
-    // Exact bit direction from Writer<VectorStorage>::write_<unsigned long>
-    // at 0x336980: OR low value bits at the current intra-byte bit offset,
+    // Exact bit direction from Writer<VectorStorage>:write_<unsigned long>
+    // at: OR low value bits at the current intra-byte bit offset,
     // then shift value right by the number of emitted bits.
     std::uint32_t remaining = bit_count;
     while (remaining != 0u) {
@@ -53,4 +53,4 @@ void LsbBitWriter::clear() {
     bit_count_ = 0;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -9,7 +9,7 @@
 
 namespace auro3d::encode {
 
-/// Input geometry passed by GVM::run_ @ 0x502AA0 to the native learner.
+/// Input geometry passed by GVM:run_ to the native learner.
 /// Mix2 produces one scalar residual per PCM sample; mix3 produces one
 /// two-component residual vector per PCM sample.
 struct NativeGvmInputShape {
@@ -25,8 +25,8 @@ struct NativeQuantizationCost {
     std::uint64_t level_bit_cost = 0;
 };
 
-/// Group+36/+40/+44/+48 values consumed by GVM::run_. Group::create starts
-/// them at one, then Encoder::create_group_ installs the effective limits.
+/// Group+36/+40/+44/+48 values consumed by GVM:run_. Group:create starts
+/// them at one, then Encoder:create_group_ installs the effective limits.
 struct NativeGvmSearchPlan {
     std::uint32_t common_limit = 1;
     std::uint32_t dimension1_start = 1;
@@ -123,7 +123,7 @@ struct ClusterDeltasQuantizationResult {
     std::uint32_t gvm_forced_zero_index = 0;
 };
 
-/// Ports the input-shape gate at the start of GVM::run_ @ 0x502AA0. The
+/// Ports the input-shape gate at the start of GVM:run_. The
 /// residual scalar count must divide the sample count exactly and the native
 /// learner accepts only one- or two-dimensional samples.
 bool validate_native_gvm_input_shape(
@@ -132,8 +132,8 @@ bool validate_native_gvm_input_shape(
     NativeGvmInputShape& out,
     std::string& error);
 
-/// Shared scalar equivalent of the cost portion of GVM::compute_fit_
-/// @ 0x502D80 and Quantization::BitSize::calculate @ 0x502490.
+/// Shared scalar equivalent of the cost portion of GVM:compute_fit_
+/// and Quantization:BitSize:calculate.
 bool calculate_native_quantization_cost(
     const std::vector<std::uint64_t>& levels,
     const std::vector<std::int32_t>& residual_scalars,
@@ -167,7 +167,7 @@ bool prepare_native_gvm_search(
     NativeGvmSearchPlan& out,
     std::string& error);
 
-/// One control-flow transition from GVM::run_ after compute_fit_. Fit status
+/// One control-flow transition from GVM:run_ after compute_fit_. Fit status
 /// is the native 1/2/3 value: over budget, fit, or fit with >10% spare bits.
 bool advance_native_gvm_search(
     const NativeGvmSearchPlan& plan,
@@ -176,7 +176,7 @@ bool advance_native_gvm_search(
     NativeGvmSearchStep& out,
     std::string& error);
 
-/// Ports the factory/set_data preflight before Learner::learn: verifies the
+/// Ports the factory/set_data preflight before Learner:learn: verifies the
 /// mode-to-implementation mapping, converts scalar int32 input to exact
 /// doubles, and groups dimension-2 data into pairs.
 bool prepare_native_gvm_learner_input(
@@ -186,7 +186,7 @@ bool prepare_native_gvm_learner_input(
     NativeGvmLearnerInput& out,
     std::string& error);
 
-/// Ports Learner::get_centers<int,1/2>: truncating double conversion and the
+/// Ports Learner:get_centers<int,1/2>: truncating double conversion and the
 /// optional replacement of the minimum squared-magnitude center by zero.
 bool quantize_native_gvm_centers(
     const std::vector<double>& center_scalars,
@@ -195,7 +195,7 @@ bool quantize_native_gvm_centers(
     NativeGvmCenterTable& out,
     std::string& error);
 
-/// Completes the confirmed post-learn portion of GVM::compute_fit_: validates
+/// Completes the confirmed post-learn portion of GVM:compute_fit_: validates
 /// sizes/indices against the input population, converts centers, computes
 /// BitSize cost, and returns native fit status 1..3.
 bool finalize_native_gvm_learned_result(
@@ -229,7 +229,7 @@ bool merge_native_gvm_clusters(
     std::string& error);
 
 /// Scalar modern-GVM path matching online singleton insertion and the minimum
-/// merge-cost choice in Learner<1/2>::learn<double>.
+/// merge-cost choice in Learner<1/2>:learn<double>.
 bool learn_native_gvm_modern(
     const NativeGvmLearnerInput& input,
     std::uint32_t target_clusters,
@@ -258,8 +258,8 @@ bool run_native_gvm_old_fast_search(
     NativeGvmSearchResult& out,
     std::string& error);
 
-/// Direct port of VQ BitShift<int,100> process_ @ 0x501F70 for one shift.
-/// Returns false when BitSize::calculate rejects the codebook or the bit
+/// Direct port of VQ BitShift<int,100> process_ for one shift.
+/// Returns false when BitSize:calculate rejects the codebook or the bit
 /// budget is exceeded (native process_ return).
 bool cluster_deltas_quantize_bitshift100(
     const std::vector<std::int32_t>& deltas,
@@ -268,7 +268,7 @@ bool cluster_deltas_quantize_bitshift100(
     ClusterDeltasQuantizationResult& out,
     std::string& error);
 
-/// Quantization::run_ mix2 path @ 0x501750: try shift 0, then 1..30.
+/// Quantization:run_ mix2 path: try shift 0, then 1..30.
 bool cluster_deltas_quantize_mix2(
     const std::vector<std::int32_t>& deltas,
     std::uint32_t sample_count,
@@ -281,4 +281,4 @@ bool cluster_deltas_quantize_mix2(
     ClusterDeltasQuantizationResult& out,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

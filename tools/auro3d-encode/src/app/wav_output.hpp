@@ -35,4 +35,4 @@ private:
     std::uint32_t channel_mask_ = 0;
 };
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

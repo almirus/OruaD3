@@ -38,4 +38,4 @@ private:
     std::variant<std::monostate, WavPcm24Writer, FlacPcm24Writer> writer_;
 };
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

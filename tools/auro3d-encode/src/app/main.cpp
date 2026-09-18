@@ -382,7 +382,7 @@ bool parse_carrier_gains_db(
 std::uint64_t carrier_digest(
     const auro3d::encode::EncodedCarrierUnit& unit,
     const std::vector<std::uint32_t>& channel_order) {
-    // FNV-1a over the emitted channel-id/sample order.  This is diagnostic
+    // FNV-1a over the emitted channel-id/sample order. This is diagnostic
     // only and deliberately hashes the final post-metadata carrier planes.
     std::uint64_t digest = 1469598103934665603ull;
     for (const std::uint32_t channel : channel_order) {

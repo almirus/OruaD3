@@ -147,9 +147,9 @@ bool pack_secondary_downmix_gains(
             return false;
         }
 
-        // from_secondary_downmix_gains @ 0x4FF600:
-        //   q = trunc(gain * -100 + 75)
-        //   nibble = q <= 2399 ? q / 150 : 15
+        // from_secondary_downmix_gains:
+        // q = trunc(gain * -100 + 75)
+        // nibble = q <= 2399 ? q 150: 15
         const float biased = gain * -100.0f + 75.0f;
         const std::uint32_t quantized = biased >= 2400.0f
             ? 15u
@@ -248,7 +248,7 @@ bool append_auromatic_adol(
         error = "auromatic ADOL profile/mode must be below 16";
         return false;
     }
-    // from_auromatic @ 0x515020: DWORD1 = (profile << 4) | mode.
+    // from_auromatic: DWORD1 = (profile << 4) | mode.
     instructions.push_back({0x47u, (profile << 4u) | mode, 0u});
     return true;
 }
@@ -289,4 +289,4 @@ bool append_opcode_6e_adol(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

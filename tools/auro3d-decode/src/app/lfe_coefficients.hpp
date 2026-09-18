@@ -12,7 +12,7 @@ struct View {
     unsigned factor;
 };
 
-// type1fir_nyquist2_factor2::Interpolator<float, 9, 1>.  The native table
+// type1fir_nyquist2_factor2:Interpolator<float, 9, 1>. The native table
 // stores the nine non-zero coefficients on one side of the Nyquist centre;
 // the other phase is the delayed input sample.
 inline constexpr float if2_s0_f2[] = {
@@ -26,7 +26,7 @@ inline constexpr float if2_s0_f2[] = {
     0.031536825f, 0.0f, -0.02328131534f, 0.0f, 0.03483442962f
 };
 
-// type1fir_nyquist2_factor2::Interpolator<float, 2, 3> used as the second
+// type1fir_nyquist2_factor2:Interpolator<float, 2, 3> used as the second
 // factor-two stage of the factor-four interpolator.
 inline constexpr float if4_s1_f2[] = {
     0.0f, 0.0f, 0.0f, -0.1105973572f, 0.0f, 0.5946080089f,

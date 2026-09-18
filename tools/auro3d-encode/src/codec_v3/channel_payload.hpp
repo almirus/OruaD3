@@ -17,7 +17,7 @@ struct ChannelParserInstruction {
     std::vector<std::uint32_t> payload;
 };
 
-/// Optional records counted by Rescaler::operator() @ 0x4EA080 before the
+/// Optional records counted by Rescaler:operator before the
 /// cluster-delta quantizer receives its remaining channel budget. Offset names
 /// are retained until the corresponding record syntax is fully identified.
 struct NativeRescalerAccounting {
@@ -32,7 +32,7 @@ struct NativeRescalerAccounting {
     std::vector<ChannelParserInstruction> instructions;
 };
 
-/// Port of encode::rescaler::opcode_bitwidth @ 0x5011A0.
+/// Port of encode:rescaler:opcode_bitwidth.
 bool native_rescaler_opcode_bitwidth(
     std::uint8_t opcode,
     std::uint32_t& payload_bits);
@@ -116,4 +116,4 @@ private:
     std::array<std::uint32_t, 3> metadata_words_{};
 };
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

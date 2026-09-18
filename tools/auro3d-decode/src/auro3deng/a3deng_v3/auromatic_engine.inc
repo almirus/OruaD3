@@ -1,15 +1,15 @@
-// Portable Auro-Matic v3 Engine leaf stages, ported from the native x86_64
-// libauro.so (Artist Connection 1.21.31).  This file is added incrementally and
-// is NOT wired into Decoder::decode_next yet.  Only the stages that have no
+// Portable Auro-Matic v3 Engine leaf stages, ported from the native
+// libauro.so (Artist Connection 1.21.31). This file is added incrementally and
+// is NOT wired into Decoder:decode_next yet. Only the stages that have no
 // dependency on still-unported siblings (FrontManager, p3D3D, Engine) live here.
-//
-// Native references (IDA x86_64):
-//   auro_audio_Smooth_float_*                 0x5AB4B0 .. 0x5AB780
-//   auro_matic_v3_DetectSilence_*             0x554200 .. 0x555190
-//   auro_matic_v3_OutputGate_*                0x553ED0 .. 0x554070
-//   auro_matic_v3_Gain_*                      0x550B80 .. 0x550C00
-//   auro_matic_Silence_*                      0x572250 .. 0x5722F0
-// Engine member offsets confirmed by Engine_configure @ 0x550030 disassembly.
+
+// Native references:
+// auro_audio_Smooth_float_*
+// auro_matic_v3_DetectSilence_*
+// auro_matic_v3_OutputGate_*
+// auro_matic_v3_Gain_*
+// auro_matic_Silence_*
+// Engine member offsets confirmed by Engine_configure disassembly.
 
 namespace {
 
@@ -41,7 +41,7 @@ constexpr std::size_t kDetectSilenceRingSlots = 16u;
 constexpr std::size_t kDetectSilenceCountOff = 2120u;       // u32 active entry count
 constexpr std::size_t kDetectSilenceRingIndexOff = 2124u;   // u32 ring write index
 
-// --- Gain / upmix Silence share the same "channel index list" layout ---
+// --- Gain upmix Silence share the same "channel index list" layout ---
 constexpr std::size_t kChannelListCountOff = 124u;          // u32 count
 constexpr std::size_t kChannelListMax = 31u;
 
@@ -74,7 +74,7 @@ void auro_audio_Smooth_float_inst_set_current(float* state, float current) {
         state[0] = current;
 }
 
-// Native @ 0x5AB570: explicit target/coeff ramp, persistent current in state[0].
+// Native: explicit target/coeff ramp, persistent current in state[0].
 void auro_audio_Smooth_float_gains_smooth(
     float* state,
     float* gains,
@@ -92,7 +92,7 @@ void auro_audio_Smooth_float_gains_smooth(
     *state = current;
 }
 
-// Native @ 0x5AB780: target/coeff stored in state[1]/state[2], current state[0].
+// Native: target/coeff stored in state[1]/state[2], current state[0].
 void auro_audio_Smooth_float_inst_gains_smooth(
     float* state,
     float* gains,
@@ -219,9 +219,9 @@ std::int64_t auro_matic_v3_DetectSilence_reset_audio_state(std::uint8_t* base) {
     return 0;
 }
 
-// Native @ 0x555190.  The native code vectorizes the 16-slot ring reduction for
+// Native. The native code vectorizes the 16-slot ring reduction for
 // the first (count & ~7) channels with a right-associated fold, and uses a
-// scalar left-associated fold for the remainder.  Both orders are reproduced.
+// scalar left-associated fold for the remainder. Both orders are reproduced.
 std::int64_t auro_matic_v3_DetectSilence_process(std::uint8_t* base, void** table) {
     if (!base)
         return 0;
@@ -320,7 +320,7 @@ std::int64_t auro_matic_v3_OutputGate_reset_audio_state(std::uint8_t* base) {
         base + kOutputGateDetectSilenceOff);
 }
 
-// Native @ 0x554070.  Writes the 32-sample gain ramp into `gains` (scratch),
+// Native. Writes the 32-sample gain ramp into `gains` (scratch),
 // `out_active` = 1 while the gate is fully closed, `out_reset` = 1 on the
 // active->closed transition that triggers the Engine-wide state reset.
 bool auro_matic_v3_OutputGate_process(
@@ -524,10 +524,10 @@ void auro_matic_Silence_process(std::uint8_t* base, void** table) {
 }
 
 // --- FrontManager (Input at +0, Output at +1176) ---
-// Native: auro_matic_v3_FrontManager_* 0x550A50 .. 0x553C79.
+// Native: auro_matic_v3_FrontManager_*.
 // Mode 0 is the decoded-bed -> taller-bed path used by the captured 5.1->5.1.4
 // oracle: Input latches the original table planes, Output crossfades the
-// processed planes back toward them with the OutputGate gain ramp.  Modes 1-3
+// processed planes back toward them with the OutputGate gain ramp. Modes 1-3
 // (Centergen-driven stereo/surround input) are not ported yet and are rejected
 // loudly instead of producing wrong audio.
 namespace {
@@ -694,7 +694,7 @@ void auro_matic_v3_FrontManager_Output_process(
             for (std::size_t i = 0u; i < 32u; ++i)
                 v8[i] = (a3[i] + a4[i]) * 0.7071067811865476f;
     }
-    // mode 0: keep processed planes; LABEL_7 blending below.
+    // mode 0: keep processed planes; blending below.
 
     // Gain coefficients equal to 1.0 skip the optional front scaling stage; only
     // that configuration is currently exercised (captured 5.1->5.1.4 plan).
@@ -770,9 +770,9 @@ void auro_matic_v3_FrontManager_output_process(
 }
 
 // --- p3D3D delay/phase-line subsystem ---
-// Native: auro_matic_3d3d_* 0x572250 .. 0x573B70, biquad 0x59E630/0x59E6A0.
+// Native: auro_matic_3d3d_*, biquad.
 // The line structures and ring write/read/proceed wrap semantics are ported
-// instruction-for-instruction from the x86_64 disassembly.
+// instruction-for-instruction from the disassembly.
 namespace {
 
 constexpr std::size_t kDelayLineBaseOff = 0u;   // float*
@@ -1077,9 +1077,9 @@ void auro_matic_3d3d_Line4_process_ext(
 }
 
 // --- p3D3D container ---
-// Native auro_matic_v3_3d3d_* 0x550E50/0x550FA0/0x551B70, 0x550F20.
+// Native auro_matic_v3_3d3d_*,.
 // The captured 5.1->5.1.4 3d3d plan (plan words 36..42) is all zero, which
-// registers zero line callbacks, so process() only advances the smoothing state.
+// registers zero line callbacks, so process only advances the smoothing state.
 namespace {
 
 constexpr std::size_t k3d3dLine2Off = 0u;
@@ -1206,11 +1206,11 @@ void auro_matic_v3_3d3d_process(std::uint8_t* base, void** /*table*/) {
 }
 
 // --- Auro-Matic v3 Engine container (orchestrates the stages above) ---
-// Native auro_matic_v3_Engine_* 0x54FEC0 .. 0x5500F0.
+// Native auro_matic_v3_Engine_*.
 
 std::int64_t auro_matic_v3_Engine_reset_audio_state(std::uint8_t* base);
 
-// Native @ 0x550A10 is a thunk to OutputGate_set_bypass (0x553FA0), which writes
+// Native is a thunk to OutputGate_set_bypass, which writes
 // the started flag at engine+4.
 void auro_matic_v3_Engine_set_bypass(std::uint8_t* base, std::int32_t bypass);
 

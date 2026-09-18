@@ -109,4 +109,4 @@ bool encode_extrapolate_mix3_initial(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

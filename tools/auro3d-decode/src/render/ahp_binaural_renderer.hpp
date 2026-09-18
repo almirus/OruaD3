@@ -11,7 +11,7 @@ namespace auro3d {
 // headphone_source_manager + peak_limiter). This is the multichannel AHP
 // graph, not the direct-stereo AM4HP Core. Input physical slots follow mask
 // 0x67BF with slot 3 as LFE; HC (11) and Top (12) are folded onto the captured
-// height HRTFs. Captured rates are 32/44.1/48/88.2/96 kHz, room 0 / HPV2 only.
+// height HRTFs. Captured rates are 32/44.1/48/88.2/96 kHz, room 0 HPV2 only.
 class AhpBinauralRenderer {
 public:
     AhpBinauralRenderer();

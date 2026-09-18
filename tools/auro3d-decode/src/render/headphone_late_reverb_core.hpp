@@ -12,7 +12,7 @@
 
 namespace auro3d {
 
-// Portable HPv2 LateReverb core recovered from sub_56DF40. Both the legacy
+// Portable HPv2 LateReverb core recovered from. Both the legacy
 // AHP mode-2/16-band and AM4HP mode-1/8-band configurations use this native
 // processing body; the configuration selects the band count.
 class HeadphoneLateReverbCore {

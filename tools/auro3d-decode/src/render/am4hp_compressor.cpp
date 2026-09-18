@@ -116,8 +116,8 @@ bool Am4hpCompressor::process(Block& left, Block& right) noexcept {
     Block gains{};
     compute_gains(envelope, gains);
     for (std::size_t i = 0; i < 32; ++i) {
-        // Native sub_598870 performs two sequential float32 multiplies:
-        // (input * reduction_gain) * makeup_gain.  Keep that order instead
+        // Native performs two sequential float32 multiplies:
+        // (input * reduction_gain) * makeup_gain. Keep that order instead
         // of folding the gains, which changes the final rounding.
         left[i] = (left[i] * gains[i]) * makeup_gain_;
         right[i] = (right[i] * gains[i]) * makeup_gain_;

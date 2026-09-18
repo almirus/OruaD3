@@ -79,4 +79,4 @@ bool pack_golomb_errors(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

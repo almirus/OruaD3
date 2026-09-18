@@ -49,7 +49,7 @@ inline constexpr std::int64_t kIcpGains[63] = {
     42172380LL, 56551402LL, 85170966LL, 170754039LL,
 };
 
-// auro::cx::table::data::pca::CoefficientPairs (32 angle indices, 2 floats each).
+// auro:cx:table:data:pca:CoefficientPairs (32 angle indices, 2 floats each).
 inline constexpr std::uint32_t kPcaCoefficientPairs[64] = {
     1065353216u, 0u, 1065333007u, 1028193070u, 1065272429u, 1036565814u, 1065171628u, 1041645699u,
     1065030846u, 1044891074u, 1064850424u, 1048104908u, 1064630795u, 1049927730u, 1064372488u, 1051491540u,
@@ -61,4 +61,4 @@ inline constexpr std::uint32_t kPcaCoefficientPairs[64] = {
     1044891074u, 1065030846u, 1041645699u, 1065171628u, 1036565814u, 1065272429u, 1028193070u, 1065333007u,
 };
 
-} // namespace auro3d::awc
+} // namespace auro3d:awc

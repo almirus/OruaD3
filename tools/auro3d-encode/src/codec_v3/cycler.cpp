@@ -38,7 +38,7 @@ void MetadataCycler::advance(std::uint64_t current_sample_end) {
 
 EncoderMetadataSelection EncoderCyclers::select_and_advance(
     std::uint64_t current_sample_end) {
-    // Same transition order as Encoder::update_cyclers_ @ 0x4E6CA0.
+    // Same transition order as Encoder:update_cyclers_.
     EncoderMetadataSelection selected{};
     selected.auromatic = auromatic.consume(current_sample_end);
     selected.opcode_50 = opcode_50.consume(current_sample_end);
@@ -83,7 +83,7 @@ void init_metadata_cycler_periods(
 }
 
 void apply_construct_default_cycler_payloads(EncoderCyclers& cyclers) {
-    // Encoder::set_cyclers_ @ 0x4E2FA0:
+    // Encoder:set_cyclers_:
     // if (!+6211) { dword(+6208)=17171203; cursor=-1; }
     // The high byte of 0x01060303 is +6211, so this write enables the cycler.
     // else if bytes != 3.3.6 { force 3.3.6; cursor = -1; }
@@ -97,7 +97,7 @@ void apply_construct_default_cycler_payloads(EncoderCyclers& cyclers) {
         cyclers.encoder_version.cursor = -1;
     }
     // if (!+6236 || +6232 != -1659869902) {
-    //   +6232 = -1659869902; +6236 = 1; cursor = -2; }
+    // +6232 = -1659869902; +6236 = 1; cursor = -2; }
     if (!cyclers.opcode_6e.enabled
         || cyclers.opcode_6e.armed_value != kConstructDefaultOpcode6eValue) {
         cyclers.opcode_6e.armed_value = kConstructDefaultOpcode6eValue;
@@ -109,7 +109,7 @@ void apply_construct_default_cycler_payloads(EncoderCyclers& cyclers) {
 void arm_metadata_cycler_on_value_change(
     MetadataCycler& cycler,
     std::uint32_t value) {
-    // set_dynamic_params secondary / opcode_50 @ 0x4E3820:
+    // set_dynamic_params secondary opcode_50:
     // if (!enabled || value != new) { value=new; enabled=1; cursor=0; }
     if (!cycler.enabled || cycler.armed_value != value) {
         cycler.armed_value = value;
@@ -121,7 +121,7 @@ void arm_metadata_cycler_on_value_change(
 void arm_auromatic_cycler_on_value_change(
     MetadataCycler& cycler,
     std::uint32_t value) {
-    // set_dynamic_params auromatic @ 0x4E3820:
+    // set_dynamic_params auromatic:
     // if (enabled && word == new) return;
     // if (!enabled) enabled=1; word=new; cursor=0;
     if (cycler.enabled && cycler.armed_value == value)
@@ -132,4 +132,4 @@ void arm_auromatic_cycler_on_value_change(
     cycler.cursor = 0;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

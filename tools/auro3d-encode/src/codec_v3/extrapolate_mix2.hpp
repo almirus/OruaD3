@@ -34,4 +34,4 @@ bool encode_extrapolate_mix2_errors(
     std::vector<std::int32_t>& errors,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

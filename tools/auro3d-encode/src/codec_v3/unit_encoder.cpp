@@ -109,8 +109,8 @@ bool encode_v3_complete_unit_impl(
         error = "unit encoder metadata channel differs from set_carrier_";
         return false;
     }
-    // Encoder::downmix_ @ 0x4E4520 is entered only when Config+132 equals
-    // one. Config::init_defaults supplies that value through its final qword
+    // Encoder:downmix_ is entered only when Config+132 equals
+    // one. Config:init_defaults supplies that value through its final qword
     // write; accepting zero here would silently diverge from native failure.
     if (config.field_132.value != 1u) {
         error = "unit encoder native downmix gate is disabled";
@@ -137,7 +137,7 @@ bool encode_v3_complete_unit_impl(
         error = "unit encoder dither seed changed after runtime initialization";
         return false;
     }
-    // downmix_ @ 0x4E4520: optional cts_dmx_coeff_limit_ when Config+136 is
+    // downmix_: optional cts_dmx_coeff_limit_ when Config+136 is
     // set, then scalar divide from the Encoder+6368 scaler tree.
     std::array<std::uint8_t, 31> working_scaler_indices =
         config.input_scaler_indices;
@@ -336,7 +336,7 @@ bool encode_v3_complete_unit_impl(
             for (std::uint32_t bit_line = config.bit_line.low;
                  bit_line <= config.bit_line.high;
                  ++bit_line) {
-                // Filter::check follows DetectSilence/Rescaler/ComputeDeltas
+                // Filter:check follows DetectSilence/Rescaler/ComputeDeltas
                 // in native process_groups_, but a definitely-active
                 // candidate has no persistent dither or analysis side
                 // effects before that check. Do not launch its expensive GVM
@@ -412,7 +412,7 @@ bool encode_v3_complete_unit_impl(
                     "codec-v3 candidate entropy cost exceeds its channel budget";
             }
             // Native process_groups_ runs DetectSilence, Rescaler and
-            // ComputeDeltas before Filter::check. In particular, a pruned
+            // ComputeDeltas before Filter:check. In particular, a pruned
             // all-silent candidate still advances its persistent dither
             // pool. Analysis above preserves that state transition; only
             // candidate acceptance and filter update are skipped here.
@@ -427,9 +427,9 @@ bool encode_v3_complete_unit_impl(
                     candidate_error =
                         "codec-v3 candidate has no native reconstruction quality";
                 } else if (candidate_analysis.silent) {
-                    // Worker path around 0x4E8EF0 leaves Group+664 set for a
+                    // Worker path around leaves Group+664 set for a
                     // silent candidate. It runs Mixer/ComputeQuality but
-                    // deliberately skips Encoder::select_best_, whose
+                    // deliberately skips Encoder:select_best_, whose
                     // ComputeQuality side effect updates the persistent
                     // carrier Filter. Feeding synthetic silence quality into
                     // that filter prunes every active bit line when audio
@@ -443,7 +443,7 @@ bool encode_v3_complete_unit_impl(
                     }
                 } else {
                     // ComputeQuality updates the carrier-keyed filter before
-                    // Encoder::select_best_ compares Group+600. Lower (more
+                    // Encoder:select_best_ compares Group+600. Lower (more
                     // negative) error dB wins; ties retain the earlier group.
                     filter.update(
                         bit_line,
@@ -608,7 +608,7 @@ bool encode_v3_complete_unit_impl(
         return false;
     }
     // Preserve the quantizer-path diagnostic while metadata records are
-    // copied into the returned unit.  The wire serializer does not encode
+    // copied into the returned unit. The wire serializer does not encode
     // this bit; it is consumed by validation/trace only.
     MetadataUnitHeader metadata_header{};
     if (!prepare_metadata_unit_header(
@@ -654,7 +654,7 @@ bool encode_v3_complete_unit_impl(
     const std::vector<AdolInstruction> current_optional_adol(
         metadata.adol_blocks.front().begin() + 1,
         metadata.adol_blocks.front().end());
-    // Encoder::encode @ 0x4E4330 calls prepare_metadata_unit_block_ before
+    // Encoder:encode calls prepare_metadata_unit_block_ before
     // prepare_mix_. Keep that order so a metadata construction failure cannot
     // leave a partially prepared carrier destination.
     if (!prepare_mix(encoded_groups, carrier_unit.descriptor, false, error))
@@ -832,7 +832,7 @@ bool encode_v3_complete_unit_impl(
     return true;
 }
 
-/// set_dynamic_params carrier-gain / opcode_50 / auromatic → EncoderConfig
+/// set_dynamic_params carrier-gain opcode_50 auromatic → EncoderConfig
 /// metadata fields (secondary ADOL 0x46 + UnitBlock cycler payloads). Call
 /// before cycler gating so configured cyclers still suppress emission.
 bool materialize_dynamic_metadata_fields(
@@ -882,7 +882,7 @@ bool materialize_dynamic_metadata_fields(
     return true;
 }
 
-/// set_dynamic_params @ 0x4E3820 cycler arming after materializing payloads.
+/// set_dynamic_params cycler arming after materializing payloads.
 bool arm_dynamic_metadata_cyclers(
     const EncoderConfig& config,
     std::uint32_t carrier_layout,
@@ -1134,8 +1134,8 @@ bool encode_v3_scheduled_unit(
         candidate_state.dynamic_loudness_initialized = false;
         candidate_state.dynamic_params_were_present = false;
         candidate_state.dynamic_loudness_measurements.clear();
-        // Construct LABEL_91 installs trunc(0.9583*sr) on all five periods
-        // and the encoder_version / opcode_6e payload defaults.
+        // Construct installs trunc(0.9583*sr) on all five periods
+        // and the encoder_version opcode_6e payload defaults.
         init_metadata_cycler_periods(
             candidate_state.metadata_cyclers, sample_rate);
         apply_construct_default_cycler_payloads(
@@ -1257,4 +1257,4 @@ bool encode_v3_scheduled_unit(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

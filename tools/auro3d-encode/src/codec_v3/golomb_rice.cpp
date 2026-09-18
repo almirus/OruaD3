@@ -11,7 +11,7 @@ bool write_golomb_rice(
     if (parameter > 32u)
         return false;
     const std::uint32_t quotient = parameter == 32u ? 0u : value >> parameter;
-    // Native 0x450750 writes one bool for every quotient unit, followed by a
+    // Native writes one bool for every quotient unit, followed by a
     // zero bool terminator. The decoder counts leading ones before that zero.
     for (std::uint32_t bit = 0u; bit < quotient; ++bit) {
         if (!writer.write_one())
@@ -57,4 +57,4 @@ bool golomb_rice_bit_count(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

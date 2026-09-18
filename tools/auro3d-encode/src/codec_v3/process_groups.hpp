@@ -14,11 +14,11 @@
 
 namespace auro3d::encode {
 
-/// Per-group analysis result through DetectSilence / Rescaler / ComputeDeltas /
+/// Per-group analysis result through DetectSilence Rescaler ComputeDeltas
 /// mix2 Quantization+Mixer. Individually silent sources are removed before
 /// dispatch, so `carrier_ready` is true for silent groups, arity-1 Mixer
 /// copies, and mix2 groups that quantized under the native bit budget.
-///
+
 /// `carrier.quantization_shift` is Group+24 (`bit_line`) for prepare_mix_
 /// (`<< bit_line`). The VQ codebook shift is `vq_shift`, not that field.
 struct AnalyzedEncodeGroup {
@@ -40,7 +40,7 @@ struct AnalyzedEncodeGroup {
     /// `(analysis_end - analysis_begin) >> 5` used by prepare_metadata switch.
     std::uint32_t analysis_arity = 0;
     std::uint32_t vq_shift = 0;
-    /// Group+67 from Quantization::run_ (mix2).
+    /// Group+67 from Quantization:run_ (mix2).
     std::uint32_t residual_bit_width = 0;
     /// The selected native GVM learner produced this group's codebook.
     bool gvm_learned = false;
@@ -50,7 +50,7 @@ struct AnalyzedEncodeGroup {
     std::uint64_t quantizer_bit_budget = 0;
     std::uint64_t quantizer_fixed_bit_cost = 0;
     std::uint64_t quantizer_used_bits = 0;
-    /// BitSize::calculate's selected Rice cost for the per-sample indices.
+    /// BitSize:calculate's selected Rice cost for the per-sample indices.
     std::uint64_t golomb_index_bit_cost = 0;
     /// Exact Group+196 value, including the optional Group+392 scaler record.
     std::uint32_t rescaler_bit_cost = 0;
@@ -75,7 +75,7 @@ struct AnalyzedEncodeGroup {
     std::uint8_t scaler_ix = 0;
     std::uint32_t scaler_attempts = 0;
     bool carrier_overflow = false;
-    /// ComputeQuality @ 0x4EAD30 output for this exact reconstructed
+    /// ComputeQuality output for this exact reconstructed
     /// candidate. The filter stores its negation against `bit_line`.
     bool quality_present = false;
     double quality_error_db = -3000.0;
@@ -87,7 +87,7 @@ bool analyze_encode_group(
     AnalyzedEncodeGroup& out,
     std::string& error);
 
-/// Stateful form used by Encoder::Rescaler. Dither is consumed only by the
+/// Stateful form used by Encoder:Rescaler. Dither is consumed only by the
 /// synthetic zero frame created by DetectSilence for an all-silent group.
 bool analyze_encode_group(
     const EncodeGroup& group,
@@ -108,4 +108,4 @@ bool analyzed_groups_to_encoded_pcm(
     std::vector<EncodedGroupPcm>& out,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

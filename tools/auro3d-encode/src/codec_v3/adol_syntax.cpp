@@ -134,4 +134,4 @@ bool write_adol_block(
     return writer.write_unsigned(0u, 8u);
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -586,7 +586,7 @@ bool merge_channel_frames_into_carrier(
             return false;
         }
         const std::vector<std::int32_t> preamble_unsealed = plane;
-        // compose::Channel::mux projects the A3D stream and closes the
+        // compose:Channel:mux projects the A3D stream and closes the
         // per-channel sync/CRC prefix in the same pass. Every carrier plane
         // is framed independently with its group's bit_line; optional ADOL
         // placement does not create a second metadata overlay.
@@ -635,4 +635,4 @@ bool merge_channel_frames_into_carrier(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

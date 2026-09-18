@@ -19,4 +19,4 @@ struct WavPcm24Info {
 
 bool probe_wav_pcm24(const std::string& path, WavPcm24Info& info, std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

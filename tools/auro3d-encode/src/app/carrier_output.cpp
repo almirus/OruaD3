@@ -58,15 +58,15 @@ bool channel_order_matches_mask(
 
 int wave_speaker_bit_for_codec_channel(std::uint32_t channel_id) {
     switch (channel_id) {
-    case 0u: return 0;  // FL  -> FRONT_LEFT
-    case 1u: return 1;  // FR  -> FRONT_RIGHT
-    case 2u: return 2;  // C   -> FRONT_CENTER
+    case 0u: return 0;  // FL -> FRONT_LEFT
+    case 1u: return 1;  // FR -> FRONT_RIGHT
+    case 2u: return 2;  // C -> FRONT_CENTER
     case 3u: return 3;  // LFE -> LOW_FREQUENCY
-    case 7u: return 4;  // LB  -> BACK_LEFT
-    case 8u: return 5;  // RB  -> BACK_RIGHT
-    case 6u: return 8;  // CS  -> BACK_CENTER
-    case 4u: return 9;  // LS  -> SIDE_LEFT
-    case 5u: return 10; // RS  -> SIDE_RIGHT
+    case 7u: return 4;  // LB -> BACK_LEFT
+    case 8u: return 5;  // RB -> BACK_RIGHT
+    case 6u: return 8;  // CS -> BACK_CENTER
+    case 4u: return 9;  // LS -> SIDE_LEFT
+    case 5u: return 10; // RS -> SIDE_RIGHT
     default: return -1;
     }
 }
@@ -859,7 +859,7 @@ bool CarrierOutput::write_unit(const EncodedCarrierUnit& unit, std::string& erro
         group_mask |= std::uint32_t{1} << group.carrier_channel_id;
     }
     // prepare_metadata_unit_block_ walks the complete native carrier-group
-    // list.  A partial record set would leave a carrier channel without the
+    // list. A partial record set would leave a carrier channel without the
     // reconstruction metadata needed by the decoder, even if its PCM frame
     // happens to be present.
     if (group_mask != unit.carrier.descriptor.layout) {
@@ -1044,4 +1044,4 @@ bool CarrierOutput::close(std::string& error) {
     }, writer_);
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

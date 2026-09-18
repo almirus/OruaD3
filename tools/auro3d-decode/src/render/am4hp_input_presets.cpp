@@ -33,7 +33,7 @@ bool Am4hpInputPresets::copy_retargeted_record(
     }
     std::vector<std::uint8_t> candidate(source, source + kRecordBytes);
     constexpr std::size_t kEngine1Tables[3] = {11760u, 15240u, 18712u};
-    // Native 0x54E2xx stores one distinct 136-byte Engine2 table per bus.
+    // Native stores one distinct 136-byte Engine2 table per bus.
     // The extracted resource keeps those tables consecutively after the
     // pointer array, so each native pointer must retain its bus-specific
     // offset rather than collapsing all three buses onto bus 0.

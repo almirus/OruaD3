@@ -204,4 +204,4 @@ std::uint32_t PcmUnitAccumulator::pending_frames() const {
     return ids_.empty() ? 0u : static_cast<std::uint32_t>(pending_[ids_.front()].size());
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

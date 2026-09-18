@@ -191,11 +191,11 @@ bool BinauralStreamRenderer::process(
     fft(sum_right, true);
 
     // Native A3DENG does not send the summed AHP signal straight to the PCM
-    // convertor.  pipeline::step::PeakLimiter::prepare @ 0x360950 installs a
+    // convertor. pipeline:step:PeakLimiter:prepare installs a
     // linked compressor after AHP with {attack=0, release=.15, ratio=50,
-    // knee=0, threshold=-.5 dB}.  Its PeakFollower update @ 0x599E30 uses
+    // knee=0, threshold=-.5 dB}. Its PeakFollower update uses
     // exp(log(.368)/(time*sample_rate)) for the release coefficient, and the
-    // gain computer @ 0x5980E0 applies (peak/threshold)^-(1-1/ratio).
+    // gain computer applies (peak/threshold)^-(1-1/ratio).
     // Keep this state across FFT blocks; otherwise direct hard clipping in
     // write_sample turns a loud multichannel sum into long full-scale rails.
     constexpr double kLimiterReleaseSeconds = 0.15;

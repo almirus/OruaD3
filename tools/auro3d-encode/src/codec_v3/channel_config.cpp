@@ -63,4 +63,4 @@ bool codec_v3_channel_config_to_carrier_layout(
     return false;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

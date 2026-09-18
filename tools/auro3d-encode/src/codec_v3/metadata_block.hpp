@@ -33,4 +33,4 @@ bool validate_pcm_metadata_block(
     std::size_t block_samples,
     std::uint32_t mux_m);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

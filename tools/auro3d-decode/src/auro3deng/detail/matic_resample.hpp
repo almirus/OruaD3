@@ -6,17 +6,17 @@
 #include <vector>
 
 // Native auro_a3deng_matic_resample_* factor-2 FIR (tap26), from libauro.so
-// auro_fir_coefficients_Bank_get_resample_factor2_tap26 @ 0x529930.
+// auro_fir_coefficients_Bank_get_resample_factor2_tap26.
 
 namespace auro3deng {
 namespace matic_resample {
 
 inline constexpr std::uint32_t kTapCount = 26u;
-inline constexpr std::uint32_t kPhaseTaps = 13u; // kTapCount / 2
+inline constexpr std::uint32_t kPhaseTaps = 13u; // kTapCount 2
 inline constexpr std::uint32_t kMaxChannels = 15u;
 inline constexpr std::uint32_t kQuantum = 32u;
 
-// Exact float32 table from libauro.so VA 0x2B8C30 (symmetric halfband).
+// Exact float32 table from libauro.so VA (symmetric halfband).
 inline constexpr float kFactor2Tap26[kTapCount] = {
     -0.00914958026f, -0.0107425014f, 0.0199617296f, 0.00911884569f,
     -0.0160536394f, -0.0267183613f, 0.0154981352f, 0.0478715375f,
@@ -30,7 +30,7 @@ inline constexpr float kFactor2Tap26[kTapCount] = {
 // Resample object layout at step+64 (Up and Down share the head).
 struct ResampleObject {
     std::uint32_t channel_count = 0u;           // +0
-    std::uint32_t channel_ids[kMaxChannels]{};  // +4 .. +63
+    std::uint32_t channel_ids[kMaxChannels]{};  // +4 +63
     float* history = nullptr;                   // +64
     std::uint32_t history_words = 0u;           // +72
     std::uint32_t pad1 = 0u;                    // +76
@@ -54,7 +54,7 @@ inline void pack_channel_ids_from_mask(ResampleObject* obj, std::uint32_t layout
     obj->channel_count = n;
 }
 
-// auro_a3deng_matic_resample_Up_init @ 0x56FB10 (factor==2 only).
+// auro_a3deng_matic_resample_Up_init (factor==2 only).
 inline bool init_up(ResampleObject* obj, std::uint32_t layout) {
     if (!obj)
         return false;
@@ -67,7 +67,7 @@ inline bool init_up(ResampleObject* obj, std::uint32_t layout) {
     return true;
 }
 
-// auro_a3deng_matic_resample_Down_init @ 0x56FFF0 (factor==2 only).
+// auro_a3deng_matic_resample_Down_init (factor==2 only).
 inline bool init_down(ResampleObject* obj, std::uint32_t layout) {
     if (!obj)
         return false;
@@ -94,7 +94,7 @@ inline void clear_down(ResampleObject* obj) {
     obj->history_words = kTapCount * obj->channel_count;
 }
 
-// Native w32_Up @ 0x59C690 is a causal factor-2 interpolator with a one-output-
+// Native w32_Up is a causal factor-2 interpolator with a one-output-
 // sample phase offset: out[2n+1] uses the even taps and input[n], while
 // out[2n] uses the odd taps and input[n-1]. History is oldest-to-newest and is
 // replaced by input[19..31]. The caller may alias input and output, so capture

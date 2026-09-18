@@ -16,22 +16,22 @@ struct AuroCxMonoTopDownmixInfo {
     std::uint32_t kind = 0;
     std::vector<AuroCxIntegralGainInfo> gains;
 };
-// StereoTopDownmix_t (0x41AEF0): kind 0 → 2 gains; kind 2|3 → 1 gain.
+// StereoTopDownmix_t: kind 0 → 2 gains; kind 2|3 → 1 gain.
 struct AuroCxStereoTopDownmixInfo {
     bool present = false;
     std::uint32_t kind = 0;
     std::vector<AuroCxIntegralGainInfo> gains;
 };
 struct AuroCxChannelDownmixInfo {
-    // Optional gains at ChannelDownmix +128 / +140 (native decode 0x41A6B0).
+    // Optional gains at ChannelDownmix +128 +140 (native decode).
     std::uint32_t gain_present_mask = 0;
     std::vector<AuroCxIntegralGainInfo> gains;
     // Optional intra_layer_gains at +152 (type#7), not MonoTopDownmix.
     bool intra_layer_present = false;
     std::vector<AuroCxIntegralGainInfo> intra_layer_gains;
-    // Channel 12 (T): MonoTop at +0 / +40 (types #1/#2).
+    // Channel 12 (T): MonoTop at +0 +40 (types #1/#2).
     std::vector<AuroCxMonoTopDownmixInfo> mono_top;
-    // Channels 28/29 (mask 805306368): StereoTop at +80 / +104 (types #3/#4).
+    // Channels 28/29 (mask 805306368): StereoTop at +80 +104 (types #3/#4).
     std::vector<AuroCxStereoTopDownmixInfo> stereo_top;
 };
 struct AuroCxSchemaChannelInfo {

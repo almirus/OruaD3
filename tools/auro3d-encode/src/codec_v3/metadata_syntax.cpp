@@ -71,4 +71,4 @@ bool write_pcm_metadata_prefix(PcmMetadataFalseWriter& writer, const PcmMetadata
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-/// Адреса и смещения из libauro3d.so (IDA + user-ida-pro-mcp). База — текущий idb; при другой базе сдвинуть.
+
 namespace auro_codec_v3_ida {
 
 constexpr std::uintptr_t kAuroCodecV3Decoder_CRC_t_init = 0x106F00;
@@ -40,32 +40,32 @@ constexpr std::uintptr_t kJniAuroAudioProcessor_AuroUpdateConfiguration = 0xD549
 constexpr std::uintptr_t kJniAuroAudioProcessor_AuroDecode = 0xD54B0;
 constexpr std::uintptr_t kAuroDecoderImpl_Initialize = 0xD71E0;
 constexpr std::uintptr_t kAuroDecoderImpl_Decode = 0xD7830;
-constexpr std::uintptr_t kAuroDecoder_GetOutputChannelCount = 0xD7990; // IDA: returns constant 2 in current APK build
+constexpr std::uintptr_t kAuroDecoder_GetOutputChannelCount = 0xD7990; // returns constant 2 in current APK build
 constexpr std::uintptr_t kAuroDecoder_GetChannelCount = 0xD79A0;
 constexpr std::uintptr_t kAuroDecoder_GetBlockSize = 0xD79B0;
 
-/// Внутренний layout auro::AuroDecoder::AuroDecoderImpl, подтвержденный по 0xD71E0/0xD79A0/0xD79B0.
-constexpr std::uintptr_t kAuroDecoderImpl_off_WorkBuffersBegin = 16;   // std::vector<std::unique_ptr<uint32_t[]>>
+/// Внутренний layout auro:AuroDecoder:AuroDecoderImpl, подтвержденный по.
+constexpr std::uintptr_t kAuroDecoderImpl_off_WorkBuffersBegin = 16;   // std:vector<std:unique_ptr<uint32_t[]>>
 constexpr std::uintptr_t kAuroDecoderImpl_off_WorkBuffersEnd = 24;
 constexpr std::uintptr_t kAuroDecoderImpl_off_WorkBuffersCap = 32;
 constexpr std::uintptr_t kAuroDecoderImpl_off_InputDesc = 40;          // Processor input descriptor, bits=24 at +48
 constexpr std::uintptr_t kAuroDecoderImpl_off_OutputDesc = 272;        // Processor output descriptor, first 2 buffer ptrs copied at +288/+296
-constexpr std::uintptr_t kAuroDecoderImpl_off_DecodeMutex = 504;       // std::recursive_mutex lock in Decode()
+constexpr std::uintptr_t kAuroDecoderImpl_off_DecodeMutex = 504;       // std:recursive_mutex lock in Decode
 constexpr std::uintptr_t kAuroDecoderImpl_off_RuntimeInputMask = 536;  // partial port: expect for Processor_process
 constexpr std::uintptr_t kAuroDecoderImpl_off_RuntimeOutputMask = 540;
-constexpr std::uintptr_t kAuroDecoderImpl_off_ChannelCount = 544;      // GetChannelCount()
-constexpr std::uintptr_t kAuroDecoderImpl_off_BlockSize = 548;         // GetBlockSize()
+constexpr std::uintptr_t kAuroDecoderImpl_off_ChannelCount = 544;      // GetChannelCount
+constexpr std::uintptr_t kAuroDecoderImpl_off_BlockSize = 548;         // GetBlockSize
 constexpr std::uintptr_t kAuroDecoderImpl_off_ProcessorInstance = 552; // create_instance(this+552, static_params)
-/// Partial-port expect: Processor_process bytes_unit (native dword_25E7C0/25E7D4).
+/// Partial-port expect: Processor_process bytes_unit (native 25E7D4).
 /// IO desc total_size_bytes holds sample count; validate uses unit = 32 * bytes_unit.
 constexpr std::uint32_t kAuroDecoderImpl_expect_bytes_unit = 1u;
 constexpr std::size_t kAuroDecoderImplObjectBytes = 560u;
 
-constexpr std::uint32_t kAuroDecoderDecodeRcNeedInit = 2;              // Decode(): processor API missing / not initialized
-constexpr std::uint32_t kAuroDecoderDecodeRcOkWhenOutputReady = 1;     // Decode(): normal success path for JNI wrapper
-constexpr std::uint32_t kJniAuroDecodeOutputSampleBytes = 4;           // queueInput() uses channelCount * 4096 => float32 * 1024
+constexpr std::uint32_t kAuroDecoderDecodeRcNeedInit = 2;              // Decode: processor API missing not initialized
+constexpr std::uint32_t kAuroDecoderDecodeRcOkWhenOutputReady = 1;     // Decode: normal success path for JNI wrapper
+constexpr std::uint32_t kJniAuroDecodeOutputSampleBytes = 4;           // queueInput uses channelCount * 4096 => float32 * 1024
 
-/// channelMapping @ 0xD79C0: logical input slots inside ProcessorIOBufferDesc::channel_ptr[].
+/// channelMapping: logical input slots inside ProcessorIOBufferDesc:channel_ptr[].
 constexpr std::uint32_t kAuroChannelIdLeft = 0;
 constexpr std::uint32_t kAuroChannelIdRight = 1;
 constexpr std::uint32_t kAuroChannelIdCenter = 2;
@@ -112,13 +112,13 @@ constexpr std::uint32_t kAuroChMapMask5Ch = 0x03Bu;         // FL FR LFE SL SR
 constexpr std::uint32_t kAuroChMapMask5_1 = 0x03Fu;         // FL FR FC LFE SL SR
 constexpr std::uint32_t kAuroChMapMask6_1 = 0x07Fu;         // FL FR FC LFE SL SR BC
 constexpr std::uint32_t kAuroChMapMask7_1 = 0x1BFu;         // FL FR FC LFE SL SR BL BR
-constexpr std::uint32_t kAuroProcessorIoChannelPtrCount = 27; // ProcessorIOBufferDesc::channel_ptr[27]
-constexpr std::uint32_t kAuroChannelMappingDefault = 0u;    // sub_31ACE0: numeric channel-id order
-constexpr std::uint32_t kAuroChannelMappingBacksBeforeSurrounds = 1u; // sub_31ACE0: xmmword_1DB2B0/1DB2C0 table
+constexpr std::uint32_t kAuroProcessorIoChannelPtrCount = 27; // ProcessorIOBufferDesc:channel_ptr[27]
+constexpr std::uint32_t kAuroChannelMappingDefault = 0u;    // numeric channel-id order
+constexpr std::uint32_t kAuroChannelMappingBacksBeforeSurrounds = 1u; // 1DB2C0 table
 
-/// auro_channel_Layout_dimension @ 0x131BE0:
+/// auro_channel_Layout_dimension:
 /// return classes: 1=base-like, 2=surround-layer, 3=height-layer.
-/// disasm loads: base-mask=0x100003, surround-mask=0x001F0, height-mask=0x3FE00.
+/// disasm loads: base-mask=, surround-mask=, height-mask=.
 constexpr std::uint32_t kAuroLayoutDimensionBase = 1u;
 constexpr std::uint32_t kAuroLayoutDimensionSurround = 2u;
 constexpr std::uint32_t kAuroLayoutDimensionHeight = 3u;
@@ -131,16 +131,16 @@ constexpr std::uintptr_t kSub_EB840_sync_cb = 0xEB840;
 constexpr std::uintptr_t kSub_EB870_content_cb = 0xEB870;
 constexpr std::uintptr_t kSub_EB8A0_decide_decode_cb = 0xEB8A0;
 
-/// Глобальные данные CRC init: ленивая генерация 512 байт в unk_41ACF0, флаг byte_41ACE0.
+/// Глобальные данные CRC init: ленивая генерация 512 байт в, флаг.
 constexpr std::uintptr_t kBss_CRC_table_unk_41ACF0 = 0x41ACF0;
 constexpr std::uintptr_t kBss_CRC_inited_byte_41ACE0 = 0x41ACE0;
 
-/// Подобъекты внутри auro_codec_v3_Decoder_t (аргумент a1 у construct): из декомпиляции 0x101760.
+/// Подобъекты внутри auro_codec_v3_Decoder_t (аргумент a1 у construct): из декомпиляции.
 constexpr std::uintptr_t kDecoder_off_Memory = 64;
 constexpr std::uintptr_t kDecoder_off_FormatDetector = 232;
 
-/// `sub_52CED0` @ `0x52CED0` (libauro.so x86_64, IDA): FormatDetector sync callback — FrameDeque push on `a2==0`,
-/// pop_back on `a2==2`, optional notify @ `this+288` with `this+296` ctx (`0`/`1`).
+/// `` `` (libauro.so,): FormatDetector sync callback — FrameDeque push on `a2==0`,
+/// pop_back on `a2==2`, optional notify `this+288` with `this+296` ctx (`0`/`1`).
 constexpr std::uintptr_t kFormatDetector_sub_52CED0 = 0x52CED0;
 constexpr std::uintptr_t kFormatDetector52ced0_off_notify_fn = 288;
 constexpr std::uintptr_t kFormatDetector52ced0_off_notify_ctx = 296;
@@ -165,7 +165,7 @@ constexpr std::uintptr_t kDecoder_off_OutputGenerator = 1232;
 constexpr std::uintptr_t kDecoder_off_qword_2472 = 2472;
 constexpr std::uintptr_t kDecoder_off_dword_28 = 28;
 
-/// Config_initialize @ 0x1033C0:
+/// Config_initialize:
 /// a2+0=input bytes/unit seed, a2+8=block bits (must be >=32 and aligned by 32),
 /// a2+16=input mask, a2+20=output mask, a2+24=extra config dword.
 constexpr std::uintptr_t kDecoderConfigInitArg_off_input_bytes_unit = 0;
@@ -174,7 +174,7 @@ constexpr std::uintptr_t kDecoderConfigInitArg_off_input_mask = 16;
 constexpr std::uintptr_t kDecoderConfigInitArg_off_output_mask = 20;
 constexpr std::uintptr_t kDecoderConfigInitArg_off_extra_flags = 24;
 
-/// Config object layout after initialize().
+/// Config object layout after initialize.
 constexpr std::uintptr_t kDecoderConfig_off_block_bits = 0;
 constexpr std::uintptr_t kDecoderConfig_off_block_words = 8;
 constexpr std::uintptr_t kDecoderConfig_off_buffer_count_qword = 16;
@@ -199,8 +199,8 @@ constexpr std::uint32_t kDecoderConfigInitErrInputMaskNotSubset = 404;
 
 namespace auro_engine_v4_ida {
 
-// Artist Connection 1.21.31, x86_64 libauro.so, package auroenginev4.
-// These are IDA image offsets for the current libauro.so analysis target.
+// Artist Connection 1.21.31, libauro.so, package auroenginev4.
+// These are image offsets for the current libauro.so analysis target.
 constexpr std::uintptr_t kJniA3DENG_AuroInitialize = 0x318C90;
 constexpr std::uintptr_t kJniA3DENG_AuroUpdate2 = 0x318D60;
 constexpr std::uintptr_t kJniA3DENG_AuroPush = 0x318FE0;
@@ -211,11 +211,11 @@ constexpr std::uintptr_t kA3DENG_push = 0x31AF50;
 constexpr std::uintptr_t kA3DENG_pop = 0x31B7A0;
 constexpr std::uintptr_t kA3DENG_pop_internal = 0x31B7F0;
 constexpr std::uintptr_t kA3DENG_get_output_info = 0x31B4E0;
-/// `sub_6319F0` @ `0x6319F0`: stack prep + branch to `sub_6318E0` ([rbx+10]==0) or `sub_631A70`; tail is unwind/abort (IDA).
+/// `` ``: stack prep + branch to `` ([rbx+10]==0) or ``; tail is unwind/abort.
 constexpr std::uintptr_t kA3DENG_sub_6319F0 = 0x6319F0;
 constexpr std::uintptr_t kA3DENG_sub_6318E0 = 0x6318E0;
 constexpr std::uintptr_t kA3DENG_sub_631A70 = 0x631A70;
-/// `A3DENG::pop_` internal (`0x31B7F0`) calls `sub_6319F0` @ `0x31BBC7`.
+/// `A3DENG:pop_` internal (``) calls `` ``.
 constexpr std::uintptr_t kA3DENG_pop_internal_call_sub_6319F0 = 0x31BBC7;
 constexpr std::uintptr_t kA3DENG_sub_631C00 = 0x631C00;
 constexpr std::uintptr_t kA3DENG_sub_631C60 = 0x631C60;
@@ -228,14 +228,14 @@ constexpr std::uintptr_t kA3DENG_audio_block_vtbl_op40 = 0x40;
 constexpr std::uintptr_t kA3DENG_audio_block_vtbl_op48 = 0x48;
 constexpr std::int32_t kA3DENG_sub_631D50_err_nonempty_queue = -6101; // `0xFFFFE66B`
 constexpr std::int32_t kA3DENG_sub_631C60_err = -6094;                // `0xFFFFE672`
-/// Same idb (`libauro.so`): embedded `auro_codec_v3_decoder_OutputGenerator_*` (distinct from `libauro3d.so` `0x102240` slot).
+/// Same (`libauro.so`): embedded `auro_codec_v3_decoder_OutputGenerator_*` (distinct from `libauro3d.so` `` slot).
 constexpr std::uintptr_t kLibauro_codec_OutputGenerator_process = 0x52B590;
 constexpr std::uintptr_t kLibauro_codec_OutputGenerator_cross_fade_ = 0x52AFE0;
 constexpr std::uintptr_t kLibauro_codec_OutputGenerator_cross_fade_inner = 0x52B0B0;
 constexpr std::uintptr_t kLibauro_codec_channel_GolombRice_initialize = 0x52D880;
 constexpr std::uintptr_t kLibauro_codec_channel_GolombRice_get_errors = 0x52D8B0;
 
-/// auro::a3deng::v4::android::A3DENG object layout from current x86_64 IDA.
+/// auro:a3deng:v4:android:A3DENG object layout from current.
 constexpr std::uintptr_t kA3DENG_off_pipeline_audio_block_size = 52;
 constexpr std::uintptr_t kA3DENG_off_output_mode = 56;
 constexpr std::uintptr_t kA3DENG_off_configured = 48;
@@ -263,9 +263,9 @@ constexpr std::uintptr_t kA3DENG_off_pruned_output_channel_entries = 352;
 constexpr std::uintptr_t kA3DENG_pruned_output_channel_entry_stride = 16;
 constexpr std::uintptr_t kA3DENG_off_pruned_output_valid = 728;
 
-/// A3DENG::Settings is copied by AuroUpdate2 and A3DENG::update as 0x34 bytes:
+/// A3DENG:Settings is copied by AuroUpdate2 and A3DENG:update as 0x34 bytes:
 /// incoming Java params -> stack Settings -> object at this+kA3DENG_off_settings.
-/// Names below are from A3DENG::update log strings and direct field use.
+/// Names below are from A3DENG:update log strings and direct field use.
 constexpr std::uintptr_t kA3DENG_settings_size = 0x34;
 constexpr std::uintptr_t kA3DENG_settings_off_stereo_device = 0;
 constexpr std::uintptr_t kA3DENG_settings_off_headset_connected = 1;
@@ -283,9 +283,9 @@ constexpr std::uintptr_t kA3DENG_settings_off_dynamic_headphone_flag = 41; // Ja
 constexpr std::uintptr_t kA3DENG_settings_off_hp_room = 44; // Java hp_user_preset
 constexpr std::uintptr_t kA3DENG_settings_off_hp_hrtf_preset = 48; // Java hp_hrtf_preset
 
-/// A3DENG::get_output_info @ 0x31B4E0 reads this+52 as the constructor
+/// A3DENG:get_output_info reads this+52 as the constructor
 /// pipeline_audio_block_size, keeps bits 0..31 from that dword, and puts API
-/// output_block_count (vtable+0xA8) into bits 32..63. A3DENG::pop_ @ 0x31B7F0
+/// output_block_count (vtable+0xA8) into bits 32..63. A3DENG:pop_
 /// then uses this+52 as block size for byte-count calculation.
 constexpr std::uint32_t kA3DENG_output_info_block_size_low_mask = 0xFFu;
 constexpr std::uint32_t kA3DENG_output_info_block_size_high_mask = 0xFFFFFF00u;
@@ -309,7 +309,7 @@ constexpr std::uint32_t kA3DENG_api_vtable_off_reset_audio_state = 0xD0u;
 /// JNI AuroPush gets 0x3A80 bytes for the active 6ch s24le track:
 /// 832 frames * 6 channels * 3 bytes. JNI AuroPop on the default route returns
 /// 0x1A00 bytes: 832 frames * 2 channels * 4-byte float output.
-/// JNI `AuroInitialize` / native `A3DENG::A3DENG(this, a2, a3)` constructor arg @ this+52.
+/// JNI `AuroInitialize` native `A3DENG:A3DENG(this, a2, a3)` constructor arg this+52.
 constexpr std::uint32_t kA3DENG_constructor_pipeline_block_size = 0x40u;
 constexpr std::uint32_t kA3DENG_live_observed_block_frames = 832u;
 constexpr std::uint32_t kA3DENG_live_observed_push_bytes_6ch_s24 = 0x3A80u;

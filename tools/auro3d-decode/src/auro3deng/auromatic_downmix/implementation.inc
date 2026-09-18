@@ -120,7 +120,7 @@ constexpr std::uint64_t kDmPair6917 = 0x0000001B00000005uLL;
 constexpr std::uint64_t kDmPair7941 = 0x0000001F00000005uLL;
 
 bool downmix_label101_tgt_layout_rejected(std::uint32_t tgt_layout) {
-    // IDA @ 590894: masked tgt equals xmmword_1DC660 in active lanes.
+    // masked tgt equals in active lanes.
     if ((tgt_layout & 0x8000u) != 0u)
         return false;
     if ((tgt_layout & 0x300000u) != 0x3000000u)
@@ -141,7 +141,7 @@ bool auro_downmix_v1_plan_apply_label274(
     auto* row_base = reinterpret_cast<std::uint8_t*>(dp.plan) + 4u * (3u * anchor_row + 5u);
     *reinterpret_cast<std::int32_t*>(row_base) = dword0;
     *reinterpret_cast<std::uint64_t*>(row_base + 4u) = pair_qword;
-    // Native LABEL_274 applies the second route to a2[159], which already
+    // Native applies the second route to a2[159], which already
     // contains the mask update made by the first route in the pair.
     src_mask = or_bits | (*dp.out_mask & and_mask);
     dp.patch_mask(src_mask, 0xFFFFFFFFu);
@@ -191,19 +191,19 @@ constexpr std::uint64_t kDmPair20481 = 0x0000005000000001uLL;
 constexpr std::uint64_t kDmPair20738 = 0x0000005100000002uLL;
 constexpr std::uint64_t kDmPair20766 = 0x000000510000001EuLL;
 
-bool /* Decompiled name: auro_downmix_v1_plan_finalize_label275 */
+bool
 auro_downmix_v1_plan_finalize_label275(
     std::int32_t* plan,
     std::uint32_t tgt_layout,
     std::uint8_t tgt_class_hint);
 
-bool /* Decompiled name: auro_downmix_v1_plan_finish_label275 */
+bool
 auro_downmix_v1_plan_finish_label275(
     std::int32_t* plan,
     std::uint32_t tgt_layout,
     std::uint8_t tgt_class_hint,
     bool* engine_complete) {
-    if (!/* Decompiled name: auro_downmix_v1_plan_finalize_label275 */
+    if (!
 auro_downmix_v1_plan_finalize_label275(plan, tgt_layout, tgt_class_hint))
         return false;
     if (engine_complete)
@@ -211,16 +211,16 @@ auro_downmix_v1_plan_finalize_label275(plan, tgt_layout, tgt_class_hint))
     return true;
 }
 
-bool /* Decompiled name: auro_downmix_v1_plan_label257 */
+bool
 auro_downmix_v1_plan_label257(
     DownmixPlanMut& dp,
     std::uint32_t& src_mask,
     std::uint32_t tgt_layout,
     std::uint8_t tgt_class_hint,
     bool* engine_complete) {
-  // IDA LABEL_257 @ 591280: shared tail before LABEL_274/LABEL_275.
+  // shared tail before.
   if ((~src_mask & 0x30u) != 0u)
-    return /* Decompiled name: auro_downmix_v1_plan_finish_label275 */
+    return
 auro_downmix_v1_plan_finish_label275(
         dp.plan, tgt_layout, tgt_class_hint, engine_complete);
 
@@ -246,12 +246,12 @@ auro_downmix_v1_plan_finish_label275(
   if (!auro_downmix_v1_plan_apply_label274(
           dp, r0 + 3u, 5, kDmPair22282, 1024u, 0xFFFFFBFFu, src_mask))
     return false;
-  return /* Decompiled name: auro_downmix_v1_plan_finish_label275 */
+  return
 auro_downmix_v1_plan_finish_label275(
       dp.plan, tgt_layout, tgt_class_hint, engine_complete);
 }
 
-bool /* Decompiled name: auro_downmix_v1_plan_label209 */
+bool
 auro_downmix_v1_plan_label209(
     DownmixPlanMut& dp,
     std::uint32_t& src_mask,
@@ -262,7 +262,7 @@ auro_downmix_v1_plan_label209(
     if (engine_complete)
         *engine_complete = false;
     const auto finish = [&]() {
-        return /* Decompiled name: auro_downmix_v1_plan_finish_label275 */
+        return
 auro_downmix_v1_plan_finish_label275(
             dp.plan, tgt_layout, tgt_class_hint, engine_complete);
     };
@@ -453,11 +453,11 @@ auro_downmix_v1_plan_finish_label275(
         src_mask = src_mask & 0xFFFFFEBFu | 0x100u;
         dp.patch_mask(src_mask, 0xFFFFFFFFu);
         if ((v11 & 0x180u) == 0u)
-            return /* Decompiled name: auro_downmix_v1_plan_label257 */
+            return
 auro_downmix_v1_plan_label257(
                 dp, src_mask, tgt_layout, tgt_class_hint, engine_complete);
     } else if ((v11 & 0x180u) == 0u) {
-        return /* Decompiled name: auro_downmix_v1_plan_label257 */
+        return
 auro_downmix_v1_plan_label257(
             dp, src_mask, tgt_layout, tgt_class_hint, engine_complete);
     }
@@ -477,12 +477,12 @@ auro_downmix_v1_plan_label257(
         dp.patch_mask(src_mask, 0xFFFFFFFFu);
     }
 
-    return /* Decompiled name: auro_downmix_v1_plan_label257 */
+    return
 auro_downmix_v1_plan_label257(
         dp, src_mask, tgt_layout, tgt_class_hint, engine_complete);
 }
 
-bool /* Decompiled name: auro_downmix_v1_plan_label101_v73_1536 */
+bool
 auro_downmix_v1_plan_label101_v73_1536(
     DownmixPlanMut& dp,
     const std::int32_t* engine,
@@ -494,7 +494,7 @@ auro_downmix_v1_plan_label101_v73_1536(
     const std::uint32_t v11 = inv_tgt;
 
     if ((v11 & 0x6000u) != 0u) {
-        // IDA: v93 = 1; if ((v11 & 0x30) == 0) v93 = eng4;
+        // v93 = 1; if ((v11 & 0x30) == 0) v93 = eng4;
         std::uint32_t v93 = 1u;
         if ((v11 & 0x30u) == 0u)
             v93 = static_cast<std::uint32_t>(eng4);
@@ -674,7 +674,7 @@ label_203:
     return true;
 }
 
-bool /* Decompiled name: auro_downmix_v1_plan_height_post_label101 */
+bool
 auro_downmix_v1_plan_height_post_label101(
     std::int32_t* plan,
     const std::int32_t* engine,
@@ -687,7 +687,7 @@ auro_downmix_v1_plan_height_post_label101(
     DownmixPlanMut dp(plan);
     const std::int32_t eng0 = engine ? engine[0] : 0;
 
-    // IDA @591625: tgt 0x30000000 -> LABEL_100 (before eng0/eng1).
+    // tgt 0x30000000 -> (before eng0/eng1).
     if ((tgt_layout & 0x30000000u) == 0x30000000u) {
         const std::uint64_t r0 = *dp.row_count;
         if (r0 > 0x33u)
@@ -706,7 +706,7 @@ auro_downmix_v1_plan_height_post_label101(
         return true;
     }
 
-    // IDA: eng0 only when (inv_tgt & 0x600) == 0; else fall through to eng1.
+    // eng0 only when (inv_tgt & 0x600) == 0; else fall through to eng1.
     if ((inv_tgt & 0x600u) != 0u)
         return true;
 
@@ -723,7 +723,7 @@ auro_downmix_v1_plan_height_post_label101(
         return true;
     }
 
-    // eng0==1 without tgt&0x800 falls through to eng0==0 path (IDA @591663).
+    // eng0==1 without tgt&0x800 falls through to eng0==0 path.
     if (eng0 == 1 && (tgt_layout & 0x800u) != 0u) {
         const std::uint64_t r0 = *dp.row_count;
         if (r0 > 0x33u)
@@ -777,7 +777,7 @@ auro_downmix_v1_plan_height_post_label101(
     return true;
 }
 
-bool /* Decompiled name: auro_downmix_v1_plan_height_tail_eng1 */
+bool
 auro_downmix_v1_plan_height_tail_eng1(
     std::int32_t* plan,
     const std::int32_t* engine,
@@ -794,17 +794,17 @@ auro_downmix_v1_plan_height_tail_eng1(
         const std::uint64_t r0 = *dp.row_count;
         if (r0 > 0x33u)
             return false;
-        // IDA @591745: v66 = -4101 → 0xFFFFEFFB (clears Top+C, not RB).
+        // v66 = -4101 → 0xFFFFEFFB (clears Top+C, not RB).
         if (!auro_downmix_v1_plan_apply_label100(
                 dp, r0, 12, kDmPair6146, 4u, 0xFFFFEFFBu, src_mask))
             return false;
-        // IDA LABEL_100 -> LABEL_101.
+
         if (goto_label101_out)
             *goto_label101_out = true;
         return true;
     }
 
-    // eng1==1 with tgt&4 -> 6917; without bit4 falls through to eng1==0 (IDA @591751).
+    // eng1==1 with tgt&4 -> 6917; without bit4 falls through to eng1==0.
     if (eng1 == 1 && (tgt_layout & 4u) != 0u) {
         const std::uint64_t r0 = *dp.row_count;
         if (r0 > 0x33u)
@@ -858,7 +858,7 @@ auro_downmix_v1_plan_height_tail_eng1(
     return true;
 }
 
-bool /* Decompiled name: auro_downmix_v1_plan_label101 */
+bool
 auro_downmix_v1_plan_label101(
     std::int32_t* plan,
     const std::int32_t* engine,
@@ -954,16 +954,16 @@ auro_downmix_v1_plan_label101(
                 return false;
         }
 
-        return /* Decompiled name: auro_downmix_v1_plan_label209 */
+        return
 auro_downmix_v1_plan_label209(
             dp, src_mask, tgt_layout, inv_tgt, tgt_class_hint, engine_complete);
     }
 
-    if (!/* Decompiled name: auro_downmix_v1_plan_label101_v73_1536 */
+    if (!
 auro_downmix_v1_plan_label101_v73_1536(
             dp, engine, src_mask, tgt_layout, inv_tgt))
         return false;
-    return /* Decompiled name: auro_downmix_v1_plan_label209 */
+    return
 auro_downmix_v1_plan_label209(
         dp, src_mask, tgt_layout, inv_tgt, tgt_class_hint, engine_complete);
 }
@@ -1001,7 +1001,7 @@ bool auro_downmix_v1_plan_apply_label29(
     return true;
 }
 
-bool /* Decompiled name: auro_downmix_v1_plan_height_preprocess */
+bool
 auro_downmix_v1_plan_height_preprocess(
     std::int32_t* plan,
     const std::int32_t* engine,
@@ -1100,7 +1100,7 @@ auro_downmix_v1_plan_height_preprocess(
     }
 
 label_36:
-    // IDA @590733: only when tgt lacks 0x30000000 and src has it.
+    // only when tgt lacks 0x30000000 and src has it.
     if ((tgt_layout & 0x30000000u) != 0x30000000u && (src_mask & 0x30000000u) == 0x30000000u) {
         if ((inv_tgt & 0x600u) != 0u) {
             std::uint32_t v49 = 2u * static_cast<std::uint32_t>((inv_tgt & 0x30u) != 0u);
@@ -1198,29 +1198,29 @@ label_36:
         (tgt_layout & 3u) != 3u
             ? static_cast<std::uint8_t>(static_cast<std::uint8_t>(tgt_layout) >> 2)
             : static_cast<std::uint8_t>(0);
-    // IDA @590888: if (tgt&0x1000) || !(src&0x1000) goto LABEL_101; else
-    // eng0/eng1 Top routing (LABEL_100) then fall into LABEL_101.
-    // Previous port called LABEL_101 first; label209's finish set
+    // if (tgt&0x1000) || !(src&0x1000) goto; else
+    // eng0/eng1 Top routing then fall into.
+    // Previous port called first; label209's finish set
     // engine_complete and skipped Top (bit 12) routing for 0x11bf→0x3.
     const bool skip_top_routing =
         (tgt_layout & 0x1000u) != 0u || (src_mask & 0x1000u) == 0u;
     if (!skip_top_routing) {
         bool routed_to_label101 = false;
         if ((tgt_layout & 0x30000000u) == 0x30000000u || (inv_tgt & 0x600u) == 0u) {
-            if (!/* Decompiled name: auro_downmix_v1_plan_height_post_label101 */
+            if (!
 auro_downmix_v1_plan_height_post_label101(
                     plan, engine, src_mask, tgt_layout, inv_tgt, &routed_to_label101))
                 return false;
             // When inv_tgt&0x600 != 0 and tgt lacks 0x30000000, post returns
             // without routing (fall through to eng1 in the native CFG).
             if (!routed_to_label101 && (inv_tgt & 0x600u) != 0u) {
-                if (!/* Decompiled name: auro_downmix_v1_plan_height_tail_eng1 */
+                if (!
 auro_downmix_v1_plan_height_tail_eng1(
                         plan, engine, src_mask, tgt_layout, &routed_to_label101))
                     return false;
             }
         } else {
-            if (!/* Decompiled name: auro_downmix_v1_plan_height_tail_eng1 */
+            if (!
 auro_downmix_v1_plan_height_tail_eng1(
                     plan, engine, src_mask, tgt_layout, &routed_to_label101))
                 return false;
@@ -1229,18 +1229,18 @@ auro_downmix_v1_plan_height_tail_eng1(
             return false;
     }
 
-    if (!/* Decompiled name: auro_downmix_v1_plan_label101 */
+    if (!
 auro_downmix_v1_plan_label101(
             plan, engine, src_mask, tgt_layout, inv_tgt, tgt_class_hint, engine_complete))
         return false;
     if (engine_complete && *engine_complete)
         return true;
-    // IDA LABEL_275 @ 591129: sub_5911C0 -> sub_5914E0 -> sub_5917B0.
-    return /* Decompiled name: auro_downmix_v1_plan_finalize_label275 */
+
+    return
 auro_downmix_v1_plan_finalize_label275(plan, tgt_layout, tgt_class_hint);
 }
 
-bool /* Decompiled name: auro_downmix_v1_plan_add_height_routes */
+bool
 auro_downmix_v1_plan_add_height_routes(std::int32_t* plan, std::uint32_t tgt_layout) {
     auto* row_count = reinterpret_cast<std::uint64_t*>(plan);
     auto* out_mask = reinterpret_cast<std::uint32_t*>(plan + 159);
@@ -1369,7 +1369,7 @@ auro_downmix_v1_plan_add_height_routes(std::int32_t* plan, std::uint32_t tgt_lay
     return true;
 }
 
-bool /* Decompiled name: auro_downmix_v1_plan_add_center_routes */
+bool
 auro_downmix_v1_plan_add_center_routes(
     std::int32_t* plan,
     std::uint32_t tgt_layout,
@@ -1489,7 +1489,7 @@ auro_downmix_v1_plan_add_center_routes(
     return true;
 }
 
-bool /* Decompiled name: auro_downmix_v1_plan_add_front_routes */
+bool
 auro_downmix_v1_plan_add_front_routes(
     std::int32_t* plan,
     std::uint32_t tgt_layout,
@@ -1633,29 +1633,29 @@ auro_downmix_v1_plan_add_front_routes(
     return true;
 }
 
-bool /* Decompiled name: auro_downmix_v1_plan_finalize_label275 */
+bool
 auro_downmix_v1_plan_finalize_label275(
     std::int32_t* plan,
     std::uint32_t tgt_layout,
     std::uint8_t tgt_class_hint) {
-    return /* Decompiled name: auro_downmix_v1_plan_add_height_routes */
+    return
 auro_downmix_v1_plan_add_height_routes(plan, tgt_layout)
-        && /* Decompiled name: auro_downmix_v1_plan_add_center_routes */
+        &&
 auro_downmix_v1_plan_add_center_routes(plan, tgt_layout, tgt_class_hint)
-        && /* Decompiled name: auro_downmix_v1_plan_add_front_routes */
+        &&
 auro_downmix_v1_plan_add_front_routes(plan, tgt_layout, tgt_class_hint);
 }
 
 } // namespace
 
-void /* Decompiled name: auro_downmix_v1_engine_t_construct */
+void
 auro_downmix_v1_engine_t_construct(std::uint8_t* engine_base) {
     if (!engine_base)
         return;
     std::memset(engine_base, 0, 56u);
 }
 
-bool /* Decompiled name: auro_downmix_v1_engine_calculate */
+bool
 auro_downmix_v1_engine_calculate(
     std::int32_t* engine,
     std::int32_t* plan,
@@ -1664,7 +1664,7 @@ auro_downmix_v1_engine_calculate(
     if (!plan)
         return false;
     std::memset(plan, 0, 0x280u);
-    // IDA auro_downmix_v1_Engine_calculate @ 0x58EF80 early exits.
+    // auro_downmix_v1_Engine_calculate early exits.
     if (tgt_layout == 0u || src_layout == 0u) {
         plan[158] = static_cast<std::int32_t>(src_layout);
         plan[159] = 0;
@@ -1676,7 +1676,7 @@ auro_downmix_v1_engine_calculate(
         return true;
     }
     const std::uint32_t tgt_lo = tgt_layout & 3u;
-    // Height entry @ 0x58EF80: v200 || tgt&0x40000000 || tgt_lo==3.
+    // Height entry: v200 || tgt&0x40000000 || tgt_lo==3.
     // v200 = (tgt_lo!=3) & ((uint8_t)tgt >> 2). Non-matching layouts return
     // false — Hex-Rays `(result=0, cond)` has no separate successful branch.
     const std::uint8_t tgt_class_hint =
@@ -1701,7 +1701,7 @@ auro_downmix_v1_engine_calculate(
         plan[158] = static_cast<std::int32_t>(src_layout);
         plan[159] = static_cast<std::int32_t>(src_layout);
         bool engine_complete = false;
-        if (!/* Decompiled name: auro_downmix_v1_plan_height_preprocess */
+        if (!
 auro_downmix_v1_plan_height_preprocess(
                 plan, engine, src_layout, tgt_layout, &engine_complete))
             return false;
@@ -1710,14 +1710,14 @@ auro_downmix_v1_plan_height_preprocess(
     return false;
 }
 
-DownmixToPartial /* Decompiled name: codec_v3_downmix_to */
+DownmixToPartial
 codec_v3_downmix_to(std::uint32_t layout, std::uint32_t target_layout) {
     DownmixToPartial out{};
     alignas(16) std::uint8_t engine[56]{};
     alignas(16) std::int32_t plan[kDownmixPlanIntCount]{};
-    /* Decompiled name: auro_downmix_v1_engine_t_construct */
+
 auro_downmix_v1_engine_t_construct(engine);
-    if (!/* Decompiled name: auro_downmix_v1_engine_calculate */
+    if (!
 auro_downmix_v1_engine_calculate(
             reinterpret_cast<std::int32_t*>(engine),
             plan,
@@ -1742,7 +1742,7 @@ void codec_v3_layout_pair_from_ctx(std::uint64_t ctx, std::uint32_t* output_layo
     if (codec == 0u)
         return;
     const auto* cfg = reinterpret_cast<const std::uint8_t*>(static_cast<std::uintptr_t>(codec));
-    // Match ACV3Decoder::decide_decode_ (a1+88=input/carrier, a1+92=output):
+    // Match ACV3Decoder:decide_decode_ (a1+88=input/carrier, a1+92=output):
     // fill_started uses downmix(output_layout, target_layout) as the baseline and
     // downmix(frame_flags, target_layout) for the frame — so baseline first arg is
     // Config input_mask, shared second arg is Config output_mask.
@@ -1761,7 +1761,7 @@ void codec_v3_write_decide_decode_aggregate(std::uint64_t ctx, std::uint32_t agg
         return;
     auto* blob = reinterpret_cast<std::uint8_t*>(ctx);
 
-    // sub_4d9320 / auro_a3deng_v3 wrapper: state @ +2496, notify via +2552.
+    // / auro_a3deng_v3 wrapper: state +2496, notify via +2552.
     if (*reinterpret_cast<const std::uint64_t*>(blob + 2552u) != 0u) {
         std::uint32_t* state_word = reinterpret_cast<std::uint32_t*>(blob + 2496u);
         if (*state_word != aggregate_mask) {
@@ -1771,7 +1771,7 @@ void codec_v3_write_decide_decode_aggregate(std::uint64_t ctx, std::uint32_t agg
         return;
     }
 
-    // sub_EB420 dispatch blob: state @ +252112, last_result @ +252128.
+    // dispatch blob: state +252112, last_result +252128.
     constexpr std::uintptr_t kEb5a0OffDecideDecodeState = 252112u;
     constexpr std::uintptr_t kEb5a0OffLastResult = 252128u;
     std::uint32_t* state_word = reinterpret_cast<std::uint32_t*>(blob + kEb5a0OffDecideDecodeState);
@@ -1811,7 +1811,7 @@ void codec_v3_layout_pair_from_decoder(
         *target_layout = 0u;
     if (!decoder_base)
         return;
-    // Same pairing as codec_v3_layout_pair_from_ctx / ACV3Decoder::decide_decode_.
+    // Same pairing as codec_v3_layout_pair_from_ctx ACV3Decoder:decide_decode_.
     if (output_layout) {
         *output_layout = *reinterpret_cast<const std::uint32_t*>(
             decoder_base + auro_codec_v3_ida::kDecoderConfig_off_input_mask);
@@ -1824,14 +1824,14 @@ void codec_v3_layout_pair_from_decoder(
 
 namespace {
 
-std::uint32_t /* Decompiled name: codec_v3_decide_decode_fill_started_flags */
+std::uint32_t
 codec_v3_decide_decode_fill_started_flags(
     std::uint32_t count,
     std::uint64_t ranges_base,
     std::uint64_t started_base,
     std::uint32_t output_layout,
     std::uint32_t target_layout) {
-    const DownmixToPartial output_downmix = /* Decompiled name: codec_v3_downmix_to */
+    const DownmixToPartial output_downmix =
 codec_v3_downmix_to(output_layout, target_layout);
     if (!output_downmix.ok) {
         for (std::uint32_t i = 0; i < count; ++i) {
@@ -1855,7 +1855,7 @@ codec_v3_downmix_to(output_layout, target_layout);
             continue;
         }
 
-        const DownmixToPartial frame_downmix = /* Decompiled name: codec_v3_downmix_to */
+        const DownmixToPartial frame_downmix =
 codec_v3_downmix_to(seg_flags, target_layout);
         if (!frame_downmix.ok) {
             *started_word = 0u;
@@ -1894,7 +1894,7 @@ std::int64_t codec_v3_pre_segments_decide_decode(
     std::uint32_t output_layout = 0u;
     std::uint32_t target_layout = 0u;
     codec_v3_layout_pair_from_ctx(ctx, &output_layout, &target_layout);
-    const std::uint32_t aggregate_mask = /* Decompiled name: codec_v3_decide_decode_fill_started_flags */
+    const std::uint32_t aggregate_mask =
 codec_v3_decide_decode_fill_started_flags(
         count,
         ranges_base,
@@ -1927,7 +1927,7 @@ std::int64_t codec_v3_pre_segments_decide_decode_decoder(
     std::uint32_t output_layout = 0u;
     std::uint32_t target_layout = 0u;
     codec_v3_layout_pair_from_decoder(dec, &output_layout, &target_layout);
-    const std::uint32_t aggregate_mask = /* Decompiled name: codec_v3_decide_decode_fill_started_flags */
+    const std::uint32_t aggregate_mask =
 codec_v3_decide_decode_fill_started_flags(
         count,
         ranges_base,
@@ -1966,7 +1966,7 @@ std::int64_t codec_v3_pre_segments_decide_decode_layouts(
         return 0;
     }
 
-    const std::uint32_t aggregate_mask = /* Decompiled name: codec_v3_decide_decode_fill_started_flags */
+    const std::uint32_t aggregate_mask =
 codec_v3_decide_decode_fill_started_flags(
         segment_count,
         ranges_base,
@@ -2072,7 +2072,7 @@ std::int64_t codec_v3_process_partial_eb5a0(
             runtime->set_layout,
             runtime->process_block,
             runtime->sync_user);
-        // IDA: FormatDetector owns +308; propagate to dispatch (not the reverse).
+        // FormatDetector owns +308; propagate to dispatch (not the reverse).
         if (runtime->dispatch)
             runtime->dispatch->sync_state = runtime->format_detector->sync_state;
     }
@@ -2086,7 +2086,7 @@ std::int32_t codec_v3_decoder_process_validate_101800(
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask,
     const CodecV3IoBufferDescEb5a0* output_desc) {
-    // current IDA Decoder_process:
+    // current Decoder_process:
     // 3 null input/output, 401 input total_samples mismatch, 386 sample_rate mismatch,
     // 387 bits mismatch, 388 missing input ptr, 389 missing output ptr, 384 disallowed input mask.
     if (!input_desc || !output_desc)
@@ -2278,7 +2278,7 @@ std::int64_t auro_codec_v3_Decoder_process(
         nullptr);
 }
 
-// libauro3d `0x1034E0` / libauro `auro_codec_v3_ida::kLibauro_codec_Parser_process`.
+// libauro3d `` libauro `auro_codec_v3_ida:kLibauro_codec_Parser_process`.
 std::int64_t codec_v3_parser_process_1034e0(
     std::uint8_t* parser_base,
     const CodecV3ParserRuntimeFns1034e0* runtime_fns) {
@@ -2581,7 +2581,7 @@ std::uint64_t delay_line_write_buffer_106ab0(
     return reinterpret_cast<std::uint64_t>(slot);
 }
 
-// Mirrors `auro_codec_v3_decoder_FormatDetector_process` @ 0x52D060 (libauro.so idb).
+// Mirrors `auro_codec_v3_decoder_FormatDetector_process` (libauro.so).
 void sync_detector_t_construct(SyncDetectorState105ee0* state) {
     if (!state)
         return;
@@ -2658,7 +2658,7 @@ void format_detector_sync_callback(
                 tail.frame_deque_ptr,
                 frame_mark_as_unused_106cd0_default);
         }
-        // IDA sub_52CED0 kind==2: clear sync_state only (not expected_frame_end @+328).
+        // kind==2: clear sync_state only (not expected_frame_end +328).
         if (tail.sync_state != 0u) {
             tail.sync_state = 0;
             if (tail.sink_notify)
@@ -2681,7 +2681,7 @@ void format_detector_sync_callback(
                 auro_codec_v3_ida::kFormatDetector52ced0_frame_mask_and_when_allow_zero));
     const std::uint32_t active_mask = layout_word & sub_52ced0_and;
 
-    // IDA: Frame_t_construct always, then push only when common_header is valid.
+    // Frame_t_construct always, then push only when common_header is valid.
     std::array<std::uint8_t, kCodecV3FrameDequeSlotCopyBytes> frame{};
     frame_construct(
         reinterpret_cast<std::uint64_t>(frame.data()),
@@ -2707,7 +2707,7 @@ void format_detector_sync_callback(
         const auto* header = sync_detector_find_channel_header(&region->sync, ch);
         if (!header)
             return;
-        // IDA: get_channel_header returns &aligned_word; qword@+0 -> slot+8, dword@+8 -> slot+16.
+        // get_channel_header returns &aligned_word; qword +0 -> slot+8, dword +8 -> slot+16.
         *reinterpret_cast<std::uint64_t*>(slot + 8u) =
             (static_cast<std::uint64_t>(header->aligned_bit) << 32)
             | static_cast<std::uint64_t>(header->aligned_word);
@@ -2741,7 +2741,7 @@ void format_detector_process(
         return;
 
     if (state->layout != input_mask) {
-        // IDA FormatDetector_process: clear sync_state only (not expected_frame_end @+328).
+        // FormatDetector_process: clear sync_state only (not expected_frame_end +328).
         if (state->sync_state != 0) {
             state->sync_state = 0;
             if (state->sink_notify)
@@ -2789,7 +2789,7 @@ void format_detector_process(
         }
         state->processed_samples += chunk;
         sample_off += chunk;
-        // IDA: timeout unlock clears sync_state only; expected_frame_end stays until next push.
+        // timeout unlock clears sync_state only; expected_frame_end stays until next push.
         if (state->sync_state != 0u) {
             const auto remaining = static_cast<std::int64_t>(
                 state->expected_frame_end - state->processed_samples);
@@ -2802,7 +2802,7 @@ void format_detector_process(
     }
 }
 
-// Mirrors `auro_codec_v3_decoder_SyncDetector_set_layout` @ 0x52C460 (libauro.so idb).
+// Mirrors `auro_codec_v3_decoder_SyncDetector_set_layout` (libauro.so).
 void sync_detector_set_layout(SyncDetectorState105ee0* state, std::uint32_t layout_mask) {
     if (!state || state->layout == layout_mask)
         return;
@@ -2842,7 +2842,7 @@ void sync_detector_set_layout(SyncDetectorState105ee0* state, std::uint32_t layo
     state->active_channel_count = count;
 }
 
-// Mirrors `auro_codec_v3_decoder_SyncDetector_process_block` @ 0x52C680 (libauro.so idb).
+// Mirrors `auro_codec_v3_decoder_SyncDetector_process_block` (libauro.so).
 void sync_detector_process_block(
     SyncDetectorState105ee0* state,
     const std::uint64_t* channel_ptrs_27,
@@ -2928,8 +2928,8 @@ void sync_detector_process_block(
                         ch.aligned_code = (merged_bit2 & 0xFu) + 10u;
                     }
 
-                    // IDA @ 0x52C680 lock: qword@+268 = 0x100000000 → counter=0, bit_110=1;
-                    // dword@+276 = (accum_8>>4)&1; dword@+280 = detect_target.
+                    // lock: qword +268 = 0x100000000 → counter=0, bit_110=1;
+                    // dword +276 = (accum_8>>4)&1; dword +280 = detect_target.
                     state->detect_counter = 0;
                     state->detect_bit_110 = 1u;
                     state->detect_bit_114 = (accum_8 >> 4u) & 1u;
@@ -3022,7 +3022,7 @@ OutputGeneratorSegmentPlan output_generator_build_segment_plan_1024a9(
                 seg_len = safe_min_u64(seg_len, delta_to_start);
             }
             if (frame_has_started) {
-                // IDA 0x1023ba: seg_len = min(remaining, frame_end - abs_pos); pop happens in process.
+                // seg_len = min(remaining, frame_end - abs_pos); pop happens in process.
                 const std::uint64_t frame_end_u64 = *reinterpret_cast<std::uint64_t*>(frame_ptr + 8);
                 const std::uint64_t delta_to_end = frame_end_u64 - abs_pos;
                 seg_len = safe_min_u64(seg_len, delta_to_end);
@@ -3037,7 +3037,7 @@ OutputGeneratorSegmentPlan output_generator_build_segment_plan_1024a9(
         *reinterpret_cast<std::uint32_t*>(slot + kSegRangeOff_mask) = *buffer;
         *reinterpret_cast<std::uint32_t*>(slot + kSegRangeOff_flags) = frame_flags;
 
-        // IDA 0x102360: store frame_ptr only when timeline-started; prestart keeps nullptr.
+        // store frame_ptr only when timeline-started; prestart keeps nullptr.
         const std::uint64_t stored_frame_ptr = frame_has_started ? frame_ptr : 0u;
         const std::uint64_t frame_ptrs_base = *reinterpret_cast<std::uint64_t*>(seg_ctx + kSegCtxOff_frame_ptrs);
         *reinterpret_cast<std::uint64_t*>(reinterpret_cast<std::uint8_t*>(frame_ptrs_base) + 8ull * seg_idx) = stored_frame_ptr;
@@ -3120,7 +3120,7 @@ std::int64_t output_generator_prepare_frame_channels_1024a9(
         std::uint32_t* words_ptr = cb.get_channel_words_ptr(cb.user, frame_ch);
         const std::uint64_t ctx_ptr = cb.get_channel_ctx_ptr(cb.user, frame_ch);
 
-        // IDA 0x10247B..0x1024CB: both init calls are fire-and-forget, return values are ignored.
+        // : both init calls are fire-and-forget, return values are ignored.
         (void)cb.golombrice_initialize(cb.user, gr_state, words_ptr, ctx_ptr);
         (void)cb.extrapolate_initialize(cb.user, ex_state, frame_ch);
     }
@@ -3286,12 +3286,12 @@ std::int64_t output_generator_process_segments_raw_1024a9(
                 return rc_copy;
             segment_used_copy_input = acb.copy_input_enabled;
         }
-        // IDA og+309 (v107): 0 после LABEL_104 copy-input, 1 после decode/delay.
+        // og+309 (v107): 0 после copy-input, 1 после decode/delay.
         *reinterpret_cast<std::uint32_t*>(output_generator_base + kOgOff_output_status_flag) =
             segment_used_copy_input ? 0u : 1u;
 
         const bool started_decode = seg.frame_ptr != 0 && use_started_decode_path_1024a9(seg);
-        // Old libauro3d LABEL_85: started decode jumps directly to LABEL_129;
+        // Old libauro3d: started decode jumps directly to;
         // zero-missing only runs on the delay-line/copy path.
         if (!started_decode) {
             zero_unproduced_output_channels_1024a9(
@@ -3301,7 +3301,7 @@ std::int64_t output_generator_process_segments_raw_1024a9(
                 kCodecV3ChannelMask);
         }
 
-        // IDA LABEL_102..153: started (v131) -> *a3 |= frame+24, без zero-missing.
+        // 153: started (v131) -> *a3 |= frame+24, без zero-missing.
         // non-started -> *a3 |= *buffer (seg.channel_mask) после copy/warmup.
         if (io_channel_mask_out) {
             const std::uint32_t external_mask =
@@ -3373,7 +3373,7 @@ OutputGeneratorSegmentPlan output_generator_build_segment_plan_runtime_1024a9(
                 seg_len = safe_min_u64(seg_len, delta_to_start);
             }
             if (frame_has_started) {
-                // IDA 0x1023ba: seg_len = min(remaining, frame_end - abs_pos); pop happens in process.
+                // seg_len = min(remaining, frame_end - abs_pos); pop happens in process.
                 const std::uint64_t frame_end_u64 = *reinterpret_cast<std::uint64_t*>(frame_ptr + 8);
                 const std::uint64_t delta_to_end = frame_end_u64 - abs_pos;
                 seg_len = safe_min_u64(seg_len, delta_to_end);
@@ -3387,7 +3387,7 @@ OutputGeneratorSegmentPlan output_generator_build_segment_plan_runtime_1024a9(
         *reinterpret_cast<std::uint32_t*>(slot + kSegRangeOff_mask) = *buffer;
         *reinterpret_cast<std::uint32_t*>(slot + kSegRangeOff_flags) = frame_flags;
 
-        // IDA 0x102360: store frame_ptr only when timeline-started; prestart keeps nullptr.
+        // store frame_ptr only when timeline-started; prestart keeps nullptr.
         const std::uint64_t stored_frame_ptr = frame_has_started ? frame_ptr : 0u;
         const std::uint64_t frame_ptrs_base = *reinterpret_cast<std::uint64_t*>(seg_ctx + kSegCtxOff_frame_ptrs);
         *reinterpret_cast<std::uint64_t*>(reinterpret_cast<std::uint8_t*>(frame_ptrs_base) + 8ull * seg_idx) = stored_frame_ptr;

@@ -1,4 +1,4 @@
-ProcessorIoExpectDa9ae0 /* Decompiled name: load_expect_da9ae0_from_impl */
+ProcessorIoExpectDa9ae0
 load_expect_da9ae0_from_impl(const std::uint8_t* impl_base) {
     ProcessorIoExpectDa9ae0 ex{};
     if (!impl_base)
@@ -10,7 +10,7 @@ load_expect_da9ae0_from_impl(const std::uint8_t* impl_base) {
     using auro_codec_v3_ida::kAuroDecoderImpl_off_RuntimeOutputMask;
     const auto* in = reinterpret_cast<const ProcessorIOBufferDesc*>(impl_base + kAuroDecoderImpl_off_InputDesc);
     const auto* out = reinterpret_cast<const ProcessorIOBufferDesc*>(impl_base + kAuroDecoderImpl_off_OutputDesc);
-    // IDA 0xD9AE0: bytes_unit is processor config (sample-count stride), NOT desc.total_size_bytes.
+    // bytes_unit is processor config (sample-count stride), NOT desc.total_size_bytes.
     // Host IO stores sample count in total_size_bytes; unit=1 → validate modulo 32.
     ex.in_layout = static_cast<std::int32_t>(in->layout_or_kind);
     ex.in_mask = static_cast<std::int32_t>(
@@ -43,18 +43,18 @@ ProcessorIoExpectDa9ae0 load_expect_da9ae0_from_processor(const std::uint8_t* p)
 }
 
 void decoder_crc_t_init_106f00() {
-    // Literal перенос auro_codec_v3_decoder_CRC_t_init @ 0x106F00.
-    // CRC-таблица у нас уже инициализируется лениво через channel_crc_table_init(),
+    // Literal перенос auro_codec_v3_decoder_CRC_t_init.
+    // CRC-таблица у нас уже инициализируется лениво через channel_crc_table_init,
     // так что конструктор может быть пустым no-op якорем.
 }
 
 void decoder_channel_extrapolate_t_init_1042a1() {
-    // Literal перенос auro_codec_v3_decoder_channel_Extrapolate_t_init @ 0x1042A1.
-    // Полный SSE-пролог заполняет LUT в .bss/.data; для нас важно только то, что это однажды сделанный глобальный init.
+    // Literal перенос auro_codec_v3_decoder_channel_Extrapolate_t_init.
+    // Полный SSE-пролог заполняет LUT в.bss.data; для нас важно только то, что это однажды сделанный глобальный init.
     // Таблица уже материализована статически, поэтому дополнительной работы здесь не требуется.
 }
 
-// Literal перенос auro_codec_v3_decoder_Config_initialize @ 0x1033C0.
+// Literal перенос auro_codec_v3_decoder_Config_initialize.
 std::int64_t auro_codec_v3_decoder_Config_initialize(std::int64_t a1, std::int64_t a2) {
     const auto v2 = *reinterpret_cast<std::uint64_t*>(a2 + 8);
     std::int64_t result = auro_codec_v3_ida::kDecoderConfigInitErrBlockBits;
@@ -93,7 +93,7 @@ std::int64_t auro_codec_v3_decoder_Config_initialize(std::int64_t a1, std::int64
 }
 
 std::uint32_t auro_channel_Mask_count(std::uint32_t mask, std::int64_t, std::uint32_t) {
-    // Current IDA semantics: popcount(mask & 0x7fffffff).
+    // Current semantics: popcount(mask & 0x7fffffff).
     std::uint32_t cnt = 0;
     std::uint32_t m = mask & 0x7FFFFFFFu;
     while (m) {
@@ -120,7 +120,7 @@ std::int64_t construct_codec_v3_decoder_runtime(
     void (__fastcall *a4)(std::uint64_t, std::int64_t),
     std::int64_t a5,
     std::int64_t a6) {
-    // Literal перенос sub_EB420 @ 0xEB420 (без инлайна внутренних memory helper'ов).
+    // Literal перенос (без инлайна внутренних memory helper'ов).
     *a1 = 0;
     if (reinterpret_cast<std::uint32_t*>(a1)[63030]) {
         reinterpret_cast<std::uint32_t*>(a1)[63030] = 0;
@@ -204,7 +204,7 @@ std::int64_t auro_a3deng_v3_process_decoder_manager(
     std::uint32_t* a3,
     void* a4) {
     void* v66 = a4;
-    // Literal-пролог sub_DB290 @ 0xDB290: проверки размеров/ratio.
+    // Literal-пролог: проверки размеров/ratio.
     const std::uint32_t v4 = 32u * a1[620960];
     std::uint32_t v5 = 1u;
     if (v4 > 0x80u)
@@ -223,29 +223,29 @@ std::int64_t auro_a3deng_v3_process_decoder_manager(
     if ((*a3 / v7) != v9)
         return v5;
 
-    // Literal LABEL_6 блок: reconfigure Manager по текущему Decoder latency/state snapshot.
+    // Literal блок: reconfigure Manager по текущему Decoder latency/state snapshot.
     std::array<std::uint8_t, 0xA0> cfg{};
     auto* cfg_u32 = reinterpret_cast<std::uint32_t*>(cfg.data());
     auto* cfg_u64 = reinterpret_cast<std::uint64_t*>(cfg.data());
 
-    // v47 / v48 / v49 / v50 проекция из sub_DB290 (основные поля, которые реально читаются manager_configure).
-    cfg_u32[0] = a1[620861];                   // dword_25E67C
-    cfg_u32[1] = a1[620862];                   // dword_25E680
-    cfg_u32[2] = a1[620863];                   // dword_25E684
-    cfg_u32[3] = a1[620864];                   // dword_25E688
-    cfg_u32[4] = a1[620865];                   // dword_25E68C
-    cfg_u32[5] = a1[620866];                   // dword_25E690
-    cfg_u32[6] = a1[620867];                   // dword_25E694
-    cfg_u32[7] = a1[620868];                   // dword_25E698
-    cfg_u32[8] = a1[620869];                   // dword_25E69C
-    cfg_u32[9] = a1[620870];                   // dword_25E6A0
-    cfg_u32[10] = a1[620871];                  // dword_25E6A4
-    cfg_u32[11] = a1[620872];                  // dword_25E6A8
-    cfg_u64[6] = *reinterpret_cast<const std::uint64_t*>(&a1[620873]); // qword_25E6AC
-    cfg_u32[14] = a1[620875];                  // dword_25E6B4
-    cfg_u32[15] = a1[620876];                  // dword_25E6B8
-    cfg_u32[16] = a1[620877];                  // dword_25E6BC
-    cfg_u32[17] = a1[620878];                  // dword_25E6C0
+    // v47 v48 v49 v50 проекция из (основные поля, которые реально читаются manager_configure).
+    cfg_u32[0] = a1[620861];
+    cfg_u32[1] = a1[620862];
+    cfg_u32[2] = a1[620863];
+    cfg_u32[3] = a1[620864];
+    cfg_u32[4] = a1[620865];
+    cfg_u32[5] = a1[620866];
+    cfg_u32[6] = a1[620867];
+    cfg_u32[7] = a1[620868];
+    cfg_u32[8] = a1[620869];
+    cfg_u32[9] = a1[620870];
+    cfg_u32[10] = a1[620871];
+    cfg_u32[11] = a1[620872];
+    cfg_u64[6] = *reinterpret_cast<const std::uint64_t*>(&a1[620873]);
+    cfg_u32[14] = a1[620875];
+    cfg_u32[15] = a1[620876];
+    cfg_u32[16] = a1[620877];
+    cfg_u32[17] = a1[620878];
 
     const auto latency = static_cast<float>(auro_a3deng_v3_Decoder_latency(a1 + 557912));
     auto rc = auro_a3deng_v3_pipeline_Manager_set_initial_latency(a1 + 84, latency);
@@ -257,7 +257,7 @@ std::int64_t auro_a3deng_v3_process_decoder_manager(
     if (rc != 0)
         return rc;
 
-    // Частичный literal LABEL_11: один проход Decoder_process + Manager_configure(initial=0) + Manager_process_audio.
+    // Частичный literal: один проход Decoder_process + Manager_configure(initial=0) + Manager_process_audio.
     const std::uint32_t blocks = v9;
     std::uint32_t frame_idx = 0;
     std::uint32_t out_advance = 0;
@@ -295,8 +295,8 @@ std::int64_t auro_a3deng_v3_process_decoder_manager(
         if (rc != 0)
             return rc;
 
-        // Literal copy-back tail (LABEL_53..LABEL_76) — без SIMD-оптимизаций, но с теми же guard/return semantics.
-        const std::uint32_t out_mask = a1[620866]; // dword_25E690
+        // Literal copy-back tail (..) — без SIMD-оптимизаций, но с теми же guard/return semantics.
+        const std::uint32_t out_mask = a1[620866];
         const std::size_t sample_count = static_cast<std::size_t>(v7);
         const std::size_t bytes = sample_count * sizeof(std::int32_t);
         auto** io_channels = reinterpret_cast<void**>(&v66);
@@ -808,7 +808,7 @@ constexpr ManagerStepOffsets478078 kManagerSteps478078[] = {
     {61792u, 61808u, 61816u, 61824u},
 };
 
-std::uint32_t /* Decompiled name: manager_parameter_update_type */
+std::uint32_t
 manager_parameter_update_type(const std::uint32_t* current, const std::uint32_t* next) {
     if (!current || !next)
         return 0u;
@@ -834,7 +834,7 @@ manager_parameter_update_type(const std::uint32_t* current, const std::uint32_t*
     return 0u;
 }
 
-void /* Decompiled name: manager_reset_step_chain */
+void
 manager_reset_step_chain(std::uint8_t* step_chain) {
     if (!step_chain)
         return;
@@ -849,7 +849,7 @@ manager_reset_step_chain(std::uint8_t* step_chain) {
     }
 }
 
-std::int64_t /* Decompiled name: manager_process_step_chain */
+std::int64_t
 manager_process_step_chain(
     std::uint8_t* manager,
     std::uint8_t* step_chain,
@@ -902,7 +902,7 @@ manager_process_step_chain(
     return 0;
 }
 
-void /* Decompiled name: manager_update_headroom_input_gains */
+void
 manager_update_headroom_input_gains(std::uint8_t* manager) {
     if (!manager)
         return;
@@ -936,12 +936,12 @@ std::int64_t auro_a3deng_v3_pipeline_Manager_configure(
     std::int32_t initial) {
     if (!manager_base || !cfg_blob)
         return 1;
-    // IDA 0xDD220: ранний guard перед копированием параметров.
+    // ранний guard перед копированием параметров.
     const auto* cfg_u32 = reinterpret_cast<const std::uint32_t*>(cfg_blob);
     if (cfg_u32[1] * cfg_u32[7] != cfg_u32[6] * cfg_u32[2])
         return 202;
     auto* manager = reinterpret_cast<std::uint8_t*>(manager_base);
-    const std::uint32_t update_type = /* Decompiled name: manager_parameter_update_type */
+    const std::uint32_t update_type =
 manager_parameter_update_type(
         reinterpret_cast<const std::uint32_t*>(manager + kManagerOffParams478078),
         cfg_u32);
@@ -951,7 +951,7 @@ manager_parameter_update_type(
         static_cast<std::uintptr_t>(*reinterpret_cast<std::uint64_t*>(manager + kManagerOffStepChain478078)));
     if (update_type == 3u) {
         *reinterpret_cast<std::uint32_t*>(manager + kManagerOffBypass478078) = 1u;
-        /* Decompiled name: manager_reset_step_chain */
+
 manager_reset_step_chain(step_chain);
     } else if (update_type == 2u) {
         *reinterpret_cast<std::uint32_t*>(manager + kManagerOffBypass478078) = 0u;
@@ -983,7 +983,7 @@ std::int64_t auro_a3deng_v3_pipeline_Manager_process_audio(std::uint32_t* manage
     if (!manager_base || !io_channels)
         return 1;
     auto* manager = reinterpret_cast<std::uint8_t*>(manager_base);
-    /* Decompiled name: manager_update_headroom_input_gains */
+
 manager_update_headroom_input_gains(manager);
 
     if (*reinterpret_cast<std::uint32_t*>(manager + kManagerOffBypass478078) != 0u) {
@@ -998,7 +998,7 @@ manager_update_headroom_input_gains(manager);
         static_cast<std::uintptr_t>(*reinterpret_cast<std::uint64_t*>(manager + kManagerOffStepChain478078)));
     if (!step_chain)
         return 0;
-    return /* Decompiled name: manager_process_step_chain */
+    return
 manager_process_step_chain(manager, step_chain, io_channels);
 }
 
@@ -1112,7 +1112,7 @@ bool auro_matic_Engine1_fl32_partial_clear(std::uint8_t* engine1_state, std::uin
     return delay == 0u;
 }
 
-void /* Decompiled name: engine1_copy32_ring */
+void
 engine1_copy32_ring(float* ring, std::uint32_t offset, const float* src_32) {
     if (!ring || !src_32)
         return;
@@ -1123,7 +1123,7 @@ engine1_copy32_ring(float* ring, std::uint32_t offset, const float* src_32) {
         std::memcpy(dst + 7616u, src_32, 32u * sizeof(float));
 }
 
-void /* Decompiled name: engine1_sum_98_taps_to_vec */
+void
 engine1_sum_98_taps_to_vec(
     const float* ring,
     std::uint32_t ring_offset,
@@ -1219,9 +1219,9 @@ void auro_matic_Engine1_fl32_process_ext(
 
     const std::uint32_t write_index = *reinterpret_cast<const std::uint32_t*>(engine1_state + 40u);
     const std::uint32_t ring_a_offset = 32u * write_index;
-    /* Decompiled name: engine1_copy32_ring */
+
 engine1_copy32_ring(ring, ring_a_offset, filtered_a);
-    /* Decompiled name: engine1_copy32_ring */
+
 engine1_copy32_ring(ring, ring_a_offset + 3808u, filtered_b);
 
     std::memset(output_0x300, 0, 0x300u);
@@ -1244,14 +1244,14 @@ engine1_copy32_ring(ring, ring_a_offset + 3808u, filtered_b);
             const auto* entries1 = source_table;
             const auto* entries2 = source_table + 784u;
             for (std::size_t vec = 0; vec < 8u; ++vec)
-                /* Decompiled name: engine1_sum_98_taps_to_vec */
+
 engine1_sum_98_taps_to_vec(
                     ring,
                     history_offset + static_cast<std::uint32_t>(4u * vec),
                     entries1,
                     out + 4u * vec);
             for (std::size_t vec = 0; vec < 8u; ++vec)
-                /* Decompiled name: engine1_sum_98_taps_to_vec */
+
 engine1_sum_98_taps_to_vec(
                     ring,
                     history_offset + static_cast<std::uint32_t>(4u * vec),
@@ -1278,7 +1278,7 @@ void auro_matic_XinN_Early_fl32_process_mode1(
     auro_matic_Engine1_fl32_process_ext(early_state, left, right, output_0x300, gains_32);
 }
 
-void /* Decompiled name: add_scaled_channel_32 */
+void
 add_scaled_channel_32(float* dst, const void* src_raw, float gain) {
     if (!dst || !src_raw)
         return;
@@ -1306,20 +1306,20 @@ void auro_matic_XinN_Early_fl32_process_mode2(
     const float gain_center = *reinterpret_cast<const float*>(early_state + 324u);
     const float gain_back = *reinterpret_cast<const float*>(early_state + 328u);
 
-    /* Decompiled name: add_scaled_channel_32 */
+
 add_scaled_channel_32(downmix_a, channel_span_31[4], gain_surround);
-    /* Decompiled name: add_scaled_channel_32 */
+
 add_scaled_channel_32(downmix_b, channel_span_31[5], gain_surround);
     if (*reinterpret_cast<const std::uint32_t*>(early_state + 280u) != 0u) {
-        /* Decompiled name: add_scaled_channel_32 */
+
 add_scaled_channel_32(downmix_a, channel_span_31[6], gain_center);
-        /* Decompiled name: add_scaled_channel_32 */
+
 add_scaled_channel_32(downmix_b, channel_span_31[6], gain_center);
     }
     if (*reinterpret_cast<const std::uint32_t*>(early_state + 276u) != 0u) {
-        /* Decompiled name: add_scaled_channel_32 */
+
 add_scaled_channel_32(downmix_a, channel_span_31[7], gain_back);
-        /* Decompiled name: add_scaled_channel_32 */
+
 add_scaled_channel_32(downmix_b, channel_span_31[8], gain_back);
     }
     auro_matic_Engine1_fl32_process_ext(
@@ -1420,8 +1420,8 @@ void auro_matic_XinN_Early_fl32_mix_delayed_mode2(
 
 namespace {
 
-constexpr std::uint32_t kEngine2DelayRingFloats = 94640u; // 0x5C6C0 bytes.
-constexpr std::uint32_t kEngine2AllocatedFloats = 94704u;  // 0x5C7C0 bytes.
+constexpr std::uint32_t kEngine2DelayRingFloats = 94640u; // bytes.
+constexpr std::uint32_t kEngine2AllocatedFloats = 94704u;  // bytes.
 constexpr std::uint32_t kEngine2OutputFloats = 192u;       // 0x300 bytes.
 constexpr std::uint32_t kEngine2FrameFloats = 32u;
 constexpr std::array<std::uint32_t, 48> kEngine2WriteXarTaps_28af34 = {
@@ -1589,7 +1589,7 @@ void e2_write_xar_frames(std::uint8_t* state, float* ring, std::uint32_t index, 
     e2_write_ring_frame(ring, current, kEngine2WriteXarTaps_28af34[tap_base + 2u], c);
 }
 
-void /* Decompiled name: e2_reverb_process */
+void
 e2_reverb_process(
     std::uint8_t* state,
     float* ring,
@@ -1837,13 +1837,13 @@ void* auro_matic_Engine2_fl32_process(
     if (preset) {
         for (std::uint32_t i = 0; i < 8u; ++i) {
             float frame[32]{};
-            /* Decompiled name: e2_reverb_process */
+
 e2_reverb_process(state, ring, preset, i, cross, frame);
             e2_accumulate_frame(accum + 0u, frame, e2_bus_weight(bus[0], 4u * i + 0u));
             e2_accumulate_frame(accum + 32u, frame, e2_bus_weight(bus[1], 4u * i + 0u));
             e2_accumulate_frame(accum + 64u, frame, e2_bus_weight(bus[2], 4u * i + 0u));
 
-            /* Decompiled name: e2_reverb_process */
+
 e2_reverb_process(state, ring, preset, i | 8u, cross, frame);
             e2_accumulate_frame(accum + 96u, frame, e2_bus_weight(bus[0], 4u * i + 3u));
             e2_accumulate_frame(accum + 128u, frame, e2_bus_weight(bus[1], 4u * i + 3u));
@@ -1973,7 +1973,7 @@ std::int64_t auro_matic_Engine1_fl32_construct(std::uint8_t* engine1_state, std:
     return reinterpret_cast<std::int64_t>(engine1_state);
 }
 
-void /* Decompiled name: engine1_copy_preset_table */
+void
 engine1_copy_preset_table(std::uint64_t dst_u64, std::uint64_t src_u64) {
     if (dst_u64 == 0u || src_u64 == 0u)
         return;
@@ -2003,7 +2003,7 @@ void auro_matic_Engine1_fl32_set_preset(std::uint8_t* engine1_state, std::uint64
     for (std::uint32_t table = 0; table < 3u; ++table) {
         const std::uint64_t src = *reinterpret_cast<const std::uint64_t*>(p + 32u + 8u * table);
         const std::uint64_t dst = *reinterpret_cast<const std::uint64_t*>(engine1_state + 16u + 8u * table);
-        /* Decompiled name: engine1_copy_preset_table */
+
 engine1_copy_preset_table(dst, src);
     }
 }
@@ -2211,7 +2211,7 @@ constexpr std::uint8_t kXinnProcessedPresetMarker = 0xA5u;
 #define AURO3DENG_ENABLE_NATIVE_IMAGE_PRESET_POINTERS 0
 #endif
 
-bool /* Decompiled name: xinn_runtime_preset_pointer_available */
+bool
 xinn_runtime_preset_pointer_available(std::uint64_t runtime_preset) {
     if (runtime_preset == 0u)
         return false;
@@ -2223,7 +2223,7 @@ xinn_runtime_preset_pointer_available(std::uint64_t runtime_preset) {
 #endif
 }
 
-std::uint64_t /* Decompiled name: xinn_select_native_spreset_from_v4_static */
+std::uint64_t
 xinn_select_native_spreset_from_v4_static(
     bool surround_mode,
     const std::uint8_t* tuning_static) {
@@ -2235,13 +2235,13 @@ xinn_select_native_spreset_from_v4_static(
     return base + static_cast<std::uint64_t>(room) * kXinnSpresetStride_35bf40;
 }
 
-const std::uint8_t* /* Decompiled name: xinn_portable_spreset_from_native_va */
+const std::uint8_t*
 xinn_portable_spreset_from_native_va(std::uint64_t spreset_u64) {
     (void)spreset_u64;
     return nullptr;
 }
 
-const std::uint8_t* /* Decompiled name: xinn_portable_processed_preset_from_native_va */
+const std::uint8_t*
 xinn_portable_processed_preset_from_native_va(std::uint64_t spreset_u64) {
     std::uint32_t family = 0u;
     std::uint64_t base = kXinnSpreset2in6Base_570460;
@@ -2277,11 +2277,11 @@ xinn_portable_processed_preset_from_native_va(std::uint64_t spreset_u64) {
 #endif
 }
 
-bool /* Decompiled name: xinn_initialize_processed_preset_from_portable_spreset */
+bool
 xinn_initialize_processed_preset_from_portable_spreset(
     std::uint8_t* processed_preset,
     std::uint64_t spreset_u64) {
-    const std::uint8_t* preset = /* Decompiled name: xinn_portable_processed_preset_from_native_va */
+    const std::uint8_t* preset =
 xinn_portable_processed_preset_from_native_va(spreset_u64);
     if (!processed_preset || !preset)
         return false;
@@ -2292,13 +2292,13 @@ xinn_portable_processed_preset_from_native_va(spreset_u64);
     return true;
 }
 
-void /* Decompiled name: xinn_engine2_initialize_static_from_spreset */
+void
 xinn_engine2_initialize_static_from_spreset(
     std::uint8_t* processed_preset,
     std::uint64_t spreset_u64) {
     if (processed_preset && processed_preset[1] == kXinnProcessedPresetMarker)
         return;
-    const std::uint8_t* spreset = /* Decompiled name: xinn_portable_spreset_from_native_va */
+    const std::uint8_t* spreset =
 xinn_portable_spreset_from_native_va(spreset_u64);
     if (!processed_preset || processed_preset[0] == 0u || !spreset)
         return;
@@ -2388,7 +2388,7 @@ xinn_portable_spreset_from_native_va(spreset_u64);
         *reinterpret_cast<const std::uint32_t*>(processed_preset + 1132u));
 }
 
-void /* Decompiled name: xinn_engine1_compute_type5_biquad */
+void
 xinn_engine1_compute_type5_biquad(std::uint8_t* storage_28, const std::uint8_t* spreset) {
     if (!storage_28 || !spreset)
         return;
@@ -2460,17 +2460,17 @@ void xinn_apply_output_mask_4eb39c(std::uint8_t* dynamic_48, std::uint32_t mode,
     }
 }
 
-float /* Decompiled name: xinn_db_to_linear */
+float
 xinn_db_to_linear(float db) {
     return db > -144.0f ? std::pow(10.0f, db * 0.050000001f) : 0.0f;
 }
 
-std::uint32_t /* Decompiled name: xinn_u32_bits */
+std::uint32_t
 xinn_u32_bits(const float* word) {
     return *reinterpret_cast<const std::uint32_t*>(word);
 }
 
-void /* Decompiled name: xinn_engine1_apply_table */
+void
 xinn_engine1_apply_table(
     float* engine1_state,
     std::uint32_t config_base,
@@ -2481,16 +2481,16 @@ xinn_engine1_apply_table(
     if (!engine1_state || !gain_set_a || !gain_set_b || !inline_gain_xyz)
         return;
     for (std::uint32_t row = 0u, out = output_base; row != 490u; row += 5u, out += 2u) {
-        const std::uint32_t gain_index = /* Decompiled name: xinn_u32_bits */
+        const std::uint32_t gain_index =
 xinn_u32_bits(engine1_state + config_base + row + 0u);
         if (gain_index >= 3u)
             continue;
         const float* selected =
-            /* Decompiled name: xinn_u32_bits */
+
 xinn_u32_bits(engine1_state + config_base + row + 1u) == 1u ? gain_set_b : gain_set_a;
         float scale = 1.0f;
         if (static_cast<std::uint8_t>(
-                /* Decompiled name: xinn_u32_bits */
+
 xinn_u32_bits(engine1_state + config_base + row + 2u))
             != 0u) {
             scale = inline_gain_xyz[gain_index];
@@ -2499,29 +2499,29 @@ xinn_u32_bits(engine1_state + config_base + row + 2u))
     }
 }
 
-void /* Decompiled name: xinn_engine1_apply */
+void
 xinn_engine1_apply(float* engine1_state, const float* dynamic_64) {
     if (!engine1_state || !dynamic_64)
         return;
 
     float gain_set_a[3] = {};
     float gain_set_b[3] = {};
-    const float base_a = /* Decompiled name: xinn_db_to_linear */
+    const float base_a =
 xinn_db_to_linear(dynamic_64[0]);
-    gain_set_a[0] = /* Decompiled name: xinn_db_to_linear */
+    gain_set_a[0] =
 xinn_db_to_linear(dynamic_64[1]) * base_a;
-    gain_set_a[1] = /* Decompiled name: xinn_db_to_linear */
+    gain_set_a[1] =
 xinn_db_to_linear(dynamic_64[2]) * base_a;
-    gain_set_a[2] = /* Decompiled name: xinn_db_to_linear */
+    gain_set_a[2] =
 xinn_db_to_linear(dynamic_64[3]) * base_a;
 
-    const float base_b = /* Decompiled name: xinn_db_to_linear */
+    const float base_b =
 xinn_db_to_linear(dynamic_64[4]);
-    gain_set_b[0] = /* Decompiled name: xinn_db_to_linear */
+    gain_set_b[0] =
 xinn_db_to_linear(dynamic_64[5]) * base_b;
-    gain_set_b[1] = /* Decompiled name: xinn_db_to_linear */
+    gain_set_b[1] =
 xinn_db_to_linear(dynamic_64[6]) * base_b;
-    gain_set_b[2] = /* Decompiled name: xinn_db_to_linear */
+    gain_set_b[2] =
 xinn_db_to_linear(dynamic_64[7]) * base_b;
 
     const float inline_gain_xyz[3] = {
@@ -2529,7 +2529,7 @@ xinn_db_to_linear(dynamic_64[7]) * base_b;
         *reinterpret_cast<const float*>(reinterpret_cast<const std::uint8_t*>(dynamic_64) + 36u),
         *reinterpret_cast<const float*>(reinterpret_cast<const std::uint8_t*>(dynamic_64) + 40u),
     };
-    /* Decompiled name: xinn_engine1_apply_table */
+
 xinn_engine1_apply_table(
         engine1_state,
         0u,
@@ -2537,7 +2537,7 @@ xinn_engine1_apply_table(
         gain_set_a,
         gain_set_b,
         inline_gain_xyz);
-    /* Decompiled name: xinn_engine1_apply_table */
+
 xinn_engine1_apply_table(
         engine1_state,
         490u,
@@ -2545,7 +2545,7 @@ xinn_engine1_apply_table(
         gain_set_a,
         gain_set_b,
         inline_gain_xyz);
-    /* Decompiled name: xinn_engine1_apply_table */
+
 xinn_engine1_apply_table(
         engine1_state,
         980u,
@@ -2553,7 +2553,7 @@ xinn_engine1_apply_table(
         gain_set_a,
         gain_set_b,
         inline_gain_xyz);
-    /* Decompiled name: xinn_engine1_apply_table */
+
 xinn_engine1_apply_table(
         engine1_state,
         1470u,
@@ -2561,7 +2561,7 @@ xinn_engine1_apply_table(
         gain_set_a,
         gain_set_b,
         inline_gain_xyz);
-    /* Decompiled name: xinn_engine1_apply_table */
+
 xinn_engine1_apply_table(
         engine1_state,
         1960u,
@@ -2569,7 +2569,7 @@ xinn_engine1_apply_table(
         gain_set_a,
         gain_set_b,
         inline_gain_xyz);
-    /* Decompiled name: xinn_engine1_apply_table */
+
 xinn_engine1_apply_table(
         engine1_state,
         2450u,
@@ -2579,7 +2579,7 @@ xinn_engine1_apply_table(
         inline_gain_xyz);
 }
 
-void /* Decompiled name: xinn_preset_tune_late_stereo */
+void
 xinn_preset_tune_late_stereo(std::uint8_t* preset_base, const float* dynamic_96) {
     if (!preset_base || !dynamic_96)
         return;
@@ -2587,13 +2587,13 @@ xinn_preset_tune_late_stereo(std::uint8_t* preset_base, const float* dynamic_96)
     std::memcpy(preset_base + 1072u, dynamic_96, 64u);
     const float gain_sum_base = *reinterpret_cast<const float*>(preset_base + 1116u);
     *reinterpret_cast<float*>(preset_base + 23460u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1120u) + gain_sum_base);
     *reinterpret_cast<float*>(preset_base + 23596u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1124u) + gain_sum_base);
     *reinterpret_cast<float*>(preset_base + 23732u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1128u) + gain_sum_base);
 
     const std::uint64_t engine2_storage = *reinterpret_cast<const std::uint64_t*>(preset_base + 23320u);
@@ -2601,21 +2601,21 @@ xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1128u) + gain_su
         *reinterpret_cast<std::uint32_t*>(static_cast<std::uintptr_t>(engine2_storage) + 960u) =
             *reinterpret_cast<const std::uint32_t*>(preset_base + 1132u);
 
-    *reinterpret_cast<float*>(preset_base + 23784u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23784u) =
 xinn_db_to_linear(dynamic_96[16]);
-    *reinterpret_cast<float*>(preset_base + 23788u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23788u) =
 xinn_db_to_linear(dynamic_96[19]);
-    *reinterpret_cast<float*>(preset_base + 23792u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23792u) =
 xinn_db_to_linear(dynamic_96[17]);
-    *reinterpret_cast<float*>(preset_base + 23796u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23796u) =
 xinn_db_to_linear(dynamic_96[20]);
-    *reinterpret_cast<float*>(preset_base + 23800u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23800u) =
 xinn_db_to_linear(dynamic_96[18]);
-    *reinterpret_cast<float*>(preset_base + 23804u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23804u) =
 xinn_db_to_linear(dynamic_96[21]);
 }
 
-void /* Decompiled name: xinn_preset_tune_late_surround */
+void
 xinn_preset_tune_late_surround(std::uint8_t* preset_base, const float* dynamic_112) {
     if (!preset_base || !dynamic_112)
         return;
@@ -2623,13 +2623,13 @@ xinn_preset_tune_late_surround(std::uint8_t* preset_base, const float* dynamic_1
     std::memcpy(preset_base + 1072u, dynamic_112, 64u);
     const float gain_sum_base = *reinterpret_cast<const float*>(preset_base + 1116u);
     *reinterpret_cast<float*>(preset_base + 23460u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1120u) + gain_sum_base);
     *reinterpret_cast<float*>(preset_base + 23596u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1124u) + gain_sum_base);
     *reinterpret_cast<float*>(preset_base + 23732u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1128u) + gain_sum_base);
 
     const std::uint64_t engine2_storage = *reinterpret_cast<const std::uint64_t*>(preset_base + 23320u);
@@ -2637,52 +2637,52 @@ xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1128u) + gain_su
         *reinterpret_cast<std::uint32_t*>(static_cast<std::uintptr_t>(engine2_storage) + 960u) =
             *reinterpret_cast<const std::uint32_t*>(preset_base + 1132u);
 
-    *reinterpret_cast<float*>(preset_base + 23808u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23808u) =
 xinn_db_to_linear(dynamic_112[16]);
-    *reinterpret_cast<float*>(preset_base + 23812u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23812u) =
 xinn_db_to_linear(dynamic_112[20]);
-    *reinterpret_cast<float*>(preset_base + 23816u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23816u) =
 xinn_db_to_linear(dynamic_112[24]);
-    *reinterpret_cast<float*>(preset_base + 23820u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23820u) =
 xinn_db_to_linear(dynamic_112[19]);
-    *reinterpret_cast<float*>(preset_base + 23824u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23824u) =
 xinn_db_to_linear(dynamic_112[23]);
-    *reinterpret_cast<float*>(preset_base + 23828u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23828u) =
 xinn_db_to_linear(dynamic_112[27]);
-    *reinterpret_cast<float*>(preset_base + 23832u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23832u) =
 xinn_db_to_linear(dynamic_112[17]);
-    *reinterpret_cast<float*>(preset_base + 23836u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23836u) =
 xinn_db_to_linear(dynamic_112[21]);
-    *reinterpret_cast<float*>(preset_base + 23840u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23840u) =
 xinn_db_to_linear(dynamic_112[25]);
-    *reinterpret_cast<float*>(preset_base + 23844u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23844u) =
 xinn_db_to_linear(dynamic_112[18]);
-    *reinterpret_cast<float*>(preset_base + 23848u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23848u) =
 xinn_db_to_linear(dynamic_112[22]);
-    *reinterpret_cast<float*>(preset_base + 23852u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23852u) =
 xinn_db_to_linear(dynamic_112[26]);
 }
 
-[[maybe_unused]] void /* Decompiled name: xinn_preset_tune_stereo */
+[[maybe_unused]] void
 xinn_preset_tune_stereo(std::uint8_t* preset_base, const float* dynamic_96) {
     if (!preset_base || !dynamic_96)
         return;
 
     std::memcpy(preset_base + 1072u, dynamic_96, 64u);
-    /* Decompiled name: xinn_engine1_apply */
+
 xinn_engine1_apply(
         reinterpret_cast<float*>(preset_base + 1136u),
         reinterpret_cast<const float*>(preset_base + 1072u));
 
     const float gain_sum_base = *reinterpret_cast<const float*>(preset_base + 1116u);
     *reinterpret_cast<float*>(preset_base + 23460u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1120u) + gain_sum_base);
     *reinterpret_cast<float*>(preset_base + 23596u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1124u) + gain_sum_base);
     *reinterpret_cast<float*>(preset_base + 23732u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1128u) + gain_sum_base);
 
     const std::uint64_t engine2_storage = *reinterpret_cast<const std::uint64_t*>(preset_base + 23320u);
@@ -2690,40 +2690,40 @@ xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1128u) + gain_su
         *reinterpret_cast<std::uint32_t*>(static_cast<std::uintptr_t>(engine2_storage) + 960u) =
             *reinterpret_cast<const std::uint32_t*>(preset_base + 1132u);
 
-    *reinterpret_cast<float*>(preset_base + 23784u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23784u) =
 xinn_db_to_linear(dynamic_96[16]);
-    *reinterpret_cast<float*>(preset_base + 23788u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23788u) =
 xinn_db_to_linear(dynamic_96[19]);
-    *reinterpret_cast<float*>(preset_base + 23792u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23792u) =
 xinn_db_to_linear(dynamic_96[17]);
-    *reinterpret_cast<float*>(preset_base + 23796u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23796u) =
 xinn_db_to_linear(dynamic_96[20]);
-    *reinterpret_cast<float*>(preset_base + 23800u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23800u) =
 xinn_db_to_linear(dynamic_96[18]);
-    *reinterpret_cast<float*>(preset_base + 23804u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23804u) =
 xinn_db_to_linear(dynamic_96[21]);
 }
 
-[[maybe_unused]] void /* Decompiled name: xinn_preset_tune_surround */
+[[maybe_unused]] void
 xinn_preset_tune_surround(std::uint8_t* preset_base, const float* dynamic_112) {
     if (!preset_base || !dynamic_112)
         return;
 
     std::memcpy(preset_base + 1072u, dynamic_112, 64u);
-    /* Decompiled name: xinn_engine1_apply */
+
 xinn_engine1_apply(
         reinterpret_cast<float*>(preset_base + 1136u),
         reinterpret_cast<const float*>(preset_base + 1072u));
 
     const float gain_sum_base = *reinterpret_cast<const float*>(preset_base + 1116u);
     *reinterpret_cast<float*>(preset_base + 23460u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1120u) + gain_sum_base);
     *reinterpret_cast<float*>(preset_base + 23596u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1124u) + gain_sum_base);
     *reinterpret_cast<float*>(preset_base + 23732u) =
-        /* Decompiled name: xinn_db_to_linear */
+
 xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1128u) + gain_sum_base);
 
     const std::uint64_t engine2_storage = *reinterpret_cast<const std::uint64_t*>(preset_base + 23320u);
@@ -2731,33 +2731,33 @@ xinn_db_to_linear(*reinterpret_cast<const float*>(preset_base + 1128u) + gain_su
         *reinterpret_cast<std::uint32_t*>(static_cast<std::uintptr_t>(engine2_storage) + 960u) =
             *reinterpret_cast<const std::uint32_t*>(preset_base + 1132u);
 
-    *reinterpret_cast<float*>(preset_base + 23808u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23808u) =
 xinn_db_to_linear(dynamic_112[16]);
-    *reinterpret_cast<float*>(preset_base + 23812u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23812u) =
 xinn_db_to_linear(dynamic_112[20]);
-    *reinterpret_cast<float*>(preset_base + 23816u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23816u) =
 xinn_db_to_linear(dynamic_112[24]);
-    *reinterpret_cast<float*>(preset_base + 23820u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23820u) =
 xinn_db_to_linear(dynamic_112[19]);
-    *reinterpret_cast<float*>(preset_base + 23824u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23824u) =
 xinn_db_to_linear(dynamic_112[23]);
-    *reinterpret_cast<float*>(preset_base + 23828u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23828u) =
 xinn_db_to_linear(dynamic_112[27]);
-    *reinterpret_cast<float*>(preset_base + 23832u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23832u) =
 xinn_db_to_linear(dynamic_112[17]);
-    *reinterpret_cast<float*>(preset_base + 23836u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23836u) =
 xinn_db_to_linear(dynamic_112[21]);
-    *reinterpret_cast<float*>(preset_base + 23840u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23840u) =
 xinn_db_to_linear(dynamic_112[25]);
-    *reinterpret_cast<float*>(preset_base + 23844u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23844u) =
 xinn_db_to_linear(dynamic_112[18]);
-    *reinterpret_cast<float*>(preset_base + 23848u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23848u) =
 xinn_db_to_linear(dynamic_112[22]);
-    *reinterpret_cast<float*>(preset_base + 23852u) = /* Decompiled name: xinn_db_to_linear */
+    *reinterpret_cast<float*>(preset_base + 23852u) =
 xinn_db_to_linear(dynamic_112[26]);
 }
 
-std::int64_t /* Decompiled name: xinn_early_initialize */
+std::int64_t
 xinn_early_initialize(std::uint8_t* early_state, std::uint32_t mode, std::uint32_t input_mask) {
     if (!early_state)
         return 0;
@@ -2887,7 +2887,7 @@ std::int64_t auro_matic_XinN_fl32_initialize(
             reinterpret_cast<const std::uint32_t*>(xinn_state + 596u));
     }
 
-    std::int64_t ok = /* Decompiled name: xinn_early_initialize */
+    std::int64_t ok =
 xinn_early_initialize(xinn_state + 48u, mode, input_mask);
     if (!ok)
         return ok;
@@ -2949,7 +2949,7 @@ std::int64_t auro_matic_v3_XinN_fl32_initialize(
         input_mask != 0u ? 1u : 0u;
     if (input_mask == 0u)
         return output_mask != 0u ? 1 : 0;
-    // Native x86_64 0x556260 accepts only 32/44.1/48 kHz here; higher rates
+    // Native accepts only 32/44.1/48 kHz here; higher rates
     // are rejected because the AM4HP Upmixing graph has no differential
     // coverage for them.
     if (sample_rate != 32000u && sample_rate != 44100u && sample_rate != 48000u)
@@ -3108,7 +3108,7 @@ void auro_matic_v3_XinN_fl32_update_peak_amplitude(
     }
 }
 
-std::uint64_t /* Decompiled name: xinn_select_native_runtime_preset_from_v4_static */
+std::uint64_t
 xinn_select_native_runtime_preset_from_v4_static(
     bool surround_mode,
     const std::uint8_t* tuning_static) {
@@ -3153,13 +3153,13 @@ xinn_select_native_runtime_preset_from_v4_static(
                          : kStereoRuntimePresets[family][native_room_slot];
 }
 
-void /* Decompiled name: xinn_copy_runtime_preset_into_processed_object */
+void
 xinn_copy_runtime_preset_into_processed_object(
     std::uint8_t* processed_preset,
     std::uint64_t runtime_preset) {
     if (!processed_preset)
         return;
-    const bool preset_pointer_available = /* Decompiled name: xinn_runtime_preset_pointer_available */
+    const bool preset_pointer_available =
 xinn_runtime_preset_pointer_available(runtime_preset);
     processed_preset[0] = 0u;
     auto* inline_preset = processed_preset + 8u;
@@ -3176,7 +3176,7 @@ xinn_runtime_preset_pointer_available(runtime_preset);
     std::memset(inline_preset, 0, kXinnRuntimePresetSize_35bf40);
 }
 
-void /* Decompiled name: xinn_retarget_processed_runtime_preset_backing */
+void
 xinn_retarget_processed_runtime_preset_backing(std::uint8_t* processed_preset) {
     if (!processed_preset || processed_preset[0] == 0u)
         return;
@@ -3233,7 +3233,7 @@ xinn_retarget_processed_runtime_preset_backing(std::uint8_t* processed_preset) {
     }
 }
 
-bool /* Decompiled name: xinn_engine1_initialize_static_from_spreset */
+bool
 xinn_engine1_initialize_static_from_spreset(std::uint8_t* processed_preset, std::uint64_t spreset_u64) {
     if (!processed_preset || processed_preset[0] == 0u || spreset_u64 == 0u)
         return false;
@@ -3252,7 +3252,7 @@ xinn_engine1_initialize_static_from_spreset(std::uint8_t* processed_preset, std:
     static constexpr std::uint32_t kLookupBases[6] = {3334u, 3572u, 4202u, 4440u, 5070u, 5308u};
 
     auto* engine1_words = reinterpret_cast<std::uint32_t*>(processed_preset + 1136u);
-    const std::uint8_t* portable_spreset = /* Decompiled name: xinn_portable_spreset_from_native_va */
+    const std::uint8_t* portable_spreset =
 xinn_portable_spreset_from_native_va(spreset_u64);
     const std::uint32_t* spreset_words = portable_spreset
         ? reinterpret_cast<const std::uint32_t*>(portable_spreset)
@@ -3284,7 +3284,7 @@ xinn_portable_spreset_from_native_va(spreset_u64);
     *reinterpret_cast<std::uint32_t*>(inline_storage + 0u) = min_delay;
     *reinterpret_cast<std::uint32_t*>(inline_storage + 24u) = *reinterpret_cast<const std::uint32_t*>(
         reinterpret_cast<const std::uint8_t*>(spreset_words) + 6188u);
-    /* Decompiled name: xinn_engine1_compute_type5_biquad */
+
 xinn_engine1_compute_type5_biquad(
         inline_storage,
         reinterpret_cast<const std::uint8_t*>(spreset_words));
@@ -3367,14 +3367,14 @@ xinn_engine1_compute_type5_biquad(
     return true;
 }
 
-std::uint64_t /* Decompiled name: xinn_inline_runtime_preset_from_processed_object */
+std::uint64_t
 xinn_inline_runtime_preset_from_processed_object(const std::uint8_t* processed_preset) {
     if (!processed_preset || processed_preset[0] == 0u)
         return 0u;
     return reinterpret_cast<std::uint64_t>(processed_preset + 8u);
 }
 
-bool /* Decompiled name: xinn_processed_preset_has_engine1_static_rows */
+bool
 xinn_processed_preset_has_engine1_static_rows(const std::uint8_t* processed_preset) {
     if (!processed_preset || processed_preset[0] == 0u)
         return false;
@@ -3400,7 +3400,7 @@ xinn_processed_preset_has_engine1_static_rows(const std::uint8_t* processed_pres
     return false;
 }
 
-void /* Decompiled name: xinn_retune_processed_preset */
+void
 xinn_retune_processed_preset(
     std::uint8_t* processed_preset,
     std::uint32_t mode,
@@ -3409,28 +3409,28 @@ xinn_retune_processed_preset(
         return;
     if (processed_preset[1] == kXinnProcessedPresetMarker)
         return;
-    const bool can_apply_engine1 = /* Decompiled name: xinn_processed_preset_has_engine1_static_rows */
+    const bool can_apply_engine1 =
 xinn_processed_preset_has_engine1_static_rows(processed_preset);
     if (mode == 1u && *reinterpret_cast<const std::uint32_t*>(update_blob + 68u) != 0u) {
         if (can_apply_engine1) {
-            /* Decompiled name: xinn_preset_tune_stereo */
+
 xinn_preset_tune_stereo(
                 processed_preset,
                 reinterpret_cast<const float*>(update_blob + 72u));
         } else {
-            /* Decompiled name: xinn_preset_tune_late_stereo */
+
 xinn_preset_tune_late_stereo(
                 processed_preset,
                 reinterpret_cast<const float*>(update_blob + 72u));
         }
     } else if (mode == 2u && *reinterpret_cast<const std::uint32_t*>(update_blob + 160u) != 0u) {
         if (can_apply_engine1) {
-            /* Decompiled name: xinn_preset_tune_surround */
+
 xinn_preset_tune_surround(
                 processed_preset,
                 reinterpret_cast<const float*>(update_blob + 164u));
         } else {
-            /* Decompiled name: xinn_preset_tune_late_surround */
+
 xinn_preset_tune_late_surround(
                 processed_preset,
                 reinterpret_cast<const float*>(update_blob + 164u));
@@ -3514,7 +3514,7 @@ void xinn_write_plan_update_blobs_portable(
     }
 }
 
-void /* Decompiled name: xinn_fill_v3_dynamic_from_v4_static */
+void
 xinn_fill_v3_dynamic_from_v4_static(
     std::uint8_t* dynamic_120,
     bool surround_mode,
@@ -3594,40 +3594,40 @@ std::int64_t auro_a3deng_v4_pipeline_step_upmix_XinN_prepare(
     if (mode == 1u) {
         if (plan_blob[44u] == 0u || *reinterpret_cast<const std::uint32_t*>(update_blob + 68u) != 1u)
             return 1;
-        runtime_preset = /* Decompiled name: xinn_select_native_runtime_preset_from_v4_static */
+        runtime_preset =
 xinn_select_native_runtime_preset_from_v4_static(false, plan_blob + 12u);
-        spreset = /* Decompiled name: xinn_select_native_spreset_from_v4_static */
+        spreset =
 xinn_select_native_spreset_from_v4_static(false, plan_blob + 12u);
-        /* Decompiled name: xinn_fill_v3_dynamic_from_v4_static */
+
 xinn_fill_v3_dynamic_from_v4_static(dynamic_120, false, plan_blob + 12u);
     } else if (mode == 2u) {
         if (plan_blob[92u] == 0u || *reinterpret_cast<const std::uint32_t*>(update_blob + 160u) != 1u)
             return 1;
-        runtime_preset = /* Decompiled name: xinn_select_native_runtime_preset_from_v4_static */
+        runtime_preset =
 xinn_select_native_runtime_preset_from_v4_static(true, plan_blob + 48u);
-        spreset = /* Decompiled name: xinn_select_native_spreset_from_v4_static */
+        spreset =
 xinn_select_native_spreset_from_v4_static(true, plan_blob + 48u);
-        /* Decompiled name: xinn_fill_v3_dynamic_from_v4_static */
+
 xinn_fill_v3_dynamic_from_v4_static(dynamic_120, true, plan_blob + 48u);
     } else {
         auro_matic_v3_XinN_parameter_Dynamic_t_default(dynamic_120);
     }
-    /* Decompiled name: xinn_copy_runtime_preset_into_processed_object */
+
 xinn_copy_runtime_preset_into_processed_object(processed_preset, runtime_preset);
     if (processed_preset[0] == 0u)
-        (void)/* Decompiled name: xinn_initialize_processed_preset_from_portable_spreset */
+        (void)
 xinn_initialize_processed_preset_from_portable_spreset(processed_preset, spreset);
     if (processed_preset[0] == 0u)
         return 1;
-    /* Decompiled name: xinn_retarget_processed_runtime_preset_backing */
+
 xinn_retarget_processed_runtime_preset_backing(processed_preset);
-    /* Decompiled name: xinn_engine2_initialize_static_from_spreset */
+
 xinn_engine2_initialize_static_from_spreset(processed_preset, spreset);
-    (void)/* Decompiled name: xinn_engine1_initialize_static_from_spreset */
+    (void)
 xinn_engine1_initialize_static_from_spreset(processed_preset, spreset);
-    /* Decompiled name: xinn_retune_processed_preset */
+
 xinn_retune_processed_preset(processed_preset, mode, update_blob);
-    const std::uint64_t preset = /* Decompiled name: xinn_inline_runtime_preset_from_processed_object */
+    const std::uint64_t preset =
 xinn_inline_runtime_preset_from_processed_object(processed_preset);
 
     const auto* sample_rate_words = reinterpret_cast<const std::uint32_t*>(
@@ -3669,9 +3669,9 @@ std::int64_t auro_a3deng_v4_pipeline_step_upmix_XinN_update_impl(
     if (!changed)
         return 0;
 
-    /* Decompiled name: xinn_retune_processed_preset */
+
 xinn_retune_processed_preset(step + 460096u, mode, update_blob);
-    const std::uint64_t preset = /* Decompiled name: xinn_inline_runtime_preset_from_processed_object */
+    const std::uint64_t preset =
 xinn_inline_runtime_preset_from_processed_object(step + 460096u);
     auro_matic_v3_XinN_fl32_set_preset(step + 40u, preset);
     auro_matic_v3_XinN_fl32_set_dynamic_parameters(step + 40u, step + 483832u);
@@ -4195,7 +4195,7 @@ void auro_memory_block_Accumulator_t_construct(
     (void)align;
     if (!acc)
         return;
-    // IDA 0x13A360: *a1 = xmmword_1C36B0 (нулевое начальное состояние аккумулятора).
+    // *a1 = (нулевое начальное состояние аккумулятора).
     acc[0] = 0;
     acc[1] = 0;
 }
@@ -4203,7 +4203,7 @@ void auro_memory_block_Accumulator_t_construct(
 void auro_codec_v3_Decoder_t_required_additional_memory(std::uint64_t* acc, std::uint64_t* out_pair) {
     if (!acc || !out_pair)
         return;
-    // IDA 0x101730: Config_initialize(tmp, out_pair) -> Memory_t_required_additional_memory(acc, tmp)
+    // Config_initialize(tmp, out_pair) -> Memory_t_required_additional_memory(acc, tmp)
     std::uint8_t cfg_raw[64]{};
     const auto rc = auro_codec_v3_decoder_Config_initialize(
         reinterpret_cast<std::int64_t>(cfg_raw),
@@ -4547,7 +4547,7 @@ void auro_codec_v3_Decoder_set_sync_callback(std::uint64_t* decoder_base, void* 
 void auro_codec_v3_Decoder_set_content_callback(std::uint64_t decoder_base, void* fn, void* user) {
     if (decoder_base == 0)
         return;
-    // IDA 0x101AC0 -> Parser_set_content_callback(a1+568, fn, user)
+    // Parser_set_content_callback(a1+568, fn, user)
     auto* d = reinterpret_cast<std::uint8_t*>(decoder_base);
     *reinterpret_cast<std::uint64_t*>(d + 1200u) = reinterpret_cast<std::uint64_t>(fn);   // (a1+568)+632
     *reinterpret_cast<std::uint64_t*>(d + 1208u) = reinterpret_cast<std::uint64_t>(user); // (a1+568)+640
@@ -4578,7 +4578,7 @@ void auro_codec_v3_Decoder_set_metadata_callback(std::uint64_t decoder_base, voi
 }
 
 std::uint32_t decoder_t_construct_101760(std::uint8_t* decoder_base, const void* config_init_args, void* user_ctx) {
-    // Literal перенос auro_codec_v3_Decoder_t_construct @ 0x101760.
+    // Literal перенос auro_codec_v3_Decoder_t_construct.
     // a1=decoder_base, a2=Memory args (user_ctx), a3=config_init_args в оригинале; здесь user_ctx передаём дальше.
     if (!decoder_base || !config_init_args)
         return 0;
@@ -4630,7 +4630,7 @@ std::uint32_t decoder_t_construct_101760(std::uint8_t* decoder_base, const void*
 
 
 std::int64_t process_analyser_audio(std::uint8_t* processor_base) {
-    // Literal 0xED070: return (*(a1+16))(*(a1+8));
+    // Literal: return (*(a1+16))(*(a1+8));
     using Inner = std::int64_t (*)(void*);
     auto* inner_arg = *reinterpret_cast<void**>(processor_base + kProcessor_Analyser_ctx_ptr);
     auto* fn = reinterpret_cast<Inner>(*reinterpret_cast<void**>(processor_base + kProcessor_Analyser_inner_fn));
@@ -4643,7 +4643,7 @@ std::int64_t forward_analyser_to_controller(
     std::uint8_t* output_buffer_desc) {
     if (!processor_base)
         return 2;
-    // Literal 0xDA320: только null-check и tail-call в Controller_process_audio(a1+0x140, a2, a3).
+    // Literal: только null-check и tail-call в Controller_process_audio(a1+0x140, a2, a3).
     std::uint8_t* ctrl = processor_base + kProcessor_to_Controller_audio;
     return controller_process_audio_da870(
         ctrl,
@@ -4653,7 +4653,7 @@ std::int64_t forward_analyser_to_controller(
 }
 
 std::int64_t analyser_process(std::uint8_t* processor_base, const std::uint32_t* sample_increment) {
-    // Literal 0xED500: result = (*(a1+256))(a1); *(_DWORD*)a1 += *a2; return result;
+    // Literal: result = (*(a1+256))(a1); *(_DWORD*)a1 += *a2; return result;
     using Thunk = std::int64_t (*)(std::uint8_t*);
     auto* fn = reinterpret_cast<Thunk>(*reinterpret_cast<void**>(processor_base + kProcessor_Analyser_thunk_fn));
     const std::int64_t result = fn(processor_base);
@@ -4754,7 +4754,7 @@ std::int64_t processor_process_da9ae0_minimal(
     if (vrc != 0)
         return vrc;
 
-    // 0xD9AE0 использует ratio (*a2 / a2->field_4) в timing-ветке; здесь переносим только инкремент счётчика.
+    // использует ratio (*a2 a2->field_4) в timing-ветке; здесь переносим только инкремент счётчика.
     std::uint32_t sample_increment = 0;
     if (in_desc->field_4 != 0)
         sample_increment = in_desc->total_size_bytes / in_desc->field_4;
@@ -4788,14 +4788,14 @@ void processor_update_timing_stats_da9ae0(
     if (in_desc->field_4 == 0)
         return;
 
-    // IDA 0xD9AE0: v15 = (float)(*a2) / (float)(a2->field_4)
+    // v15 = (float)(*a2) (float)(a2->field_4)
     const float input_ratio = static_cast<float>(in_desc->total_size_bytes) / static_cast<float>(in_desc->field_4);
     *reinterpret_cast<float*>(processor_base + kProcessorPerf_ratio_sum_float) += input_ratio;
 
-    // IDA 0xD9AE0: *qword_25E958 += elapsed
+    // * += elapsed
     *reinterpret_cast<std::int64_t*>(processor_base + kProcessorPerf_elapsed_sum_qword) += elapsed_ticks;
 
-    // IDA 0xD9AE0: if (elapsed < 0) special conversion via shifted halves.
+    // if (elapsed < 0) special conversion via shifted halves.
     float elapsed_f = 0.0f;
     if (elapsed_ticks < 0) {
         const std::int64_t half = static_cast<std::int64_t>((static_cast<std::uint64_t>(elapsed_ticks) >> 1) | (elapsed_ticks & 1));
@@ -4831,7 +4831,7 @@ bool auro_decoder_impl_initialize(
     std::memset(in, 0, sizeof(*in));
     std::memset(out, 0, sizeof(*out));
 
-    // IDA AuroDecoderImpl IO: total_size_bytes = sample count (not byte length).
+    // AuroDecoderImpl IO: total_size_bytes = sample count (not byte length).
     // Processor_process validate uses 32 * bytes_unit (expect unit=1) as modulo.
     in->total_size_bytes = params->block_size_samples;
     in->field_4 = static_cast<std::int32_t>(params->sample_rate);
@@ -4875,7 +4875,7 @@ std::int32_t auro_decoder_impl_decode(
     auto* out = reinterpret_cast<const ProcessorIOBufferDesc*>(impl_base + kAuroDecoderImpl_off_OutputDesc);
     auto* processor_base = impl_base + kAuroDecoderImpl_off_ProcessorInstance;
 
-    const ProcessorIoExpectDa9ae0 ex = /* Decompiled name: load_expect_da9ae0_from_impl */
+    const ProcessorIoExpectDa9ae0 ex =
 load_expect_da9ae0_from_impl(impl_base);
     const std::int32_t vrc = processor_process_validate_da9ae0(in, out, ex);
     if (vrc != 0)

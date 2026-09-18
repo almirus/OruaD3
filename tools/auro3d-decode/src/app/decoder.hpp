@@ -258,7 +258,7 @@ bool read_pcm24_interleaved_frames_i32(
     std::vector<std::int32_t>& interleaved_out,
     std::string& err);
 
-/// Реализовано по IDA: входной PCM24 слой и рабочий baseline decode/render path.
+/// Реализовано по: входной PCM24 слой и рабочий baseline decode/render path.
 class Decoder {
 public:
     /// Для сырого s24le без WAV: частота, каналы, размер блока (как в Java Initialize).
@@ -305,7 +305,7 @@ public:
     /// Path-specific detail for the last open/decode failure (may be empty).
     const std::string& last_error_detail() const { return last_error_detail_; }
 
-    /// Post-dematrix / legacy XinN upmix active after open.
+    /// Post-dematrix legacy XinN upmix active after open.
     bool meta_auromatic_upmix() const { return meta_auromatic_upmix_; }
     bool legacy_auromatic_upmix() const { return legacy_auromatic_upmix_; }
     /// >1 when XinN ran at a lower rate than the host (e.g. 96→48).

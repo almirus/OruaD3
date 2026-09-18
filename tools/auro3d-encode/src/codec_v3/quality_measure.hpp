@@ -6,7 +6,7 @@
 
 namespace auro3d::encode {
 
-/// Outputs of the per-frame lambda in ComputeQuality @ 0x4F09E0.
+/// Outputs of the per-frame lambda in ComputeQuality.
 struct NativeFrameQuality {
     double mse_db = -144.0;
     double peak_db = -144.0;
@@ -31,4 +31,4 @@ struct NativeQualityAccumulator {
     double error_level_db() const;
 };
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

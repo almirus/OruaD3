@@ -144,7 +144,7 @@ bool compute_mix2_deltas(
     std::string& error) {
     error.clear();
     deltas.clear();
-    // auro::mix::deltas mix2 @ 0x4ED0E0: require equal lengths >= 4.
+    // auro:mix:deltas mix2: require equal lengths >= 4.
     if (primary.size() < 4u || primary.size() != secondary.size()) {
         error = "mix2 deltas require matching planes of at least 4 samples";
         return false;
@@ -207,4 +207,4 @@ bool compute_mix3_deltas(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

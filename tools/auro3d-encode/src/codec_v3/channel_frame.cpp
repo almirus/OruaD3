@@ -16,8 +16,8 @@ bool write_compose_parser_block(
     std::uint8_t base_scaler_index,
     const std::vector<PrimaryDownmixGain>& primary_downmix_gains,
     const std::vector<AdolInstruction>& optional_adol) {
-    // Channel::initialize @ 0x517CD0: limit_simple (parser 65) first, then
-    // primary downmix gains (parser 64) from sub_5181E0/360/630.
+    // Channel:initialize: limit_simple (parser 65) first, then
+    // primary downmix gains (parser 64) from 360/630.
     if (!writer.write_u8(1u))
         return false;
     const auto write_adol = [&writer](const AdolInstruction& instruction) {
@@ -111,7 +111,7 @@ bool encode_channel_frame_impl(
         error = "channel frame payload prefix does not fit its native bit-line stream";
         return false;
     }
-    // a3d::serialize<CountIterator> @ 0x519410 serializes the fixed A3D
+    // a3d:serialize<CountIterator> serializes the fixed A3D
     // header, the mode-2/mode-3 extrapolate seeds, the ADOL vector and its
     // opcode-zero terminator, then context and residual data.
     if (!writer.write_extrapolate_seeds(mode, seeds)) {
@@ -285,7 +285,7 @@ bool encode_direct_channel_frame(
     }
     const std::array<std::uint32_t, 3> channel_ids = {
         source_channel_id, 255u, 255u};
-    // Native Mixer case 1 carries no residual codebook.  A zero-width
+    // Native Mixer case 1 carries no residual codebook. A zero-width
     // context is valid in ChannelParser state 20 and leaves no payload bits
     // before the CRC-covered carrier words. Rescaler can nevertheless select
     // Group+392 for a hot direct source, in which case opcode 0x41 restores
@@ -653,7 +653,7 @@ bool prepare_channel_mux_words(
     std::string& error) {
     error.clear();
     mux_words.clear();
-    // `quantization_shift` is the group bit_line. Channel::mux shifts/masks by
+    // `quantization_shift` is the group bit_line. Channel:mux shifts/masks by
     // `24 - Group+4` with Group+4 = headroom = 24 - bit_line, so the effective
     // shift equals bit_line.
     if (quantization_shift < 3u || quantization_shift > 16u) {
@@ -729,4 +729,4 @@ bool mux_channel_words(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

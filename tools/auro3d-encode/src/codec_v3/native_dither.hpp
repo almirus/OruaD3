@@ -33,7 +33,7 @@ void initialize_native_dither(
     bool seed_present,
     std::uint64_t seed);
 
-/// Adds the same saturating TPDF window selected by native dither::Pool.
+/// Adds the same saturating TPDF window selected by native dither:Pool.
 /// `shift` is Rescaler Group+24 + 8 and must be in 1..32.
 bool apply_native_dither(
     std::vector<std::int32_t>& samples,
@@ -41,4 +41,4 @@ bool apply_native_dither(
     NativeDitherState& state,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -102,4 +102,4 @@ bool seal_pcm_metadata_crc16(
     std::size_t block_start,
     std::size_t block_samples);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -43,7 +43,7 @@ bool cx_downmix_engine_plan(
         rules.push_back(rule);
     }
 
-    // Native sub_49EB20 (0x49EB20) / calculate_gains_ (0x436D80): apply rules
+    // Native calculate_gains_: apply rules
     // in order with deferred source clearing (multi-hop, e.g. Top→C→FL).
     // plan[159] must not be required to equal the target.
     std::uint32_t present = source_layout;

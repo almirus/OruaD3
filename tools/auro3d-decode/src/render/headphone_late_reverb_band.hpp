@@ -10,7 +10,7 @@
 
 namespace auro3d {
 
-// One normal-mode LateReverb band from sub_4F7934: the block is passed through
+// One normal-mode LateReverb band from: the block is passed through
 // the configured diffusion AllPass chain, then damping, and finally retained
 // in the band's MultiDelay for subsequent blocks.
 class HeadphoneLateReverbBand {

@@ -6,7 +6,7 @@ namespace auro3deng {
 
 namespace {
 
-// IDA: .rodata flt_1C3CF0 — 15 значений для powf(10, x * 0.05)
+// rodata — 15 значений для powf(10, x * 0.05)
 constexpr float kFlt1C3CF0[15] = {
     -30.0f, -27.0f, -21.0f, -18.0f, -15.0f, -12.0f, -9.0f, -6.0f,
     -3.0f, -2.0f, -1.0f, 0.0f, 1.0f, 2.0f, 3.0f,

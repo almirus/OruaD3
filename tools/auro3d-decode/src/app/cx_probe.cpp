@@ -217,7 +217,7 @@ bool read_optional_mono_top_downmix(Bits&b,AuroCxMonoTopDownmixInfo&downmix){
     if(!b.get(2,downmix.kind))return false;
     return read_mono_top_downmix_body(b,downmix);
 }
-// StereoTopDownmix_t body (0x41AEF0): kind0→2 gains; kind2|3→1 gain.
+// StereoTopDownmix_t body: kind0→2 gains; kind2|3→1 gain.
 bool read_stereo_top_downmix_body(Bits&b,AuroCxStereoTopDownmixInfo&downmix){
     unsigned count=0u;
     if(downmix.kind==0u)count=2u;
@@ -249,7 +249,7 @@ bool read_channel_downmix(Bits&b,std::uint32_t channel_id,AuroCxChannelDownmixIn
     constexpr std::uint32_t kMaskA=267382775u;
     constexpr std::uint32_t kMaskB=201556464u;
     constexpr std::uint32_t kMaskC=0xC0C01F7u;
-    // ChannelDownmix decode 0x41A6B0: id==12 → MonoTop #1/#2; bits 28|29 →
+    // ChannelDownmix decode: id==12 → MonoTop #1/#2; bits 28|29 →
     // StereoTop #3/#4 (mask 805306368). Do not treat 28/29 as MonoTop.
     if(channel_id==12u){
         downmix.mono_top.resize(2);
@@ -268,7 +268,7 @@ bool read_channel_downmix(Bits&b,std::uint32_t channel_id,AuroCxChannelDownmixIn
         }
         if(channel_id<=0x1Bu&&((kMaskB>>channel_id)&1u)){
             // Native type#7 at +152: present bit, then fixed IntegralGain count
-            // from qword_1E4EA0[channel_id-4] (see decode ~0x41AE50).
+            // from [channel_id-4] (see decode ~).
             std::uint32_t present=0;
             if(!b.get(1,present))return false;
             downmix.intra_layer_present=present!=0;

@@ -159,7 +159,7 @@ struct AhpBinauralRenderer::Impl {
     HeadphonePcaBank pca_bank;
     HeadphoneSourceManager source_manager;
     NativePeakLimiter peak_limiter;
-    // AM4HP direct-stereo / dimensional 5.0.2H Core. It owns its own dynamics
+    // AM4HP direct-stereo dimensional 5.0.2H Core. It owns its own dynamics
     // and does not use the AHP peak limiter.
     bool am4hp_core = false;
     std::uint32_t am4hp_core_layout = 0u;
@@ -209,7 +209,7 @@ bool AhpBinauralRenderer::initialize(
         err = "unsupported PCM format";
         return false;
     }
-    // Native Headphones::get_remix_layout selects AM4HP for direct stereo and
+    // Native Headphones:get_remix_layout selects AM4HP for direct stereo and
     // for the dimensional 5.0.2H layout. The latter discards the two height
     // inputs and feeds the five lower planes to Core as mask 0x37.
     const std::uint32_t am4hp_core_layout = input_mask == 3u ? 3u
@@ -419,7 +419,7 @@ bool AhpBinauralRenderer::process(
             err = "stateful AHP LFE processing failed";
             return false;
         }
-        // IDA 0x56F320..0x56F561 accumulates into output +0x10, then copies
+        // accumulates into output +0x10, then copies
         // that complete mono block to output +0x18. Manager adds its
         // ear-specific result to both existing planes afterward.
         left = lfe_output;

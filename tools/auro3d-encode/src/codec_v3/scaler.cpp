@@ -114,4 +114,4 @@ std::uint8_t validate_scaler_index(std::uint8_t index) {
     return index < 0xF0u ? index : 0xF0u;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

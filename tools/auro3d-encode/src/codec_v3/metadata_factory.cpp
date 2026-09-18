@@ -107,4 +107,4 @@ bool make_layout_metadata_block(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

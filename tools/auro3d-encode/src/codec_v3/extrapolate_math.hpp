@@ -17,4 +17,4 @@ std::int32_t codec_v3_scale_shift_clamp_pcm24(
 /// Exact signed rounding used by mix3 before residual injection.
 std::int32_t codec_v3_mix3_div4(std::int32_t previous, std::int32_t predictor);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -24,7 +24,7 @@ float linear_to_db_limit(float linear) {
 }
 
 float gain_to_scaler_packed(float gain_db) {
-    // auro::scaler::gain_to_scaler @ 0x53D830 with the packed form used by
+    // auro:scaler:gain_to_scaler with the packed form used by
     // cts_dmx_coeff_limit_: high dword = gain bits, low dword = (gain <= -inf).
     if (gain_db <= -std::numeric_limits<float>::infinity()) {
         const float v1 = -std::numeric_limits<float>::infinity();
@@ -68,7 +68,7 @@ bool cts_dmx_limiter_init(
         error = "cts dmx limiter: unknown original layout";
         return false;
     }
-    // Limiter::Limiter @ 0x505800: ChannelLimiter for every carrier channel.
+    // Limiter:Limiter: ChannelLimiter for every carrier channel.
     for (std::uint32_t ch = 0; ch < kCodecV3ChannelCount; ++ch) {
         if ((limiter.carrier_layout & (std::uint32_t{1} << ch)) == 0u)
             continue;
@@ -279,7 +279,7 @@ bool apply_cts_dmx_coeff_limit(
         }
     }
 
-    // PCM24 → float with scale 1 / ~(-1 << (bit_depth-1)) == 1/0x7FFFFF.
+    // PCM24 → float with scale 1 ~(-1 << (bit_depth-1)) == 1.
     const float pcm_scale =
         1.0f
         / static_cast<float>(
@@ -342,4 +342,4 @@ bool apply_cts_dmx_coeff_limit(
         error);
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

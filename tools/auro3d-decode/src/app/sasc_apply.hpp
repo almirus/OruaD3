@@ -20,7 +20,7 @@ struct Step {
 };
 
 // Apply SCG mixing steps to one access-unit slice of per-stream PCM.
-// Empty steps is a no-op. Matches scg::details::decode (0x495460):
+// Empty steps is a no-op. Matches scg:details:decode:
 // cross-stream cancel when step.layer < config_layer; same-stream gain when
 // step.layer >= config_layer. For full discrete schema-bed WAV use
 // config_layer=2 (not PDU source_layer).

@@ -29,7 +29,7 @@ bool native_gvm_fit_state_valid(const AnalyzedEncodeGroup& group) {
 void apply_source_original_map(
     MetadataSourceRef& source,
     const std::array<std::uint8_t, 31>* input_scaler_indices) {
-    // prepare_metadata_unit_block_ @ 0x4E60B9: tree byte at Encoder+6368/+32
+    // prepare_metadata_unit_block_: tree byte at Encoder+6368/+32
     // is stored only when non-zero.
     if (input_scaler_indices == nullptr
         || source.channel_id >= input_scaler_indices->size()) {
@@ -153,7 +153,7 @@ bool fill_case2(
         return false;
     }
     // Quantization keeps its complete level schedule, while native metadata
-    // copies only residual entries through max(index)+1.  The schedule may
+    // copies only residual entries through max(index)+1. The schedule may
     // therefore be longer than the trimmed table; it must merely cover every
     // entry that can be selected by the serialized indices.
     if (group.mix2_levels.size() < residual_count
@@ -301,7 +301,7 @@ bool fill_case3(
         error = "metadata case 3 selector capacity is below its residual table";
         return false;
     }
-    // Keep the same lower-bound rule as case 2.  The native record's
+    // Keep the same lower-bound rule as case 2. The native record's
     // residual vector is trimmed by the highest referenced index, whereas a
     // quantizer can retain a longer internal level schedule.
     if (group.mix3_levels.size() < residual_count
@@ -376,10 +376,10 @@ bool prepare_metadata_unit_header(
         error = "prepare_metadata header config fields are unsupported";
         return false;
     }
-    // prepare_metadata_unit_block_ @ 0x4E5BC0:
-    //   *a2 = shuffle(Config+4, Config+8, 225): unit_block_size at +0,
-    //   original_layout at +4; *(a2+8) = Config+32 (field_28 value);
-    //   *(a2+12) = 2561.
+    // prepare_metadata_unit_block_:
+    // *a2 = shuffle(Config+4, Config+8, 225): unit_block_size at +0,
+    // original_layout at +4; *(a2+8) = Config+32 (field_28 value);
+    // *(a2+12) = 2561.
     out.unit_block_size = unit_block_size;
     out.original_layout = original_layout;
     out.field_28 = field_28;
@@ -481,4 +481,4 @@ bool prepare_metadata_group_records(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -7,18 +7,18 @@
 namespace auro3d::encode {
 
 /// Exact sum of payload bits visible to channel_bit_reader_get_unsigned_bits
-/// across `word_count` codec words. Reserved low bits are excluded.
-/// `bitlines` is the native Projector N / BitReader width: equal to the group
+/// across `ount` codec words. Reserved low bits are excluded.
+/// `bitlines` is the native Projector N BitReader width: equal to the group
 /// bit_line (and to `24 - headroom` from the channel metadata field).
 bool codec_v3_channel_payload_capacity(
     std::uint32_t bitlines,
     std::uint32_t word_count,
     std::uint64_t& payload_bits);
 
-/// Maps group `bit_line` / Channel mux bandwidth onto native BitReader
+/// Maps group `bit_line` Channel mux bandwidth onto native BitReader
 /// bitlines. Decoder uses `24 - headroom` with headroom stored as
 /// `24 - bit_line`, which simplifies to `bit_line` itself. Accepted range is
-/// the native Projector template span 3..16; Channel::initialize also requires
+/// the native Projector template span 3..16; Channel:initialize also requires
 /// headroom `24 - bit_line >= 10` (bit_line <= 14) via set_mix_bw.
 bool codec_v3_channel_bitlines_from_quant_shift(
     std::uint32_t quant_shift,
@@ -51,4 +51,4 @@ private:
     std::uint64_t bit_count_ = 0;
 };
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -10,20 +10,20 @@ struct DefaultBitLine {
     std::uint32_t high = 0;
 };
 
-/// Direct port of encoder::default_bit_line @ 0x4F85A0. The returned pair is
+/// Direct port of encoder:default_bit_line. The returned pair is
 /// the native 64-bit packed value split into low/high words.
 bool codec_v3_default_bit_line(
     std::uint32_t profile,
     std::uint8_t parameter,
     DefaultBitLine& out);
 
-/// dword_287EF0[bit_line - 3] used by Encoder::add_ @ 0x4E76xx when
+/// [bit_line - 3] used by Encoder:add_ when
 /// 3 <= bit_line <= 14; otherwise native falls back to 80.
 bool codec_v3_bit_line_quality(
     std::uint32_t bit_line,
     std::uint32_t& quality);
 
-/// Raw 18-dword clustering defaults returned by default_clustering @ 0x4F8650.
+/// Raw 18-dword clustering defaults returned by default_clustering.
 /// Keeping the native offsets explicit avoids assigning guessed semantics to
 /// fields which are consumed later by the VQ/GVM setup.
 struct DefaultClustering {
@@ -45,7 +45,7 @@ bool codec_v3_default_clustering(
     std::uint32_t profile,
     DefaultClustering& out);
 
-/// Field-level port of cluster_deltas::GVM::configure @ 0x5029F0. The
+/// Field-level port of cluster_deltas:GVM:configure. The
 /// learner execution remains separate, but its native configuration is kept
 /// explicit so unsupported modes cannot be silently treated as defaults.
 struct NativeGvmConfiguration {
@@ -66,12 +66,12 @@ bool configure_native_gvm(
     const DefaultClustering& defaults,
     NativeGvmConfiguration& out);
 
-/// Ports backend selection in cluster_deltas::create_and_configure
-/// @ 0x5011F0. A present mode value 3 selects Quantization; every other
+/// Ports backend selection in cluster_deltas:create_and_configure
+/// A present mode value 3 selects Quantization; every other
 /// accepted configuration selects GVM.
 bool configure_native_cluster_deltas(
     const DefaultClustering& defaults,
     NativeClusterDeltasBackend& backend,
     NativeGvmConfiguration& gvm);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

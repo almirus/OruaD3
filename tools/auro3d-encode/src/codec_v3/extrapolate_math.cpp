@@ -73,4 +73,4 @@ std::int32_t codec_v3_mix3_div4(std::int32_t previous, std::int32_t predictor) {
     return arithmetic_shift_right(adjusted, 2u);
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

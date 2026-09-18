@@ -362,7 +362,7 @@ bool HeadphoneSourceManager::process(
     std::array<float, 32>& second_output) noexcept {
     if (inputs.size() != source_count_ || score_count_ == 0u)
         return false;
-    // Native 0x561DDC..0x561EC9 adds the filtered Manager contribution to
+    // Native adds the filtered Manager contribution to
     // both existing output planes. Renderer_process_float_32_ invokes LFE
     // first, so clearing here would discard the mono LFE seed.
     first_scores_.assign(score_count_, {});
@@ -375,13 +375,13 @@ bool HeadphoneSourceManager::process(
             wall_inputs[source] = filtered;
         }
         if (am4hp_profile_) {
-            // Native 0x561A30 adds raw input before WallMaterial, then stores
+            // Native adds raw input before WallMaterial, then stores
             // the filtered result in a separate delay for enabled sources.
             am4hp_input_delays_[source].add_buffer(inputs[source]);
             if (wall_material_enabled_[source] != 0u)
                 am4hp_wall_input_delays_[source].add_buffer(wall_inputs[source]);
         }
-        // Native 0x561A30 processes each explicit source immediately after
+        // Native processes each explicit source immediately after
         // its input/delay preparation, before entering the ER loop.
         for (auto& explicit_source : explicit_sources_) {
             if (explicit_source.input_slot != source)

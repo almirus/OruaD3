@@ -23,12 +23,12 @@ bool Am4hpXinnRuntime::construct(
     std::vector<std::uint8_t> xinn(4096u, 0u);
     std::vector<std::uint8_t> arena(467544u + 4096u, 0u);
     // The native Core constructor seeds this shared XinN arena before the
-    // Upmixing constructor is called.  Live capture of the exact stereo
-    // path shows the seven non-zero uint32 words below at 0x13C90; leaving
+    // Upmixing constructor is called. Live capture of the exact stereo
+    // path shows the seven non-zero uint32 words below at; leaving
     // the block zeroed changes the stateful XinN transient after construction.
     // The enclosing Core arena layout differs because the surround graph
     // owns an additional CenterSurround object before Upmixing. Live
-    // constructor capture places this record at word 20236 (0x13c30) and
+    // constructor capture places this record at word 20236 and
     // stores the original Core layout 0x37 there.
     const std::size_t native_config_offset = surround ? 0x13C30u : 0x13C90u;
     const std::uint32_t native_config_words[] = {
@@ -59,8 +59,8 @@ bool Am4hpXinnRuntime::construct(
         return false;
     }
     if (surround) {
-        // Native 0x54DD38..0x54DD7C overwrites these exact portions of the
-        // 120-byte v3 dynamic record after initialization.  Keep the other
+        // Native overwrites these exact portions of the
+        // 120-byte v3 dynamic record after initialization. Keep the other
         // fields returned by XinN intact, matching the native get-then-set.
         std::array<std::uint8_t, 120u> dynamic{};
         (void)auro3deng::auro_matic_v3_XinN_fl32_get_dynamic_parameters(
@@ -96,7 +96,7 @@ bool Am4hpXinnRuntime::construct(
 bool Am4hpXinnRuntime::process(void** channel_span_31) noexcept {
     if (!initialized_ || !channel_span_31)
         return false;
-    // Current engine (0x556440) forwards to the base XinN process, which
+    // Current engine forwards to the base XinN process, which
     // returns the nonzero Routing state on success; only a null state or an
     // unconfigured mode returns 0.
     return auro3deng::auro_matic_v3_XinN_fl32_process(

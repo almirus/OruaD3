@@ -39,4 +39,4 @@ bool assemble_carrier_unit(
     EncodedCarrierUnit& out,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

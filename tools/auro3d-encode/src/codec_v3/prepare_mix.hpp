@@ -17,7 +17,7 @@ struct EncodedGroupPcm {
     std::vector<std::int32_t> samples;
 };
 
-/// Direct scalar port of Encoder::prepare_mix_ @ 0x4E6AB0. `copy_raw` is its
+/// Direct scalar port of Encoder:prepare_mix_. `copy_raw` is its
 /// final boolean argument: false applies the native 32-bit left shift, true
 /// copies samples unchanged.
 bool prepare_mix(
@@ -26,4 +26,4 @@ bool prepare_mix(
     bool copy_raw,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -29,14 +29,14 @@ bool initialize_pool(
         return false;
     }
 
-    // Rescaler::goc_dither_pool_ seeds a temporary MT19937 with
+    // Rescaler:goc_dither_pool_ seeds a temporary MT19937 with
     // `shift + Rescaler+64`; its first output is the explicit Pool seed.
     std::mt19937 seed_generator(rescaler_seed + shift);
     pool.random.seed(seed_generator());
     pool.samples.resize(kNativeDitherPoolSamples);
 
-    // Pool @ 0x4ECC20 constructs [0, 2^shift] and the generator at
-    // 0x4ECF20 subtracts two independently reduced MT outputs.
+    // Pool constructs [0, 2^shift] and the generator at
+    // subtracts two independently reduced MT outputs.
     const std::uint64_t modulus =
         shift == 32u
         ? (std::uint64_t{1} << 32u) + 1u
@@ -73,7 +73,7 @@ void initialize_native_dither(
         : static_cast<std::uint32_t>(std::time(nullptr));
     state.config_seed_present = seed_present;
     state.config_seed = seed_present ? encoder_seed : 0u;
-    // Encoder::Encoder @ 0x4E2200 initializes its MT19937 from Config+144
+    // Encoder:Encoder initializes its MT19937 from Config+144
     // and stores the first tempered value as the Rescaler seed.
     std::mt19937 encoder_random(encoder_seed);
     state.rescaler_seed = encoder_random();
@@ -105,7 +105,7 @@ bool apply_native_dither(
         return false;
     }
 
-    // Pool::get chooses rng % (pool_size - frame_size - 1), then returns a
+    // Pool:get chooses rng % (pool_size - frame_size - 1), then returns a
     // contiguous frame-sized window. Keep the strict native upper gap.
     const std::uint32_t span = static_cast<std::uint32_t>(
         pool.samples.size() - samples.size() - 1u);
@@ -118,4 +118,4 @@ bool apply_native_dither(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

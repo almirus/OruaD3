@@ -107,9 +107,9 @@ bool validate_gain_table(
 }
 
 float cts_gain_from_table_scaler(float table_scaler) {
-    // set_dynamic_params @ 0x4E3xxx after scaler_to_ix:
-    //   v38 = -144; if (scaler > 0) v38 = max(20*log10(scaler), -144);
-    //   Encoder+6384 = -v38;
+    // set_dynamic_params after scaler_to_ix:
+    // v38 = -144; if (scaler > 0) v38 = max(20*log10(scaler), -144);
+    // Encoder+6384 = -v38;
     float v38 = -144.0f;
     if (table_scaler > 0.0f)
         v38 = std::fmax(std::log10(table_scaler) * 20.0f, -144.0f);
@@ -286,4 +286,4 @@ bool apply_dynamic_loudness_measurements(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -9,7 +9,7 @@ bool codec_v3_channel_payload_capacity(
     std::uint32_t word_count,
     std::uint64_t& payload_bits) {
     payload_bits = 0;
-    // Native Projector templates exist for N=3..16. Channel::initialize's
+    // Native Projector templates exist for N=3..16. Channel:initialize's
     // set_mix_bw also rejects headroom below 10 (bit_line above 14).
     if (bitlines < 3u || bitlines > 16u)
         return false;
@@ -121,4 +121,4 @@ bool ChannelBitWriter::write_signed(std::int32_t value, std::uint32_t bit_count)
     return write_unsigned(masked, bit_count);
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

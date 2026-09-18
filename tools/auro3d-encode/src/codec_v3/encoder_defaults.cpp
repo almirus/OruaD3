@@ -34,7 +34,7 @@ bool codec_v3_default_bit_line(
 }
 
 bool codec_v3_bit_line_quality(std::uint32_t bit_line, std::uint32_t& quality) {
-    // Native Encoder::add_: if (bit_line - 3 <= 0xB) use dword_287EF0[bit_line - 3], else 80.
+    // Native Encoder:add_: if (bit_line - 3 <= 0xB) use [bit_line - 3], else 80.
     static constexpr std::uint32_t kTable[12] = {
         15u, 20u, 40u, 60u, 80u, 100u, 120u, 140u, 160u, 180u, 200u, 220u,
     };
@@ -51,7 +51,7 @@ bool codec_v3_default_clustering(
     DefaultClustering& out) {
     out = {};
     // default_clustering initializes +8, +32, and +36 before selecting the
-    // profile-specific table.  The writes below preserve the exact native
+    // profile-specific table. The writes below preserve the exact native
     // byte offsets (all values are dwords) without inventing field names.
     out.words[2] = 1u;
     out.words[8] = 1u;
@@ -105,7 +105,7 @@ bool configure_native_gvm(
     const DefaultClustering& defaults,
     NativeGvmConfiguration& out) {
     out = {};
-    // GVM::configure initializes dword +64 to 65793 (0x00010101)
+    // GVM:configure initializes dword +64 to 65793 (0x00010101)
     // before applying the optional pairs.
     out.flag_64 = true;
     out.flag_65 = true;
@@ -154,4 +154,4 @@ bool configure_native_cluster_deltas(
     return configure_native_gvm(defaults, gvm);
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

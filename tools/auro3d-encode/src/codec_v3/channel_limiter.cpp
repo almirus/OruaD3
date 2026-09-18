@@ -10,7 +10,7 @@ namespace {
 constexpr float kNativeMaxGain = 0.9885531067848206f;
 
 float release_smooth(const ChannelLimiter& limiter, float previous, float target) {
-    // get_next_dmx_coeff_with_release @ 0x506C30
+    // get_next_dmx_coeff_with_release
     if (previous <= target) {
         const float released = limiter.release * previous;
         if (target <= released)
@@ -28,7 +28,7 @@ void distribute_gain_3(
     float mag0,
     float mag1,
     float mag2) {
-    // distribute_gain_3_ @ 0x506F90
+    // distribute_gain_3_
     const float max_gain = limiter.max_gain;
     float scale2 = 1.0f;
     float scale1 = mag1 > max_gain ? max_gain / mag1 : 1.0f;
@@ -172,7 +172,7 @@ bool channel_limiter_dmx_limit_coeff2(
         return false;
     }
 
-    // dmx_limit_coeff (2-source) @ 0x506880
+    // dmx_limit_coeff (2-source)
     float common_scale = 1.0f;
     const float dist = limiter.distribution_factor;
     if (std::fabs(dist + -0.5f) < 0.001f && limiter.sample_count != 0u) {
@@ -326,4 +326,4 @@ bool channel_limiter_dmx_limit_coeff3(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

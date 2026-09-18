@@ -9,7 +9,7 @@
 namespace auro3d::encode {
 
 /// Native 36-byte measurement copied into schedule entry+20 by
-/// Encoder::get_dynamic_params / downmix_ follow-up @ 0x4E3xxx.
+/// Encoder:get_dynamic_params downmix_ follow-up.
 struct LoudnessMeasurement {
     std::uint32_t type = 0;
     bool value_absent = false;
@@ -31,7 +31,7 @@ struct LoudnessScheduleEntry {
     bool enabled = false;
 };
 
-/// Default six-entry schedule from Encoder construct path @ 0x4E2xxx:
+/// Default six-entry schedule from Encoder construct path:
 /// types 5,4,0,1,2,3 with periods trunc(0.0833*sr), trunc(0.3125*sr),
 /// and trunc(0.9583*sr) for the rest. Entries start disabled.
 std::vector<LoudnessScheduleEntry> make_default_loudness_schedule(
@@ -44,7 +44,7 @@ bool apply_loudness_measurement(
     const LoudnessMeasurement& measurement,
     std::string& error);
 
-/// Encoder::select_loudness_ @ 0x4E48xx. `unit_start_sample` is Encoder+6336
+/// Encoder:select_loudness_. `unit_start_sample` is Encoder+6336
 /// (sample cursor before this unit). On success, `present` mirrors +12712 and
 /// `out` holds the selected LoudnessMetadata when present.
 bool select_loudness(
@@ -54,4 +54,4 @@ bool select_loudness(
     LoudnessMetadata& out,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

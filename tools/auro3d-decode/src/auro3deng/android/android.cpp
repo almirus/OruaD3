@@ -962,7 +962,7 @@ bool a3deng_has_api_and_instance_31b4e0(const std::uint8_t* a3deng_base) {
     return api != 0u && instance != 0u;
 }
 
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_valid */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_valid(
     const std::uint8_t* a3deng_base) {
     return a3deng_has_api_and_instance_31b4e0(a3deng_base) ? 1 : 0;
@@ -1286,7 +1286,7 @@ std::int64_t auro_a3deng_v4_android_A3DENG_AuroIsValid(
     std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return 0;
-    return /* Decompiled name: auro_a3deng_v4_android_A3DENG_valid */
+    return
 auro_a3deng_v4_android_A3DENG_valid(a3deng_base);
 }
 
@@ -1561,7 +1561,7 @@ std::uint64_t auro_a3deng_v4_android_A3DENG_get_output_info(
     std::uint8_t* a3deng_base) {
     if (!a3deng_has_api_and_instance_31b4e0(a3deng_base))
         return 0u;
-    // IDA @ 0x31B4E0: (output_block_count << 32) | (this+52 & 0xFFFFFF00) | (uint8_t)this+52.
+    // (output_block_count << 32) | (this+52 & 0xFFFFFF00) | (uint8_t)this+52.
     const std::uint32_t pipeline_field =
         a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_pipeline_audio_block_size);
     return (static_cast<std::uint64_t>(a3deng_output_block_count_31b4e0(a3deng_base)) << 32u)
@@ -2032,7 +2032,7 @@ OutputGeneratorExtrapolateSources output_generator_select_extrapolate_sources_10
     out.src1 = select_ptr(i1);
     out.src2 = select_ptr(i2);
 
-    // IDA fallback: scratch + N*total_samples (в int32 -> 4*offset по байтам на уровне вызова Extrapolate_process уже учтено).
+    // fallback: scratch + N*total_samples (в int32 -> 4*offset по байтам на уровне вызова Extrapolate_process уже учтено).
     if (!out.src0)
         out.src0 = scratch_base + 0ull * 4ull * total_samples;
     if (!out.src1)

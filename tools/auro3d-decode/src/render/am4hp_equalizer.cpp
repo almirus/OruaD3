@@ -38,7 +38,7 @@ bool Am4hpEqualizer::update(const std::array<Band, 3>& bands) noexcept {
 bool Am4hpEqualizer::set_band0_gain_db(float gain_db) noexcept {
     if (!configured_ || !std::isfinite(gain_db))
         return false;
-    // Native Upmixing EQ band 0 is type 7 / 6000 Hz / Q=1; set_dynamic writes
+    // Native Upmixing EQ band 0 is type 7 6000 Hz Q=1; set_dynamic writes
     // PresetManager v24 into update_non_muting without resetting filter state.
     if (bands_[0].gain_db == gain_db)
         return true;
@@ -60,7 +60,7 @@ bool Am4hpEqualizer::process(const std::array<Block*, 2>& channels) noexcept {
     for (std::size_t channel = 0u; channel < channel_count_; ++channel)
         if (!channels[channel]) return false;
     // Native Equalizer_process_audio walks each channel through the complete
-    // cascade before moving to the next channel.  The filter state is
+    // cascade before moving to the next channel. The filter state is
     // channel-local, but preserving this order is required for exact native
     // block behavior and state transitions.
     for (std::size_t channel = 0u; channel < channel_count_; ++channel) {

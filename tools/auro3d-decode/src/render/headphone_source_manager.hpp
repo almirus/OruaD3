@@ -14,7 +14,7 @@
 
 namespace auro3d {
 
-// Stateful source_Manager process recovered at sub_561A30. This implementation
+// Stateful source_Manager process recovered at. This implementation
 // accepts only captured mode-0/mode-2 HPv2 graphs at native-accepted rates.
 class HeadphoneSourceManager {
 public:

@@ -10,14 +10,14 @@
 
 namespace auro3d::encode {
 
-/// Encoder+6384 / limit_new gain table entry: float dB + present byte.
+/// Encoder+6384 limit_new gain table entry: float dB + present byte.
 struct CtsGainEntry {
     float gain_db = 0.0f;
     bool present = false;
 };
 
-/// auro::codec::v3::cts::dmx::Limiter subset used by limit_new @ 0x5058D0.
-/// Large cts::Limiter objects at +16 are unused by limit_new and omitted.
+/// auro:codec:v3:cts:dmx:Limiter subset used by limit_new.
+/// Large cts:Limiter objects at +16 are unused by limit_new and omitted.
 struct CtsDmxLimiter {
     std::uint32_t original_layout = 0;
     std::uint32_t carrier_layout = 0;
@@ -26,7 +26,7 @@ struct CtsDmxLimiter {
     std::array<bool, kCodecV3ChannelCount> limiter_enabled{};
 };
 
-/// Limiter::Limiter @ 0x505800 for the ChannelLimiter array path.
+/// Limiter:Limiter for the ChannelLimiter array path.
 bool cts_dmx_limiter_init(
     CtsDmxLimiter& limiter,
     std::uint32_t original_layout,
@@ -34,7 +34,7 @@ bool cts_dmx_limiter_init(
     std::int32_t sample_rate,
     std::string& error);
 
-/// Limiter::limit_new @ 0x5058D0. `float_planes[ch]` must be non-null for
+/// Limiter:limit_new. `float_planes[ch]` must be non-null for
 /// every original-layout channel that participates in an arity-2/3 group.
 bool cts_dmx_limit_new(
     CtsDmxLimiter& limiter,
@@ -43,7 +43,7 @@ bool cts_dmx_limit_new(
     std::array<CtsGainEntry, kCodecV3ChannelCount>& output_gains,
     std::string& error);
 
-/// Encoder::cts_dmx_coeff_limit_ @ 0x4E70E0 without the Encoder object:
+/// Encoder:cts_dmx_coeff_limit_ without the Encoder object:
 /// PCM24→float, limit_new, then gain_to_scaler/scaler_to_ix into the caller
 /// scaler-index table (Encoder+6368 tree). Does not divide PCM; downmix_
 /// applies that afterward.
@@ -66,4 +66,4 @@ bool apply_cts_dmx_coeff_limit(
     std::array<std::uint8_t, kCodecV3ChannelCount>& scaler_indices,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

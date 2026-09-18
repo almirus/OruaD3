@@ -19,4 +19,4 @@ bool codec_v3_channel_config_to_carrier_layout(
     std::uint8_t config_id,
     std::uint32_t& carrier_layout);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

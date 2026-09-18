@@ -199,7 +199,7 @@ bool pack_channel_context_values(
 bool codec_v3_channel_bitlines_from_quant_shift(
     std::uint32_t quant_shift,
     std::uint32_t& bitlines) {
-    // `quant_shift` here is the group bit_line retained on EncodedGroupPcm /
+    // `quant_shift` here is the group bit_line retained on EncodedGroupPcm
     // EncodedChannelFrame. Decoder BitReader width is `24 - headroom` with
     // headroom `24 - bit_line`, i.e. bitlines == bit_line.
     bitlines = quant_shift;
@@ -251,7 +251,7 @@ bool ChannelPayloadWriter::write_extrapolate_seeds(
     const std::size_t expected = mode == 3u ? 5u : mode == 2u ? 2u : 0u;
     if (seeds.size() != expected)
         return false;
-    // a3d::serialize<Projector::Iterator> @ 0x51D010 writes the two-value
+    // a3d:serialize<Projector:Iterator> writes the two-value
     // mode-2 vector in decoder-frame order: element 1 first, then element 0.
     // The mix2 seed vector at Group+616 remains in mixer order; only its wire
     // representation is reversed. Mode 3 has its own five-value order.
@@ -438,4 +438,4 @@ std::uint16_t ChannelPayloadWriter::stored_crc_word() const {
     return crc.stored_word();
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

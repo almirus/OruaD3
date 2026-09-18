@@ -7,7 +7,7 @@ namespace auro3d {
 
 std::uint32_t check_am4hp_static_parameters(
     const Am4hpStaticParameters& p) noexcept {
-    // auro_matic_hp_v4_CoreProcessor_check_static_parameters @ 0x5497E0.
+    // auro_matic_hp_v4_CoreProcessor_check_static_parameters.
     if (p.sample_rate != 48000u && p.sample_rate != 44100u)
         return 303u;
     if ((p.layout_mask & 0xFFFFFFC3u) != 3u)
@@ -111,7 +111,7 @@ Am4hpDynamicUpdatePlan plan_am4hp_dynamic_update(
         plan.action = Am4hpDynamicUpdateAction::force_dynamic;
     } else if (plan.preset_changed
         && (linear_fader_state == 0u || linear_fader_state == 2u)) {
-        // Native: (get_state() & 0xFFFFFFFD) == 0, then set_direction(1).
+        // Native: (get_state & 0xFFFFFFFD) == 0, then set_direction(1).
         plan.action = Am4hpDynamicUpdateAction::start_linear_fade;
     } else {
         plan.action = Am4hpDynamicUpdateAction::apply_in_place;

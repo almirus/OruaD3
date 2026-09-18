@@ -5,7 +5,7 @@
 
 namespace auro3d {
 
-// The native AM4HP CenterFront stage processes one 32-sample quantum.  The
+// The native AM4HP CenterFront stage processes one 32-sample quantum. The
 // Centergen state is kept separately from the two post filters so reset and
 // parameter updates have the same lifetime as the native object.
 class Am4hpCenterFront {
@@ -22,9 +22,9 @@ public:
     void reset_audio_state() noexcept;
 
     // input_pair is the native two-plane Centergen in/out pair and is mutated
-    // in place.  If
+    // in place. If
     // external_center is non-null, native bit 2 selects it instead of the
-    // generated center.  scaled_center is the native a5 output; filtered is
+    // generated center. scaled_center is the native a5 output; filtered is
     // the native a4 output after both stateful biquads.
     bool process(Block& input0,
                  Block& input1,

@@ -109,7 +109,7 @@ bool select_loudness(
         if (!due)
             continue;
 
-        // from_loudness @ 0x4FFA90 + loudness::codec::encode @ 0x4FFDD0.
+        // from_loudness + loudness:codec:encode.
         if (entry.measurement.type > 5u) {
             error = "loudness schedule measurement type is invalid";
             return false;
@@ -131,4 +131,4 @@ bool select_loudness(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -8,7 +8,7 @@
 
 namespace auro3d::encode {
 
-/// One explicit ADOL instruction.  The decoder accepts either one scalar
+/// One explicit ADOL instruction. The decoder accepts either one scalar
 /// payload or the 0x40 two-byte form; this representation keeps both forms
 /// distinguishable and deliberately supplies no semantic defaults.
 struct AdolInstruction {
@@ -36,4 +36,4 @@ bool write_adol_block(
     PcmMetadataFalseWriter& writer,
     const std::vector<AdolInstruction>& instructions);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

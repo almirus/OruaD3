@@ -6,10 +6,10 @@
 namespace auro3d {
 
 // Native A3DENG PeakLimiter: auro_compressor_v1 Processor, linked, float32.
-// PeakLimiter::prepare @ libauro 0x360950 installs
+// PeakLimiter:prepare libauro installs
 // {attack=0, release=0.15, ratio=50, knee=0 dB, threshold=-0.5 dB}.
-// Linked max is taken first (sub_595730), PeakFollower updates the envelope
-// (0x599A70), then the 32-sample look-ahead gain computer (sub_5980E0 with
+// Linked max is taken first, PeakFollower updates the envelope
+// , then the 32-sample look-ahead gain computer (with
 // a3[3]==1) writes one gain lane that is applied to every channel.
 class NativePeakLimiter {
 public:

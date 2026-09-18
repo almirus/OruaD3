@@ -46,10 +46,10 @@ bool make_carrier_unit(
     CarrierUnit& unit,
     std::string& error);
 
-/// Mirrors the descriptor validation at native Encoder::encode @ 0x4E4330.
+/// Mirrors the descriptor validation at native Encoder:encode.
 bool validate_encoder_frame_contract(
     const ConstFrameDescriptor& original,
     const MutableFrameDescriptor& carrier,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -7,7 +7,7 @@
 
 namespace auro3d::encode {
 
-/// Five state words emitted by the native mix3 mixer @ 0x4EE540.
+/// Five state words emitted by the native mix3 mixer.
 struct Mix3MixerSeeds {
     std::array<std::int32_t, 5> values{};
 };
@@ -38,4 +38,4 @@ bool pack_mix3_residual_table(
     std::vector<std::int64_t>& packed,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

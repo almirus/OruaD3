@@ -26,4 +26,4 @@ bool pack_golomb_errors(
     std::vector<std::uint32_t>& packed,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

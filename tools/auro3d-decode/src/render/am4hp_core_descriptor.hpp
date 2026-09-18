@@ -8,7 +8,7 @@
 namespace auro3d {
 
 // Address-free representation of the 17 x __m128 (34 qword) descriptor
-// consumed by the native AM4HP CoreProcessor.  The wrapper expands the
+// consumed by the native AM4HP CoreProcessor. The wrapper expands the
 // physical mask into an ascending compact pointer list at qwords 2..32.
 class Am4hpCoreDescriptor {
 public:

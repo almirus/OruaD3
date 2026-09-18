@@ -64,4 +64,4 @@ std::uint32_t NativeQualityFilter::check(
     return second.quality <= first.quality ? 2u : 0u;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

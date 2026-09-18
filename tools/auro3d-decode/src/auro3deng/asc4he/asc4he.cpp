@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstring>
 
-// Native auro_centergen_v3_Processor_set_dynamic_parameters @ 0x5871D0.
+// Native auro_centergen_v3_Processor_set_dynamic_parameters.
 // Copies the 56-byte dynamic payload into proc+20..+75, then derives the
 // per-block gains, thresholds, ranges and ring lengths the float32 process
 // reads. The float32 (mode 1) layout is the only one this port processes; the
@@ -49,7 +49,7 @@ static void auro_centergen_v3_Processor_set_dynamic_parameters_5871d0_body(
     write_f32(152u, v24);
     write_f32(160u, std::max(v25 - v24, 0.00000011920929f));
 
-    // Ring lengths in 32-sample quanta: trunc(rate * seconds) / 32, min 1.
+    // Ring lengths in 32-sample quanta: trunc(rate * seconds) 32, min 1.
     const std::int32_t sample_rate =
         *reinterpret_cast<const std::int32_t*>(a1 + 80u);
     const std::int32_t divisor =

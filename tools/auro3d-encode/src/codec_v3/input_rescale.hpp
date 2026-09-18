@@ -36,4 +36,4 @@ bool apply_input_rescale_from_indices(
     const std::array<std::uint8_t, 31>& scaler_indices,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

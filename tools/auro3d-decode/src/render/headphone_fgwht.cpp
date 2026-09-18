@@ -13,8 +13,8 @@ float rounded_product(float first, float second) noexcept {
     return product;
 }
 
-// Android 10's x86_64 libm uses double-precision range reduction and compact
-// sine/cosine kernels for sinf/cosf.  The MSVC CRT differs by one ulp for some
+// Android 10's libm uses double-precision range reduction and compact
+// sine/cosine kernels for sinf/cosf. The MSVC CRT differs by one ulp for some
 // angles, so preserve the constants and instruction ordering observed in the
 // emulator's libm.so.
 float bionic_kernel_sindf(double x) noexcept {

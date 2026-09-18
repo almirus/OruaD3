@@ -98,7 +98,7 @@ bool assemble_carrier_unit(
     out.metadata_channel_id = metadata_channel_id;
     out.metadata = metadata;
     out.channels = channels;
-    // Channel::mux already projected and closed each complete A3D stream.
+    // Channel:mux already projected and closed each complete A3D stream.
     // Keep the returned diagnostic frames synchronized with those final
     // carrier spans without applying a second metadata writer.
     for (EncodedChannelFrame& channel : out.channels) {
@@ -114,4 +114,4 @@ bool assemble_carrier_unit(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -64,20 +64,20 @@ const std::array<std::int64_t, 111>& default_downmix_gains() {
     return gains;
 }
 
-// compensate_channel_gains (0x4349A0): truncating Q23 multiply via `/ 0x800000`.
+// compensate_channel_gains: truncating Q23 multiply via `/ `.
 std::int64_t multiply_q23(std::int64_t left, std::int64_t right) {
     return left * right / kUnityGain;
 }
 
-// calculate_gains_ (0x436D80) +3576/+3577 post-scale and same-stream
-// coefficient update in sub_49EB20: bias negative products then `>> 23`.
+// calculate_gains_ +3576/+3577 post-scale and same-stream
+// coefficient update in: bias negative products then `>> 23`.
 std::int64_t multiply_q23_rounded(std::int64_t left, std::int64_t right) {
     const std::int64_t product = left * right;
     const std::int64_t biased = product < 0 ? product + 0x7FFFFF : product;
     return biased >> 23;
 }
 
-// details::inv_sqrt (0x433C20): qword_1DB190[n-1] for n in 1..4.
+// details:inv_sqrt: [n-1] for n in 1..4.
 std::int64_t inv_sqrt_q23(unsigned n) {
     static const std::int64_t kTable[4] = {8388608, 5931642, 4843165, 4194304};
     if (n < 1u || n > 4u)
@@ -85,7 +85,7 @@ std::int64_t inv_sqrt_q23(unsigned n) {
     return kTable[n - 1u];
 }
 
-// Downmixer::set_mono_top_ (0x435580). mono_top[0] → gains[16..23];
+// Downmixer:set_mono_top_. mono_top[0] → gains[16..23];
 // mono_top[1] → gains[24..31] (Downmixer byte offsets 160..280, −4).
 bool apply_mono_top_downmix(
     const AuroCxMonoTopDownmixInfo& mono,
@@ -167,7 +167,7 @@ bool apply_mono_top_downmix(
     return put(1, s3) && put(2, s3) && put(3, s3);
 }
 
-// Downmixer::set_stereo_top_ (0x435C50). ChannelDownmix +80 → gains even/odd
+// Downmixer:set_stereo_top_. ChannelDownmix +80 → gains even/odd
 // slots 0..6; +104 → slots 8..12. channel_id==29 selects the odd twin slots
 // (native a3==29 → +8 byte stride). gains[i] ↔ Downmixer+(32+8*i).
 bool apply_stereo_top_downmix(
@@ -273,8 +273,8 @@ bool apply_stereo_top_downmix(
     return put(0, s0);
 }
 
-// Native auro::cx::downmix::layout_dimension (0x433C60): map
-// auro_channel_Layout_dimension through dword_1DC710 = {1,1,2,3}.
+// Native auro:cx:downmix:layout_dimension: map
+// auro_channel_Layout_dimension through = {1,1,2,3}.
 std::uint32_t cx_downmix_layout_dimension(std::uint32_t layout) {
     static const std::uint32_t kMap[4] = {1u, 1u, 2u, 3u};
     const std::uint32_t masked = layout & 0xFFFFEFFFu;
@@ -290,7 +290,7 @@ std::uint32_t cx_downmix_layout_dimension(std::uint32_t layout) {
     return raw <= 3u ? kMap[raw] : 0u;
 }
 
-// Downmixer::set_layout_independent_gains_ (0x434EA0). Table slots are
+// Downmixer:set_layout_independent_gains_. Table slots are
 // Downmixer qword indices minus 4 (gain table starts at byte +32).
 bool apply_layout_independent_gains(
     std::uint32_t channel_id,
@@ -418,8 +418,8 @@ bool apply_layout_independent_gains(
     return true;
 }
 
-// Downmixer::add_2d_to_1d_src_gains_ (0x4354C0) + set_2d_to_1d_src_gains_
-// (0x435370) when layout dims are 2d→1d (flag at Downmixer+3577).
+// Downmixer:add_2d_to_1d_src_gains_ + set_2d_to_1d_src_gains_
+// when layout dims are 2d→1d (flag at Downmixer+3577).
 // append_: no-height uses gain0; height uses gain1 into the same +2408 table.
 bool apply_2d_to_1d_src_gains(
     std::uint32_t channel_id,
@@ -464,8 +464,8 @@ bool apply_2d_to_1d_src_gains(
     return true;
 }
 
-// Downmixer::add_3d_to_2d_src_gains_ (0x435520) + set_3d_to_2d_src_gains_
-// (0x435230) / calculate_ when +3576 (src_dim>=3 && tgt_dim<3).
+// Downmixer:add_3d_to_2d_src_gains_ + set_3d_to_2d_src_gains_
+// calculate_ when +3576 (src_dim>=3 && tgt_dim<3).
 // Slots are Downmixer qword indices minus 4.
 bool apply_3d_to_2d_src_gains(
     std::uint32_t channel_id,
@@ -513,9 +513,9 @@ bool apply_3d_to_2d_src_gains(
     return true;
 }
 
-// Planner::compute_ (0x49D840) linked-object branch after level-2:
-// get_object_group_ref_gain → ObjectRenderer::compute_panning_gains
-// (0x4BF010 / ESPCAP RoomCentricPanner) → steps with layer=2.
+// Planner:compute_ linked-object branch after level-2:
+// get_object_group_ref_gain → ObjectRenderer:compute_panning_gains
+// (/ ESPCAP RoomCentricPanner) → steps with layer=2.
 // Corpus MP4s have object_groups=0; keep syntax/validation and fail only
 // at the identified unported ESPCAP panning call.
 bool append_linked_object_steps(
@@ -561,7 +561,7 @@ bool append_linked_object_steps(
                 return false;
             }
             // Native emits one ObjectRenderer (296 bytes) per object in
-            // Planner::initialize, then compute_panning_gains per object.
+            // Planner:initialize, then compute_panning_gains per object.
             error =
                 "SASC linked-object ObjectRenderer::compute_panning_gains "
                 "(ESPCAP 0x4BF010) not ported";
@@ -612,7 +612,7 @@ bool build_channel_bed_plan(
         error = "SASC channel-bed layout is empty";
         return false;
     }
-    // Downmixer::initialize (0x4363D0): byte+1 set when source has height bits.
+    // Downmixer:initialize: byte+1 set when source has height bits.
     has_height_source = (source_layout & 0x33E3FE00u) != 0u;
 
     std::array<std::int64_t, 111> base_gains = default_downmix_gains();
@@ -620,8 +620,8 @@ bool build_channel_bed_plan(
         const auto& channel = *entry.second;
         if (!channel.downmix_present)
             continue;
-        // Downmixer::append_ (0x4365F0): set_mono_top_ (0x435580) then
-        // set_stereo_top_ (0x435C50); layout-independent + 2d/3d gains follow.
+        // Downmixer:append_: set_mono_top_ then
+        // set_stereo_top_; layout-independent + 2d/3d gains follow.
         if (channel.downmix.mono_top.size() >= 1u &&
             !apply_mono_top_downmix(
                 channel.downmix.mono_top[0], false, base_gains, error))
@@ -630,7 +630,7 @@ bool build_channel_bed_plan(
             !apply_mono_top_downmix(
                 channel.downmix.mono_top[1], true, base_gains, error))
             return false;
-        // set_stereo_top_ (0x435C50): schema types #3/#4 for channels 28/29.
+        // set_stereo_top_: schema types #3/#4 for channels 28/29.
         // stereo_top[0]=+80, stereo_top[1]=+104; id 29 selects odd slots.
         if (channel.downmix.stereo_top.size() >= 1u &&
             !apply_stereo_top_downmix(
@@ -659,7 +659,7 @@ bool build_channel_bed_plan(
             const std::int64_t scaler =
                 cx::gain_to_scaler_q23(channel.downmix.gains[0]);
             if (!has_height_source) {
-                // append_ LABEL_27: 2d→1d destination post-scale at +1416.
+                // append_: 2d→1d destination post-scale at +1416.
                 if (channel.id <= 1u)
                     dest_post_scale_2d1d[channel.id] = scaler;
             } else {
@@ -686,12 +686,12 @@ bool build_channel_bed_plan(
         }
     }
 
-    // Planner::initialize (0x49D3F0): get_layouts(linked!=0, bed_layout).
+    // Planner:initialize: get_layouts(linked!=0, bed_layout).
     // Linked beds mask with 0xFFEFFFF7 before deriving SCG levels.
     const ScgLayouts layouts =
         get_scg_layouts(has_linked_objects, source_layout);
     std::uint32_t current_layout = source_layout;
-    // Planner::compute_ (0x49D840) calls sub_49EB20 for levels 2/1/0, then
+    // Planner:compute_ calls for levels 2/1/0, then
     // inserts linked-object panning steps between level 2 and level 1.
     // Without linked objects level 2 is identity (source==target) and is
     // skipped; with the linked mask it may demote bits before objects run.
@@ -925,9 +925,9 @@ bool build_plans(
         if (!validate_object_metadata(schema, group, error))
             return false;
 
-    // Planner::initialize (0x49D3F0) invokes compute_ only for the channel-bed
+    // Planner:initialize invokes compute_ only for the channel-bed
     // configuration flag. Processor keeps the SCG context at +168 and run_
-    // (0x492AA0) decodes it on later AUs without recreating it. Therefore an
+    // decodes it on later AUs without recreating it. Therefore an
     // AU with config_flag=0 retains the preceding plan; its channel-set vectors
     // are still consumed by the sample-rate decoder.
     if (!pdu.sasc_config_flag)
@@ -935,7 +935,7 @@ bool build_plans(
 
     steps.clear();
 
-    // header_value 0 = object-group PDU: not Planner::compute_ (needs bed).
+    // header_value 0 = object-group PDU: not Planner:compute_ (needs bed).
     // header_value 2 = ambisonics bed: rejected inside build_channel_bed_plan.
     if (pdu.header_value != 1) {
         error =

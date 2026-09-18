@@ -252,7 +252,7 @@ bool mix3_mixer_reconstruct(
     if (!error.empty())
         return false;
     seeds.values[0] = sub_wrap(secondary[0], r00);
-    // auro::mix::mix3 @ 0x4EE870 stores the two components selected by
+    // auro:mix:mix3 stores the two components selected by
     // indices[0] in seed slots 0/1. Using the first component selected by
     // indices[1] here corrupts the decoder's initial extrapolate state.
     seeds.values[1] = sub_wrap(tertiary[0], r01);
@@ -265,4 +265,4 @@ bool mix3_mixer_reconstruct(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

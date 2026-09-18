@@ -6,18 +6,18 @@ std::int64_t auro_asc4he_v1_Crossover_initialize(
     if (!a1)
         return 1;
     std::memset(a1, 0, kAsc4heCrossoverStateBytes);
-    auto* const lr500 = /* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_t_construct */
+    auto* const lr500 =
 auro_iir_w32_LinkwitzRiley_4th_t_construct(a1, a2, 2, a4, 500.0f);
-    auto* const lr6000 = /* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_t_construct */
+    auto* const lr6000 =
 auro_iir_w32_LinkwitzRiley_4th_t_construct(a1 + 239u, a2, 2, a4, 6000.0f);
     if (!lr500 || !lr6000)
         return 1;
     *reinterpret_cast<std::uint64_t*>(a1 + 480u) = reinterpret_cast<std::uint64_t>(lr500);
     *reinterpret_cast<std::uint64_t*>(a1 + 488u) = reinterpret_cast<std::uint64_t>(lr6000);
     *reinterpret_cast<std::uint64_t*>(a1 + 496u) = a3 ? 0x542020u : 0x5423B0u;
-    (void)/* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_reset_audio_state */
+    (void)
 auro_iir_w32_LinkwitzRiley_4th_reset_audio_state(lr500);
-    (void)/* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_reset_audio_state */
+    (void)
 auro_iir_w32_LinkwitzRiley_4th_reset_audio_state(lr6000);
     return 0;
 }
@@ -29,9 +29,9 @@ std::int64_t auro_asc4he_v1_Crossover_reset_audio_state(std::uint8_t* a1) {
         static_cast<std::uintptr_t>(*reinterpret_cast<const std::uint64_t*>(a1 + 480u)));
     auto* const lr6000 = reinterpret_cast<std::uint8_t*>(
         static_cast<std::uintptr_t>(*reinterpret_cast<const std::uint64_t*>(a1 + 488u)));
-    (void)/* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_reset_audio_state */
+    (void)
 auro_iir_w32_LinkwitzRiley_4th_reset_audio_state(lr500);
-    return /* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_reset_audio_state */
+    return
 auro_iir_w32_LinkwitzRiley_4th_reset_audio_state(lr6000);
 }
 
@@ -67,7 +67,7 @@ std::int64_t auro_asc4he_v1_Crossover_process(
     float* const top0 = (a5 && a5[0]) ? reinterpret_cast<float*>(static_cast<std::uintptr_t>(a5[0])) : tmp_top0;
     float* const top1 = (a5 && a5[1]) ? reinterpret_cast<float*>(static_cast<std::uintptr_t>(a5[1])) : tmp_top1;
     std::uint64_t high_pair[2]{asc4he_u64_ptr(high0), asc4he_u64_ptr(high1)};
-    if (!/* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_process */
+    if (!
 auro_iir_w32_LinkwitzRiley_4th_process(lr500, a2, low_pair, high_pair))
         return 0;
     const bool split_high_band = *reinterpret_cast<const std::uint64_t*>(a1 + 496u) == 0x542020u;
@@ -78,7 +78,7 @@ auro_iir_w32_LinkwitzRiley_4th_process(lr500, a2, low_pair, high_pair))
     }
     std::uint64_t high_in_pair[2]{asc4he_u64_ptr(high0), asc4he_u64_ptr(high1)};
     std::uint64_t top_pair[2]{asc4he_u64_ptr(top0), asc4he_u64_ptr(top1)};
-    if (!/* Decompiled name: auro_iir_w32_LinkwitzRiley_4th_process */
+    if (!
 auro_iir_w32_LinkwitzRiley_4th_process(lr6000, high_in_pair, high_pair, top_pair))
         return 0;
     return static_cast<std::int64_t>(a2[0]);
@@ -1027,7 +1027,7 @@ std::int64_t auro_asc4he_v1_multichannel_Processor_t_get_required_input_layout(
     return 0;
 }
 
-std::int64_t /* Decompiled name: auro_asc4he_v1_multichannel_HXs_t_construct */
+std::int64_t
 auro_asc4he_v1_multichannel_HXs_t_construct(std::uint8_t* a1) {
     if (!a1)
         return 0;
@@ -1194,7 +1194,7 @@ std::int64_t auro_asc4he_v1_multichannel_Processor_t_construct(
         return 0;
     *reinterpret_cast<std::uint32_t*>(a1 + 20184u) = 0u;
     if ((~*reinterpret_cast<const std::uint8_t*>(a2 + 8u) & 0x30u) == 0u) {
-        if (!/* Decompiled name: auro_asc4he_v1_multichannel_HXs_t_construct */
+        if (!
 auro_asc4he_v1_multichannel_HXs_t_construct(a1 + 14104u))
             return 0;
         *reinterpret_cast<std::uint32_t*>(a1 + 20184u) = 1u;

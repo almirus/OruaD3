@@ -7,7 +7,7 @@ bool pcm_shift_right(
     std::uint32_t shift,
     std::string& error) {
     error.clear();
-    // Direct scalar port of auro::pcm::shift_right @ 0x4EC140 (PSRAD cases).
+    // Direct scalar port of auro:pcm:shift_right (PSRAD cases).
     if (shift > 24u) {
         error = "pcm shift_right rejects shifts above 24";
         return false;
@@ -42,4 +42,4 @@ bool pcm_shift_left(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

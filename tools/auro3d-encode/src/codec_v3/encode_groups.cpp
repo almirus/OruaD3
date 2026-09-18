@@ -143,7 +143,7 @@ bool materialize_encode_group(
         error = "codec-v3 bit line has no native quality mapping";
         return false;
     }
-    // Encoder::create_group_ @ 0x4E8360 overwrites the constructor's four
+    // Encoder:create_group_ overwrites the constructor's four
     // one-valued GVM bounds after selecting the bit line.
     group.gvm_common_limit =
         gvm_common_limit != 0u ? gvm_common_limit : 150u;
@@ -151,7 +151,7 @@ bool materialize_encode_group(
     group.gvm_dimension2_start = group.bit_line_quality;
     group.gvm_minimum_clusters = 1u;
     // The generic materializer has no Encoder instance; its caller may
-    // overwrite this with Encoder::reserve_extra_bits before analysis.
+    // overwrite this with Encoder:reserve_extra_bits before analysis.
     group.group_field_208 = 0u;
     for (std::uint32_t i = 0; i < entry.sources.arity; ++i) {
         const std::uint32_t channel = entry.sources.channels[i];
@@ -174,4 +174,4 @@ bool materialize_encode_group(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

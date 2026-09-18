@@ -216,4 +216,4 @@ bool WavPcm24Writer::close(std::string& error) {
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

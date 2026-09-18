@@ -68,7 +68,7 @@ bool Am4hpCenterFront::construct(std::uint32_t sample_rate,
             centergen_.data(), init) == 0u)
         return false;
 
-    // Exact CenterFront fixed payload from sub_54DB00:
+    // Exact CenterFront fixed payload from:
     // uint64_t 1, then uint32_t 524288400 at byte 16.
     std::array<std::uint8_t, 20> fixed{};
     const std::uint64_t fixed_word0 = 1u;
@@ -78,9 +78,9 @@ bool Am4hpCenterFront::construct(std::uint32_t sample_rate,
     (void)::auro3deng::auro_centergen_v3_Processor_set_fixed_parameters(
         centergen_.data(), fixed.data());
 
-    // Exact 56-byte dynamic payload assembled by sub_54DB00.  The four
-    // constants are the little-endian words of xmmword_1DCC70 and
-    // xmmword_1DBD70 in the selected x86_64 decompilation.
+    // Exact 56-byte dynamic payload assembled by. The four
+    // constants are the little-endian words of and
+    // in the selected decompilation.
     std::array<std::uint8_t, 56> dynamic{};
     const float dynamic_words0[4]{0.0f, 0.8f, 0.2f, -15.0f};
     const float dynamic_words1[4]{0.0f, 1.0f, 0.05f, 0.5f};
@@ -132,7 +132,7 @@ bool Am4hpCenterFront::process(Block& input0,
         return false;
     state_before_ = debug_state_bits();
     control_before_ = debug_control_bits();
-    // Core has already made the caller-owned work-pair copy.  Native
+    // Core has already made the caller-owned work-pair copy. Native
     // CenterFront mutates this pair in place and Upmixing consumes it next.
     Block generated{};
     if (::auro3deng::auro_centergen_v3_Processor_process(

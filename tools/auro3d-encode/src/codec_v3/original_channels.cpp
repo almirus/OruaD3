@@ -34,7 +34,7 @@ std::uint32_t get_original_channels(
     std::uint32_t carrier_channel,
     OriginalChannelGroup& out) {
     out = {};
-    // Direct structural port of auro::codec::v3::get_original_channels @ 0x50F8E0.
+    // Direct structural port of auro:codec:v3:get_original_channels.
     if (original_layout > 2051u) {
         if (original_layout > 30262u) {
             if (original_layout > 32310u) {
@@ -366,4 +366,4 @@ std::uint32_t get_original_channels(
     return kErrUnknownLayout;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

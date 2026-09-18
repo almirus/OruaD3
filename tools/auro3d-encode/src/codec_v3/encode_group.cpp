@@ -9,7 +9,7 @@ bool attach_group_channel_pcm(
     const std::int32_t* end,
     std::string& error) {
     error.clear();
-    // sub_4E83F0 @ 0x4E83F0: require a non-null closed-open range with begin != end.
+    // require a non-null closed-open range with begin != end.
     if (begin == nullptr || end == nullptr || begin == end || end < begin) {
         error = "group channel PCM range is empty or invalid";
         return false;
@@ -21,4 +21,4 @@ bool attach_group_channel_pcm(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

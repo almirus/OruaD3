@@ -40,7 +40,7 @@ std::uint32_t wrapped_squared_norm(
 }
 
 std::uint32_t error_center_index(std::uint64_t count) {
-    // auro::codec::v3::a3d::details::error_center_index @ 0x50F850
+    // auro:codec:v3:a3d:details:error_center_index
     if (count >= 633u)
         return static_cast<std::uint32_t>(((count - 633u) >> 4u) + 85u);
     if (count > 600u)
@@ -55,7 +55,7 @@ std::uint32_t error_center_index(std::uint64_t count) {
 }
 
 std::uint32_t nr_error_centers_per_index(std::uint32_t index) {
-    // auro::codec::v3::a3d::details::nr_error_centers_per_index @ 0x50F7F0
+    // auro:codec:v3:a3d:details:nr_error_centers_per_index
     if (index <= 4u)
         return 2u * index + 8u;
     if (index <= 0xFu)
@@ -74,14 +74,14 @@ std::uint32_t residual_bit_width_from_max_abs(std::uint32_t max_abs) {
 #else
     bsr = 31u - static_cast<unsigned>(__builtin_clz(max_abs));
 #endif
-    // Native BitSize::calculate @ 0x502490: 33 - (bsr ^ 0x1F).
+    // Native BitSize:calculate: 33 - (bsr ^ 0x1F).
     return 33u - (static_cast<std::uint32_t>(bsr) ^ 0x1Fu);
 }
 
 std::uint64_t bitshift100_bin(std::int32_t sample, std::uint32_t shift) {
-    // BitShift<int,100u>::process_ @ 0x501F70 stores both scale and bias in
+    // BitShift<int,100u>:process_ stores both scale and bias in
     // qword fields (`100LL << shift`) and performs the sample addition after
-    // the signed int has undergone the native unsigned-64 conversion.  Keep
+    // the signed int has undergone the native unsigned-64 conversion. Keep
     // that modulo-2^64 behaviour; using a wrapped dword changes bins once
     // the trial shift is large enough for 100<<shift to cross bit 31.
     const std::uint64_t scale = std::uint64_t{100u} << shift;
@@ -100,7 +100,7 @@ bool bit_size_calculate(
     std::uint64_t& residual_bit_cost,
     std::uint32_t& level_pack_mode,
     std::uint64_t& level_bit_cost) {
-    // BitSize::calculate @ 0x502490
+    // BitSize:calculate
     if (dimensions == 0u || residuals.size() % dimensions != 0u)
         return false;
     const std::uint64_t entry_count = residuals.size() / dimensions;
@@ -226,7 +226,7 @@ bool validate_native_gvm_input_shape(
         error = "native GVM residual count is not divisible by sample count";
         return false;
     }
-    // GVM::run_ tests ((dimensions + 1) & ~1) == 2. For non-negative
+    // GVM:run_ tests ((dimensions + 1) & ~1) == 2. For non-negative
     // vector sizes this admits exactly dimensions 1 and 2.
     if (dimensions != 1u && dimensions != 2u) {
         error = "native GVM accepts only one- or two-dimensional residuals";
@@ -552,9 +552,9 @@ bool finalize_native_gvm_learned_result(
         return false;
     }
     NativeGvmCenterTable centers{};
-    // Factory config +16 is copied to Learner+24 by Learner::initialize
-    // @ 0x531210. Its first byte is GVM+40; get_centers<int,1/2>
-    // @ 0x504FD0/0x505110 uses exactly Learner+24 to replace the nearest
+    // Factory config +16 is copied to Learner+24 by Learner:initialize
+    // Its first byte is GVM+40; get_centers<int,1/2>
+    // / uses exactly Learner+24 to replace the nearest
     // center. GVM+48/+56 is unrelated and only seeds the learner RNG.
     const bool force_zero_center = config.flag_40;
     if (!quantize_native_gvm_centers(
@@ -812,7 +812,7 @@ static bool learn_native_gvm_online(
         }
     }
 
-    // Learner::order_ sorts the live cluster-index vector by the first qword
+    // Learner:order_ sorts the live cluster-index vector by the first qword
     // of each 24/32-byte cluster record, which is population. The comparator
     // is descending (`population[first] < population[second]` triggers a
     // swap). get_sizes, get_centers, and cluster_membership all consume this
@@ -889,7 +889,7 @@ bool learn_native_gvm_old_fast(
     std::uint32_t target_clusters,
     NativeGvmLearnerOutput& out,
     std::string& error) {
-    // fast::Clustering::process_ @ 0x53A070/0x53BF30 keeps at most the
+    // fast:Clustering:process_ keeps at most the
     // requested cluster count. Once full, it either inserts the new sample
     // into the cheapest existing cluster or merges the cheapest existing
     // pair and reuses the freed record for the new singleton. Considering
@@ -966,7 +966,7 @@ static bool run_native_gvm_search(
             learned_cache[clusters] = learned_result;
             learned_cached[clusters] = true;
         }
-        // GVM::run_ @ 0x502C24 enters a nested decrement loop after status 1.
+        // GVM:run_ enters a nested decrement loop after status 1.
         // The first subsequent status other than 1 leaves that loop and is
         // accepted immediately; it must not return to the outer status-3
         // expansion path or the search can oscillate forever.
@@ -1045,7 +1045,7 @@ bool cluster_deltas_quantize_bitshift100(
         return false;
     }
 
-    // process_ @ 0x501F70: scale = 100<<shift, bias = scale + ((1<<shift)>>1).
+    // process_: scale = 100<<shift, bias = scale + ((1<<shift)>>1).
     const std::uint32_t scale_lo = static_cast<std::uint32_t>(100u << shift);
 
     std::uint64_t histogram[kBinCount + 1u] = {};
@@ -1206,7 +1206,7 @@ bool cluster_deltas_quantize_mix2(
         return false;
     }
 
-    // create_and_configure @ 0x5011F0 selects exactly one backend. GVM
+    // create_and_configure selects exactly one backend. GVM
     // profiles do not run the BitShift Quantization path first.
     NativeGvmLearnerInput learner_input{};
     if (!prepare_native_gvm_learner_input(
@@ -1266,4 +1266,4 @@ bool cluster_deltas_quantize_mix2(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

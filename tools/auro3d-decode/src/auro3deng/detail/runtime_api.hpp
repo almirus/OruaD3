@@ -1,7 +1,7 @@
 #pragma once
 
-/// Источники RE: весь DSP декодера — только libauro3d.so, разбор через ida-pro-mcp (RPC к IDA).
-/// Использование в APK (JNI, ExoPlayer extension, нативные вызовы) — через JADX/app analysis.
+
+
 
 #include "processor_io.hpp"
 
@@ -12,46 +12,46 @@
 
 namespace auro3deng {
 
-// Deterministic regression for codec-v3 frame continuation.  The same parsed
+// Deterministic regression for codec-v3 frame continuation. The same parsed
 // channel is reconstructed as one call and as several consecutive pieces;
 // PCM plus final Golomb-Rice/Extrapolate state must match exactly.
 bool codec_v3_split_equivalence_self_test(std::string& detail);
 
 /// Начало объекта Processor перекрыто полями Analyser (см. auro_a3deng_v3_Processor_t_construct → Analyser_t_construct).
 constexpr std::uintptr_t kProcessor_Analyser_ctx_ptr = 8;   // второй аргумент construct: снова Processor*
-constexpr std::uintptr_t kProcessor_Analyser_inner_fn = 16; // третий аргумент: sub_DA320
-constexpr std::uintptr_t kProcessor_Analyser_thunk_fn = 256; // *(_QWORD*)(a1+256) = sub_ED070
+constexpr std::uintptr_t kProcessor_Analyser_inner_fn = 16; // третий аргумент:
+constexpr std::uintptr_t kProcessor_Analyser_thunk_fn = 256; // *(_QWORD*)(a1+256) =
 
-/// sub_DA320: add rdi, 140h; jmp Controller_process_audio (tail-call).
+/// add rdi, 140h; jmp Controller_process_audio (tail-call).
 constexpr std::uintptr_t kProcessor_to_Controller_audio = 0x140;
 constexpr std::uintptr_t kController_error_flag = 0x25E6E0;
 constexpr std::uintptr_t kController_mask_bits = 0x25E690;
 constexpr std::uintptr_t kController_bytes_unit = 0x25E694;
 constexpr std::uintptr_t kController_process_fn = 0x25E6E8;
 
-// 0xD9AE0 timing/stat offsets inside Processor.
+// timing/stat offsets inside Processor.
 constexpr std::uintptr_t kProcessorPerf_elapsed_sum_qword = 0x25E958;    // += elapsed
 constexpr std::uintptr_t kProcessorPerf_ratio_sum_float = 0x25E960;      // += bytes/field4
 constexpr std::uintptr_t kProcessorPerf_best_ratio_float = 0x25E964;     // if (best > cur) best = cur
 constexpr std::uintptr_t kProcessorPerf_best_elapsed_qword = 0x25E968;   // elapsed for best ratio
 constexpr std::uintptr_t kProcessorPerf_best_ratio_input_float = 0x25E970; // input ratio for best ratio
 
-// IDA 0x106F00 — глобальная инициализация CRC-таблицы (512 байт @ unk_41ACF0, флаг byte_41ACE0).
+// глобальная инициализация CRC-таблицы (512 байт, флаг).
 void decoder_crc_t_init_106f00();
 
-// IDA 0x1042A1 — глобальная инициализация таблиц для Extrapolate (float expf LUT в dword_41A910..).
+// глобальная инициализация таблиц для Extrapolate (float expf LUT в ).
 void decoder_channel_extrapolate_t_init_1042a1();
 
-// Literal перенос auro_codec_v3_decoder_Config_initialize @ 0x1033C0.
+// Literal перенос auro_codec_v3_decoder_Config_initialize.
 std::int64_t auro_codec_v3_decoder_Config_initialize(std::int64_t config_base, std::int64_t init_args_base);
 
-// IDA helper auro_channel_Mask_count: возвращает количество установленных битов в маске каналов.
+// helper auro_channel_Mask_count: возвращает количество установленных битов в маске каналов.
 std::uint32_t auro_channel_Mask_count(std::uint32_t mask, std::int64_t /*a2*/, std::uint32_t /*mod_arg*/);
 
-// IDA auro_channel_Layout_dimension @ 0x5A98B0.
+// auro_channel_Layout_dimension.
 std::uint32_t auro_channel_Layout_dimension(std::uint32_t layout);
 
-// IDA sub_EB420 — codec-v3 Decoder constructor + callback wiring.
+// codec-v3 Decoder constructor + callback wiring.
 // a1 — Decoder* (верхний объект a3deng), остальные аргументы соответствуют auro_memory_block_Accumulator/Distributor.
 std::int64_t construct_codec_v3_decoder_runtime(
     std::uint64_t* decoder_slot_ptr,
@@ -61,16 +61,16 @@ std::int64_t construct_codec_v3_decoder_runtime(
     std::int64_t a5,
     std::int64_t a6);
 
-// IDA sub_DB290 @ 0xDB290 — верхний orchestrator Decoder/Manager process path.
+// верхний orchestrator Decoder/Manager process path.
 // Пока перенесён literal-пролог валидации размеров и базовая рамка итерации.
-std::int64_t /* Decompiled name: auro_a3deng_v3_process_decoder_manager */
+std::int64_t
 auro_a3deng_v3_process_decoder_manager(
     std::uint32_t* decoder_owner_base,
     std::int64_t input_desc_base,
     std::uint32_t* output_desc_base,
     void* scratch_base);
 
-// Внешние узлы, которые вызываются в sub_DB290.
+// Внешние узлы, которые вызываются в.
 std::int64_t auro_a3deng_v3_Decoder_latency(std::uint32_t* decoder_base);
 std::int64_t auro_a3deng_v3_Decoder_t_construct(
     std::int64_t decoder_base,
@@ -87,31 +87,31 @@ std::int64_t auro_a3deng_v3_Decoder_process(
     std::int32_t* out_changed);
 void auro_a3deng_v3_Decoder_allow_decoding(std::int64_t decoder_base, std::int32_t enabled);
 std::int64_t auro_a3deng_v3_Decoder_reset_audio_state(std::uint64_t* decoder_base);
-std::int64_t /* Decompiled name: auro_a3deng_v3_copy_input_to_output_channels */
+std::int64_t
 auro_a3deng_v3_copy_input_to_output_channels(
     std::int64_t decoder_base,
     std::int64_t input_channels,
     std::int64_t output_channels,
     std::uint32_t* out_mask);
-std::uint64_t /* Decompiled name: auro_a3deng_v3_copy_channels_and_return_mask */
+std::uint64_t
 auro_a3deng_v3_copy_channels_and_return_mask(
     std::int64_t decoder_base,
     std::int64_t input_channels,
     std::int64_t output_channels,
     std::uint32_t* out_mask);
-std::int64_t /* Decompiled name: auro_a3deng_v3_reset_decoder_runtime_state */
+std::int64_t
 auro_a3deng_v3_reset_decoder_runtime_state(std::uint64_t* decoder_base);
-void /* Decompiled name: auro_a3deng_v3_set_input_state_and_notify */
+void
 auro_a3deng_v3_set_input_state_and_notify(std::int64_t decoder_base, std::int32_t value);
-void /* Decompiled name: auro_a3deng_v3_set_decode_state_and_notify */
+void
 auro_a3deng_v3_set_decode_state_and_notify(std::int64_t decoder_base, std::int32_t value);
-std::int64_t /* Decompiled name: auro_a3deng_v3_apply_decode_decisions */
+std::int64_t
 auro_a3deng_v3_apply_decode_decisions(
     std::int64_t decoder_base,
     std::int64_t next_state_src,
     std::int64_t decisions,
     std::uint32_t decision_count);
-std::int64_t /* Decompiled name: auro_a3deng_v3_process_codec_block */
+std::int64_t
 auro_a3deng_v3_process_codec_block(
     std::int64_t decoder_base,
     const void* input_channels,
@@ -130,138 +130,138 @@ using AuroMaticV3XinNFl32ProcessFn = std::int64_t (*)(std::uint64_t xinn_state, 
 using AuroA3dengV4XinNResetFn = std::int64_t (*)(std::uint64_t step_base);
 using AuroMaticEngine2Fl32ProcessFn =
     void* (*)(std::uint64_t engine2_state, void* route_a, void* route_b, void* output_0x300);
-std::int64_t /* Decompiled name: auro_matic_Engine2_fl32_construct */
+std::int64_t
 auro_matic_Engine2_fl32_construct(std::uint64_t engine2_state, std::uint64_t memory);
-void /* Decompiled name: auro_matic_Engine2_fl32_set_total_clear_frames */
+void
 auro_matic_Engine2_fl32_set_total_clear_frames(
     std::uint64_t engine2_state,
     std::uint32_t frames);
-void /* Decompiled name: auro_matic_Engine2_fl32_set_preset */
+void
 auro_matic_Engine2_fl32_set_preset(std::uint64_t engine2_state, std::uint64_t preset);
-std::int64_t /* Decompiled name: auro_matic_Engine2_fl32_reset_audio_state */
+std::int64_t
 auro_matic_Engine2_fl32_reset_audio_state(std::uint64_t engine2_state);
-bool /* Decompiled name: auro_matic_Engine2_fl32_partial_clear */
+bool
 auro_matic_Engine2_fl32_partial_clear(std::uint64_t engine2_state, std::uint32_t* remaining);
-void /* Decompiled name: auro_matic_Engine2_fl32_set_output_patch */
+void
 auro_matic_Engine2_fl32_set_output_patch(
     std::uint64_t engine2_state,
     const std::uint32_t* patch_3);
-void* /* Decompiled name: auro_matic_Engine2_fl32_process */
+void*
 auro_matic_Engine2_fl32_process(
     std::uint64_t engine2_state,
     void* route_a_0x80,
     void* route_b_0x80,
     void* output_0x300);
-std::int64_t /* Decompiled name: auro_matic_XinN_fl32_process */
+std::int64_t
 auro_matic_XinN_fl32_process(std::uint64_t xinn_state, void** channel_span_31);
-std::int64_t /* Decompiled name: auro_matic_v3_XinN_fl32_process */
+std::int64_t
 auro_matic_v3_XinN_fl32_process(std::uint64_t xinn_v3_state, void** channel_span_31);
-void /* Decompiled name: auro_audio_Smooth_fl32_inst_initialize */
+void
 auro_audio_Smooth_fl32_inst_initialize(float* smooth_state, std::uint32_t sample_rate, float seconds);
-void /* Decompiled name: auro_audio_Smooth_fl32_inst_update */
+void
 auro_audio_Smooth_fl32_inst_update(float* smooth_state, float target);
-void /* Decompiled name: auro_audio_Smooth_fl32_inst_set_current */
+void
 auro_audio_Smooth_fl32_inst_set_current(float* smooth_state, float current);
-void /* Decompiled name: auro_audio_Smooth_fl32_inst_gains_smooth */
+void
 auro_audio_Smooth_fl32_inst_gains_smooth(
     float* smooth_state,
     float* gains,
     std::uint32_t count);
-void /* Decompiled name: auro_matic_Engine1_fl32_set_total_clear_frames */
+void
 auro_matic_Engine1_fl32_set_total_clear_frames(std::uint8_t* engine1_state, std::uint32_t frames);
-std::int64_t /* Decompiled name: auro_matic_Engine1_fl32_construct */
+std::int64_t
 auro_matic_Engine1_fl32_construct(std::uint8_t* engine1_state, std::uint64_t memory);
-void /* Decompiled name: auro_matic_Engine1_fl32_set_preset */
+void
 auro_matic_Engine1_fl32_set_preset(std::uint8_t* engine1_state, std::uint64_t preset);
-std::int64_t /* Decompiled name: auro_matic_Engine1_fl32_set_output_patch */
+std::int64_t
 auro_matic_Engine1_fl32_set_output_patch(std::uint8_t* engine1_state, const std::uint32_t* patch_3);
-std::int64_t /* Decompiled name: auro_matic_Engine1_fl32_reset_audio_state */
+std::int64_t
 auro_matic_Engine1_fl32_reset_audio_state(std::uint8_t* engine1_state);
-void /* Decompiled name: auro_matic_Engine1_fl32_get_delayed_frame */
+void
 auro_matic_Engine1_fl32_get_delayed_frame(
     const std::uint8_t* engine1_state,
     std::uint64_t* out_near,
     std::uint64_t* out_far);
-bool /* Decompiled name: auro_matic_Engine1_fl32_partial_clear */
+bool
 auro_matic_Engine1_fl32_partial_clear(std::uint8_t* engine1_state, std::uint32_t* remaining);
-void /* Decompiled name: auro_matic_Engine1_fl32_process_ext */
+void
 auro_matic_Engine1_fl32_process_ext(
     std::uint8_t* engine1_state,
     const float* input_a_32,
     const float* input_b_32,
     float* output_0x300,
     const float* gains_32);
-void /* Decompiled name: auro_matic_XinN_Early_fl32_process_mode1 */
+void
 auro_matic_XinN_Early_fl32_process_mode1(
     std::uint8_t* early_state,
     void** channel_span_31,
     float* output_0x300,
     const float* gains_32);
-void /* Decompiled name: auro_matic_XinN_Early_fl32_process_mode2 */
+void
 auro_matic_XinN_Early_fl32_process_mode2(
     std::uint8_t* early_state,
     void** channel_span_31,
     float* output_a_0x300,
     float* output_b_0x300,
     const float* gains_32);
-std::int64_t /* Decompiled name: auro_matic_XinN_Early_fl32_construct */
+std::int64_t
 auro_matic_XinN_Early_fl32_construct(
     std::uint8_t* early_state,
     std::uint64_t memory_a,
     std::uint64_t memory_b);
-void /* Decompiled name: auro_matic_XinN_Early_fl32_set_total_clear_frames */
+void
 auro_matic_XinN_Early_fl32_set_total_clear_frames(
     std::uint8_t* early_state,
     std::uint32_t frames);
-void /* Decompiled name: auro_matic_XinN_Early_fl32_set_downmix */
+void
 auro_matic_XinN_Early_fl32_set_downmix(
     std::uint8_t* early_state,
     const std::uint8_t* downmix_plan);
-std::int64_t /* Decompiled name: auro_matic_XinN_Early_fl32_set_output_patch */
+std::int64_t
 auro_matic_XinN_Early_fl32_set_output_patch(
     std::uint8_t* early_state,
     const std::uint32_t* primary_patch_3,
     const std::uint32_t* secondary_patch_3);
-std::uint64_t /* Decompiled name: auro_matic_XinN_Early_fl32_set_preset */
+std::uint64_t
 auro_matic_XinN_Early_fl32_set_preset(std::uint8_t* early_state, std::uint64_t preset);
-std::int64_t /* Decompiled name: auro_matic_XinN_Early_fl32_reset_audio_state */
+std::int64_t
 auro_matic_XinN_Early_fl32_reset_audio_state(std::uint8_t* early_state);
-bool /* Decompiled name: auro_matic_XinN_Early_fl32_partial_clear */
+bool
 auro_matic_XinN_Early_fl32_partial_clear(
     std::uint8_t* early_state,
     std::uint32_t* remaining);
-void /* Decompiled name: auro_matic_XinN_Early_fl32_get_delayed_mode1 */
+void
 auro_matic_XinN_Early_fl32_get_delayed_mode1(
     std::uint8_t* engine1_state,
     float* out_near_32,
     float* out_far_32);
-void /* Decompiled name: auro_matic_XinN_Early_fl32_mix_delayed_mode2 */
+void
 auro_matic_XinN_Early_fl32_mix_delayed_mode2(
     std::uint8_t* early_state,
     float* out_near_32,
     float* out_far_32);
-std::int64_t /* Decompiled name: auro_matic_XinN_Late_fl32_construct */
+std::int64_t
 auro_matic_XinN_Late_fl32_construct(std::uint32_t* late_state, std::uint64_t memory);
-std::int64_t /* Decompiled name: auro_matic_XinN_Late_fl32_reset_audio_state */
+std::int64_t
 auro_matic_XinN_Late_fl32_reset_audio_state(std::uint32_t* late_state);
-void /* Decompiled name: auro_matic_XinN_Late_fl32_set_clear_frames */
+void
 auro_matic_XinN_Late_fl32_set_clear_frames(
     std::uint32_t* late_state,
     std::uint32_t early_clear_frames,
     std::uint32_t late_clear_frames);
-bool /* Decompiled name: auro_matic_XinN_Late_fl32_partial_clear */
+bool
 auro_matic_XinN_Late_fl32_partial_clear(std::uint32_t* late_state, std::uint32_t* remaining);
-void /* Decompiled name: auro_matic_XinN_Late_fl32_set_preset */
+void
 auro_matic_XinN_Late_fl32_set_preset(std::uint32_t* late_state, std::uint64_t preset);
-void /* Decompiled name: auro_matic_XinN_Late_fl32_set_output_patch */
+void
 auro_matic_XinN_Late_fl32_set_output_patch(std::uint32_t* late_state, const std::uint32_t* patch_3);
-void* /* Decompiled name: auro_matic_XinN_Late_fl32_process */
+void*
 auro_matic_XinN_Late_fl32_process(
     std::uint32_t* late_state,
     std::uint64_t engine_state,
     void* output_0x300,
     AuroMaticEngine2Fl32ProcessFn engine2_process);
-std::int64_t /* Decompiled name: auro_matic_v3_XinN_Routing_fl32_apply */
+std::int64_t
 auro_matic_v3_XinN_Routing_fl32_apply(
     std::uint64_t routing_state,
     const float* early_a_0x300,
@@ -269,94 +269,94 @@ auro_matic_v3_XinN_Routing_fl32_apply(
     const float* late_0x300,
     void** channel_span_31,
     std::uint32_t mode);
-void /* Decompiled name: auro_matic_XinN_parameter_Dynamic_t_default */
+void
 auro_matic_XinN_parameter_Dynamic_t_default(std::uint8_t* dynamic_48);
-void /* Decompiled name: auro_matic_v3_XinN_parameter_Dynamic_t_default */
+void
 auro_matic_v3_XinN_parameter_Dynamic_t_default(std::uint8_t* dynamic_120);
-void /* Decompiled name: auro_matic_v3_XinN_Routing_fl32_construct */
+void
 auro_matic_v3_XinN_Routing_fl32_construct(std::uint8_t* routing_state);
-std::uint64_t /* Decompiled name: auro_matic_v3_XinN_Routing_fl32_set_routing */
+std::uint64_t
 auro_matic_v3_XinN_Routing_fl32_set_routing(
     std::uint8_t* routing_state,
     const std::uint8_t* routing_72);
-std::uint64_t /* Decompiled name: auro_matic_v3_XinN_Routing_fl32_get_routing */
+std::uint64_t
 auro_matic_v3_XinN_Routing_fl32_get_routing(
     const std::uint8_t* routing_state,
     std::uint8_t* routing_72);
-std::int64_t /* Decompiled name: auro_matic_v3_XinN_Routing_fl32_configure */
+std::int64_t
 auro_matic_v3_XinN_Routing_fl32_configure(
     std::uint8_t* routing_state,
     std::uint32_t mode,
     std::uint32_t output_mask,
     std::uint32_t input_mask);
-std::int64_t /* Decompiled name: auro_matic_XinN_fl32_construct */
+std::int64_t
 auro_matic_XinN_fl32_construct(
     std::uint8_t* xinn_state,
     std::uint8_t* routing_state,
     const std::uint64_t* memory_args_5);
-void /* Decompiled name: auro_matic_XinN_fl32_set_dynamic_parameters */
+void
 auro_matic_XinN_fl32_set_dynamic_parameters(
     std::uint8_t* xinn_state,
     const std::uint8_t* dynamic_48);
-void /* Decompiled name: auro_matic_XinN_fl32_get_dynamic_parameters */
+void
 auro_matic_XinN_fl32_get_dynamic_parameters(
     const std::uint8_t* xinn_state,
     std::uint8_t* dynamic_48);
-std::int64_t /* Decompiled name: auro_matic_XinN_fl32_initialize */
+std::int64_t
 auro_matic_XinN_fl32_initialize(
     std::uint8_t* xinn_state,
     std::uint32_t input_mask,
     std::uint32_t output_mask,
     std::uint64_t preset);
-std::int64_t /* Decompiled name: auro_matic_v3_XinN_fl32_construct */
+std::int64_t
 auro_matic_v3_XinN_fl32_construct(
     std::uint8_t* xinn_v3_state,
     const std::uint64_t* memory_args_5);
-// Native x86_64 0x556260 / iOS 0xF2A3B4. Wraps the base XinN initializer with
+// Native. Wraps the base XinN initializer with
 // the AM4HP Upmixing rate gate (32/44.1/48 kHz only) and the +840 mode flag.
-std::int64_t /* Decompiled name: auro_matic_v3_XinN_fl32_initialize */
+std::int64_t
 auro_matic_v3_XinN_fl32_initialize(
     std::uint8_t* xinn_v3_state,
     std::uint32_t input_mask,
     std::uint32_t output_mask,
     std::uint32_t sample_rate,
     std::uint64_t preset);
-std::int64_t /* Decompiled name: auro_matic_v3_XinN_fl32_configure */
+std::int64_t
 auro_matic_v3_XinN_fl32_configure(
     std::uint8_t* xinn_v3_state,
     std::uint32_t sample_rate,
     const std::uint64_t* config_args_4);
-std::int64_t /* Decompiled name: auro_matic_XinN_fl32_reset_audio_state */
+std::int64_t
 auro_matic_XinN_fl32_reset_audio_state(std::uint8_t* xinn_state);
-std::int64_t /* Decompiled name: auro_matic_XinN_fl32_partial_clear */
+std::int64_t
 auro_matic_XinN_fl32_partial_clear(
     std::uint8_t* xinn_state,
     std::uint32_t* remaining);
-void /* Decompiled name: auro_matic_XinN_fl32_set_preset */
+void
 auro_matic_XinN_fl32_set_preset(std::uint8_t* xinn_state, std::uint64_t preset);
-std::int64_t /* Decompiled name: auro_matic_v3_XinN_fl32_reset_audio_state */
+std::int64_t
 auro_matic_v3_XinN_fl32_reset_audio_state(std::uint8_t* xinn_v3_state);
-void /* Decompiled name: auro_matic_v3_XinN_fl32_set_preset */
+void
 auro_matic_v3_XinN_fl32_set_preset(std::uint8_t* xinn_v3_state, std::uint64_t preset);
-std::uint64_t /* Decompiled name: auro_matic_v3_XinN_fl32_set_dynamic_parameters */
+std::uint64_t
 auro_matic_v3_XinN_fl32_set_dynamic_parameters(
     std::uint8_t* xinn_v3_state,
     const std::uint8_t* dynamic_120);
-std::uint64_t /* Decompiled name: auro_matic_v3_XinN_fl32_get_dynamic_parameters */
+std::uint64_t
 auro_matic_v3_XinN_fl32_get_dynamic_parameters(
     const std::uint8_t* xinn_v3_state,
     std::uint8_t* dynamic_120);
-void /* Decompiled name: auro_matic_v3_XinN_fl32_update_peak_amplitude */
+void
 auro_matic_v3_XinN_fl32_update_peak_amplitude(
     std::uint8_t* xinn_v3_state,
     float* peak_31);
-std::int64_t /* Decompiled name: auro_matic_XinN_fl32_process_inplace */
+std::int64_t
 auro_matic_XinN_fl32_process_inplace(std::uint64_t xinn_state, void** channel_span_31);
 
 // --- Portable Auro-Matic v3 Engine chain (src/auro3deng/a3deng_v3/auromatic_engine.inc) ---
-// Native x86_64 references: Engine 0x54FEC0..0x5500F0, FrontManager 0x550A50..0x5537E0,
-// 3d3d 0x550E50..0x551B70, Gain 0x550B80..0x550C00, Silence 0x572250..0x5722F0,
-// OutputGate/DetectSilence 0x553ED0..0x555190, Smooth_float 0x5AB4B0..0x5AB780.
+// Native references: Engine, FrontManager,
+// 3d3d, Gain, Silence,
+// OutputGate/DetectSilence, Smooth_float
 float auro_audio_Smooth_float_calculate_smoothing(std::uint32_t rate, float seconds);
 void auro_audio_Smooth_float_inst_initialize(float* state, std::uint32_t rate, float seconds);
 void auro_audio_Smooth_float_inst_update(float* state, float target);
@@ -408,7 +408,7 @@ std::int64_t auro_matic_Silence_t_construct(std::uint8_t* base);
 std::int64_t auro_matic_Silence_configure(std::uint8_t* base, std::uint32_t mask);
 void auro_matic_Silence_reset_audio_state();
 void auro_matic_Silence_process(std::uint8_t* base, void** table);
-std::int64_t /* Decompiled name: auro_matic_XinN_fl32_process_scratch */
+std::int64_t
 auro_matic_XinN_fl32_process_scratch(std::uint64_t xinn_state, void** channel_span_31);
 constexpr std::size_t kXinnPlanBlobBytesPortable = 96u;
 constexpr std::size_t kXinnUpdateBlobBytesPortable = 276u;
@@ -427,36 +427,36 @@ void xinn_write_plan_update_blobs_portable(
     std::uint32_t mode,
     std::uint32_t room_preset);
 
-std::int64_t /* Decompiled name: auro_a3deng_v4_pipeline_step_upmix_XinN_initialize_impl */
+std::int64_t
 auro_a3deng_v4_pipeline_step_upmix_XinN_initialize_impl(
     std::uint64_t step_base,
     const std::uint64_t* memory_3);
-std::int64_t /* Decompiled name: auro_a3deng_v4_pipeline_step_upmix_XinN_initialize */
+std::int64_t
 auro_a3deng_v4_pipeline_step_upmix_XinN_initialize(
     std::uint64_t step_base,
     const std::uint64_t* memory_3);
-std::int64_t /* Decompiled name: auro_a3deng_v4_pipeline_step_upmix_XinN_prepare */
+std::int64_t
 auro_a3deng_v4_pipeline_step_upmix_XinN_prepare(
     std::uint64_t step_base,
     const std::uint8_t* plan_blob,
     const std::uint8_t* update_blob);
-std::int64_t /* Decompiled name: auro_a3deng_v4_pipeline_step_upmix_XinN_reset_audio_state_impl */
+std::int64_t
 auro_a3deng_v4_pipeline_step_upmix_XinN_reset_audio_state_impl(std::uint64_t step_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_pipeline_step_upmix_XinN_reset_audio_state */
+std::int64_t
 auro_a3deng_v4_pipeline_step_upmix_XinN_reset_audio_state(std::uint64_t step_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_pipeline_step_upmix_XinN_update_impl */
+std::int64_t
 auro_a3deng_v4_pipeline_step_upmix_XinN_update_impl(
     std::uint64_t step_base,
     const std::uint8_t* update_blob);
-std::int64_t /* Decompiled name: auro_a3deng_v4_pipeline_step_upmix_XinN_update */
+std::int64_t
 auro_a3deng_v4_pipeline_step_upmix_XinN_update(
     std::uint64_t step_base,
     const std::uint8_t* update_blob);
-std::int64_t /* Decompiled name: auro_a3deng_v4_pipeline_step_upmix_XinN_calculate_info */
+std::int64_t
 auro_a3deng_v4_pipeline_step_upmix_XinN_calculate_info(
     std::uint64_t step_base,
     std::uint8_t* info_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_pipeline_step_upmix_XinN_process_impl */
+std::int64_t
 auro_a3deng_v4_pipeline_step_upmix_XinN_process_impl(
     std::uint64_t step_base,
     void** io_channels_31,
@@ -464,7 +464,7 @@ auro_a3deng_v4_pipeline_step_upmix_XinN_process_impl(
     const std::uint8_t* block_records_516,
     AuroMaticV3XinNFl32ProcessFn process_fl32,
     AuroA3dengV4XinNResetFn reset_audio_state);
-std::int64_t /* Decompiled name: auro_a3deng_v4_pipeline_step_upmix_XinN_process */
+std::int64_t
 auro_a3deng_v4_pipeline_step_upmix_XinN_process(
     std::uint64_t step_base,
     void** io_channels_31,
@@ -479,7 +479,7 @@ std::int32_t auro_a3deng_v3_pipeline_Manager_get_internal_channel_id(
     std::int32_t* out_internal_channel,
     double reserved);
 
-// Узлы памяти/декодера, которые дергает sub_EB420.
+// Узлы памяти/декодера, которые дергает.
 void auro_memory_block_Accumulator_t_construct(
     std::uint64_t* acc,
     std::int64_t a2,
@@ -499,25 +499,25 @@ void auro_codec_v3_Decoder_set_content_callback(std::uint64_t decoder_base, void
 void auro_codec_v3_Decoder_set_decide_decode_callback(std::uint64_t decoder_base, void* fn, void* user);
 void auro_codec_v3_Decoder_set_metadata_callback(std::uint64_t decoder_base, void* fn, void* user);
 
-// IDA 0x101760 — auro_codec_v3_Decoder_t_construct:
+// auro_codec_v3_Decoder_t_construct:
 // CRC_t_init → channel_Extrapolate_t_init → Config_initialize → Memory/FormatDetector/Parser/OutputGenerator construct.
-// a1 — база codec v3 decoder, a2 — ptr на args для Config_initialize (см. auro_codec_v3_ida::kDecoderConfigInitArg_*),
+// a1 — база codec v3 decoder, a2 — ptr на args для Config_initialize (см. auro_codec_v3_ida:kDecoderConfigInitArg_*),
 // a3 — пользовательский контекст (Decoder*, передаётся дальше в Memory_t_construct/OutputGenerator_t_construct).
 std::uint32_t decoder_t_construct_101760(std::uint8_t* decoder_base, const void* config_init_args, void* user_ctx);
 
-/// IDA sub_ED070 @ 0xED070
+
 std::int64_t process_analyser_audio(std::uint8_t* processor_base);
 
-/// IDA sub_DA320 @ 0xDA320 — в бинарнике tail jmp; здесь явные три аргумента (на SysV a2/a3 доходят из Processor_process).
+/// в бинарнике tail jmp; здесь явные три аргумента (на SysV a2/a3 доходят из Processor_process).
 std::int64_t forward_analyser_to_controller(
     std::uint8_t* processor_base,
     std::uint8_t* input_buffer_desc,
     std::uint8_t* output_buffer_desc);
 
-/// IDA auro_a3deng_v3_Analyser_process @ 0xED500
+/// auro_a3deng_v3_Analyser_process
 std::int64_t analyser_process(std::uint8_t* processor_base, const std::uint32_t* sample_increment);
 
-/// Минимальный перенос ветки auro_a3deng_v3_Controller_process_audio @ 0xDA870:
+/// Минимальный перенос ветки auro_a3deng_v3_Controller_process_audio:
 /// если error_flag!=0 и output.layout_or_kind<=1, обнуляет активные каналы output по маске channel_mask.
 /// Возвращает 129 при несовместимом output layout_or_kind.
 std::int64_t controller_process_audio_zero_fill(
@@ -527,7 +527,7 @@ std::int64_t controller_process_audio_zero_fill(
     const void* output_desc_raw,
     std::size_t output_desc_size);
 
-/// Обёртка IDA 0xDA870: при error_flag==0 зовёт callback [ctrl+0x25E6E8](ctrl,a2,a3),
+/// Обёртка: при error_flag==0 зовёт callback [ctrl+](ctrl,a2,a3),
 /// иначе выполняет zero-fill ветку.
 std::int64_t controller_process_audio_da870(
     std::uint8_t* controller_base,
@@ -535,20 +535,20 @@ std::int64_t controller_process_audio_da870(
     const void* output_desc_raw,
     std::size_t output_desc_size);
 
-/// Пролог валидации auro_a3deng_v3_Processor_process @ 0xD9AE0 (до вызова Analyser_process):
+/// Пролог валидации auro_a3deng_v3_Processor_process (до вызова Analyser_process):
 /// проверки layout/field8/кратности/field4/указателей каналов для in/out с кодами возврата 122..136.
 struct ProcessorIoExpectDa9ae0 {
-    std::int32_t in_layout = 0;          // dword_25E7C8
-    std::int32_t in_mask = 0;            // dword_25E7BC
-    std::int32_t in_bytes_unit = 0;      // dword_25E7C0
-    std::int32_t in_field4 = 0;          // dword_25E7C4
-    std::int32_t in_field8_when_layout1 = 0; // dword_25E7CC
+    std::int32_t in_layout = 0;
+    std::int32_t in_mask = 0;
+    std::int32_t in_bytes_unit = 0;
+    std::int32_t in_field4 = 0;
+    std::int32_t in_field8_when_layout1 = 0;
 
-    std::int32_t out_layout = 0;         // dword_25E7DC
-    std::int32_t out_mask = 0;           // dword_25E7D0
-    std::int32_t out_bytes_unit = 0;     // dword_25E7D4
-    std::int32_t out_field4 = 0;         // dword_25E7D8
-    std::int32_t out_field8_when_layout1 = 0; // dword_25E7E0
+    std::int32_t out_layout = 0;
+    std::int32_t out_mask = 0;
+    std::int32_t out_bytes_unit = 0;
+    std::int32_t out_field4 = 0;
+    std::int32_t out_field8_when_layout1 = 0;
 };
 
 std::int32_t processor_process_validate_da9ae0(
@@ -556,14 +556,14 @@ std::int32_t processor_process_validate_da9ae0(
     const ProcessorIOBufferDesc* out_desc,
     const ProcessorIoExpectDa9ae0& ex);
 
-/// Минимальный перенос 0xD9AE0: validate_io + вызов Analyser_process.
+/// Минимальный перенос: validate_io + вызов Analyser_process.
 /// Полный хвост с auro_chrono_Measurement_t_get_elapsed и статистикой времени пока не перенесён.
 std::int64_t processor_process_da9ae0_minimal(
     std::uint8_t* processor_base,
     const ProcessorIOBufferDesc* in_desc,
     const ProcessorIOBufferDesc* out_desc);
 
-/// Порядок как в 0xD9AE0: validate -> analyser_process -> update_timing_stats -> return analyser rc.
+/// Порядок как в: validate -> analyser_process -> update_timing_stats -> return analyser rc.
 /// elapsed_ticks передаётся снаружи (в оригинале берётся из auro_chrono_Measurement_t_get_elapsed).
 std::int64_t processor_process_da9ae0_minimal_with_elapsed(
     std::uint8_t* processor_base,
@@ -571,7 +571,7 @@ std::int64_t processor_process_da9ae0_minimal_with_elapsed(
     const ProcessorIOBufferDesc* out_desc,
     std::int64_t elapsed_ticks);
 
-/// Перенос хвоста 0xD9AE0: обновление perf-статистики после analyser_process.
+/// Перенос хвоста: обновление perf-статистики после analyser_process.
 void processor_update_timing_stats_da9ae0(
     std::uint8_t* processor_base,
     const ProcessorIOBufferDesc* in_desc,
@@ -586,15 +586,15 @@ struct AuroDecoderImplInitParams {
     std::uint64_t output_channel_ptrs[27]{};
 };
 
-/// IDA AuroDecoderImpl::Initialize @ 0xD71E0 — заполнение IO-дескрипторов @ +40/+272.
-bool /* Decompiled name: auro_decoder_impl_initialize */
+/// AuroDecoderImpl:Initialize — заполнение IO-дескрипторов +40/+272.
+bool
 auro_decoder_impl_initialize(
     std::uint8_t* impl_base,
     const AuroDecoderImplInitParams* params);
 
-/// IDA AuroDecoderImpl::Decode @ 0xD7830 — vtable+168 → Processor_process (0xD9AE0).
-/// processor_process=nullptr → processor_process_da9ae0_minimal на блоке @ +552.
-std::int32_t /* Decompiled name: auro_decoder_impl_decode */
+/// AuroDecoderImpl:Decode — vtable+168 → Processor_process.
+/// processor_process=nullptr → processor_process_da9ae0_minimal на блоке +552.
+std::int32_t
 auro_decoder_impl_decode(
     std::uint8_t* impl_base,
     std::int64_t (*processor_process)(
@@ -602,8 +602,8 @@ auro_decoder_impl_decode(
         const ProcessorIOBufferDesc* in_desc,
         const ProcessorIOBufferDesc* out_desc));
 
-// Частичный перенос codec-v3 dispatch слоя вокруг sub_EB5A0 / sub_EB840 / sub_EB870 / sub_EB8A0.
-// Codec-v3 dispatch / decoder_process перенесён в codec_v3_decoder_process_101800 / auro_codec_v3_Decoder_process.
+// Частичный перенос codec-v3 dispatch слоя вокруг /.
+// Codec-v3 dispatch decoder_process перенесён в codec_v3_decoder_process_101800 auro_codec_v3_Decoder_process.
 struct CodecV3StateChangeSink {
     void* user = nullptr;
     void (*notify)(void* user, std::int64_t kind) = nullptr; // 0=sync changed, 1=content/decide changed
@@ -643,7 +643,7 @@ using CodecV3ProcessFnEb5a0 = std::int64_t (*)(
     const CodecV3IoBufferDescEb5a0* output_desc,
     std::uint32_t* io_status);
 
-std::int32_t /* Decompiled name: codec_v3_decoder_process_validate */
+std::int32_t
 codec_v3_decoder_process_validate(
     const CodecV3DispatchStateEb5a0* state,
     const CodecV3IoBufferDescEb5a0* input_desc,
@@ -657,19 +657,19 @@ void codec_v3_decide_decode_callback_eb8a0(
     std::uint32_t next_state,
     std::uint32_t* decisions,
     int decision_count);
-/// IDA OutputGenerator pre-segments callback @ og+792: (ctx, ranges_base, started_base).
-std::int64_t /* Decompiled name: codec_v3_pre_segments_decide_decode */
+/// OutputGenerator pre-segments callback og+792: (ctx, ranges_base, started_base).
+std::int64_t
 codec_v3_pre_segments_decide_decode(
     std::uint64_t ctx,
     std::uint64_t ranges_base,
     std::uint64_t started_base);
-std::int64_t /* Decompiled name: codec_v3_pre_segments_decide_decode_decoder */
+std::int64_t
 codec_v3_pre_segments_decide_decode_decoder(
     std::uint64_t decoder_base,
     std::uint64_t ranges_base,
     std::uint64_t started_base);
 /// Host-friendly decide_decode: layouts + allow_decoding without native decoder/blob ctx.
-std::int64_t /* Decompiled name: codec_v3_pre_segments_decide_decode_layouts */
+std::int64_t
 codec_v3_pre_segments_decide_decode_layouts(
     std::uint32_t segment_count,
     std::uint64_t ranges_base,
@@ -678,7 +678,7 @@ codec_v3_pre_segments_decide_decode_layouts(
     std::uint32_t target_layout,
     std::uint32_t allow_decoding,
     CodecV3DispatchStateEb5a0* aggregate_dispatch);
-std::int64_t /* Decompiled name: codec_v3_dispatch */
+std::int64_t
 codec_v3_dispatch(
     CodecV3DispatchStateEb5a0* state,
     const CodecV3IoBufferDescEb5a0* input_desc,
@@ -716,13 +716,13 @@ struct CodecV3ParserRuntimeFns1034e0 {
     std::uint64_t content_state_ctx = 0;
 };
 
-// Перенос auro_codec_v3_decoder_Parser_process @ 0x1034E0.
-// parser_base соответствует "a1" (qword layout из IDA), runtime_fns — внешний bridge к deque/pool/channel parser.
+// Перенос auro_codec_v3_decoder_Parser_process.
+// parser_base соответствует "a1" (qword layout из), runtime_fns — внешний bridge к deque/pool/channel parser.
 std::int64_t codec_v3_parser_process_1034e0(
     std::uint8_t* parser_base,
     const CodecV3ParserRuntimeFns1034e0* runtime_fns);
 
-// Ближайший перенос верхнего уровня auro_codec_v3_Decoder_process @ 0x101800:
+// Ближайший перенос верхнего уровня auro_codec_v3_Decoder_process:
 // validate -> DelayLine_write -> FormatDetector -> Parser -> zero output planes -> OutputGenerator -> DelayLine_advance.
 // parser_process можно передать извне (например, адаптер к локальной реализации Parser_process).
 std::int32_t codec_v3_decoder_process_validate_101800(
@@ -771,7 +771,7 @@ std::uint64_t delay_line_get_buffer_106b40(
     DelayLineState106b40* state,
     std::uint64_t cursor,
     std::int64_t* io_state);
-std::uint64_t /* Decompiled name: delay_line_get_buffer_u64_state */
+std::uint64_t
 delay_line_get_buffer_u64_state(
     std::uint64_t delay_line_ptr,
     std::uint64_t cursor,
@@ -780,7 +780,7 @@ std::uint64_t delay_line_get_channel_from_buffer_106ab0(
     std::uint64_t delay_line_buffer,
     std::uint32_t channel,
     std::uint64_t start);
-std::uint64_t /* Decompiled name: delay_line_stream_index */
+std::uint64_t
 delay_line_stream_index(
     const DelayLineState106b40* state,
     std::uint32_t stage_count);
@@ -790,7 +790,7 @@ std::uint64_t delay_line_write_buffer_106ab0(
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask);
 
-/// Tail of integrated FormatDetector blob @ decoder+288..+343 (libauro `FormatDetector_t_construct`).
+/// Tail of integrated FormatDetector blob decoder+288..+343 (libauro `FormatDetector_t_construct`).
 struct FormatDetectorTail1056c0 {
     void (*sink_notify)(void* user, std::int64_t kind) = nullptr; // +288
     void* sink_user = nullptr;                                    // +296
@@ -827,7 +827,7 @@ struct SyncDetectorState105ee0 {
     void (*notify)(void* ctx, std::int64_t kind, std::uint64_t a, std::uint64_t b) = nullptr; // +32
     std::uint32_t layout = 0;            // +40
     std::uint32_t enabled = 0;           // +44
-    SyncDetectorChannelState105ee0 channels[9]{}; // +48 .. +263
+    SyncDetectorChannelState105ee0 channels[9]{}; // +48 +263
     std::uint32_t active_channel_count = 0; // +264
     std::uint32_t detect_counter = 0;    // +268
     std::uint32_t detect_bit_110 = 0;    // +272
@@ -835,7 +835,7 @@ struct SyncDetectorState105ee0 {
     std::uint32_t detect_target = 0;     // +280
 };
 
-/// Full FormatDetector region @ decoder+232: SyncDetector + tail (344 bytes, ends before Parser @ +576).
+/// Full FormatDetector region decoder+232: SyncDetector + tail (344 bytes, ends before Parser +576).
 struct FormatDetectorRegion1056c0 {
     SyncDetectorState105ee0 sync{};
     FormatDetectorTail1056c0 tail{};
@@ -843,40 +843,40 @@ struct FormatDetectorRegion1056c0 {
 static_assert(offsetof(FormatDetectorRegion1056c0, tail) == 288, "FormatDetector tail must start @ +288.");
 static_assert(sizeof(FormatDetectorRegion1056c0) == 344, "FormatDetector region must be 344 bytes.");
 
-void /* Decompiled name: sync_detector_t_construct */
+void
 sync_detector_t_construct(SyncDetectorState105ee0* state);
-void /* Decompiled name: sync_detector_set_callback */
+void
 sync_detector_set_callback(
     SyncDetectorState105ee0* state,
     void (*notify)(void* ctx, std::int64_t kind, std::uint64_t a, std::uint64_t b),
     void* notify_ctx);
-const std::uint32_t* /* Decompiled name: sync_detector_get_common_header */
+const std::uint32_t*
 sync_detector_get_common_header(const SyncDetectorState105ee0* state);
-const SyncDetectorChannelState105ee0* /* Decompiled name: sync_detector_find_channel_header */
+const SyncDetectorChannelState105ee0*
 sync_detector_find_channel_header(
     const SyncDetectorState105ee0* state,
     std::uint32_t channel);
-void /* Decompiled name: sync_detector_set_layout */
+void
 sync_detector_set_layout(SyncDetectorState105ee0* state, std::uint32_t layout_mask);
-void /* Decompiled name: sync_detector_process_block */
+void
 sync_detector_process_block(
     SyncDetectorState105ee0* state,
     const std::uint64_t* channel_ptrs_27,
     std::uint32_t sample_count = 32u);
 
-void /* Decompiled name: format_detector_t_construct */
+void
 format_detector_t_construct(
     FormatDetectorRegion1056c0* region,
     std::uint8_t* decoder_base,
     std::uint8_t* memory_base);
-void /* Decompiled name: format_detector_sync_callback */
+void
 format_detector_sync_callback(
     void* region_raw,
     std::int64_t kind,
     std::uint64_t rel_start,
     std::uint64_t span);
 
-void /* Decompiled name: format_detector_process */
+void
 format_detector_process(
     FormatDetectorState1056c0* state,
     const CodecV3IoBufferDescEb5a0* input_desc,
@@ -885,95 +885,95 @@ format_detector_process(
     void (*process_block)(void* user, const std::uint64_t* channel_ptrs_27),
     void* sync_user);
 
-void /* Decompiled name: parser_t_construct */
+void
 parser_t_construct(
     std::uint8_t* parser_base,
     const std::uint8_t* decoder_base,
     std::uint8_t* memory_base);
 std::int64_t codec_v3_parser_process_integrated_1034e0(std::uint8_t* parser_base);
 
-// IDA 0x106CD0 / 0x106D07 helpers:
+// / helpers:
 // Frame_mark_as_unused iterates frame slots and calls channel ParseResult_mark_usage(..., 0).
-void /* Decompiled name: downmix_coefficients_initialize */
+void
 downmix_coefficients_initialize(std::uint64_t coeff_ptr);
-void /* Decompiled name: channel_parse_result_construct */
+void
 channel_parse_result_construct(std::uint64_t parse_result_ptr);
-void /* Decompiled name: channel_parse_result_mark_usage */
+void
 channel_parse_result_mark_usage(std::uint64_t parse_result_ptr, std::uint32_t in_use);
-void /* Decompiled name: channel_parse_result_prepare_new */
+void
 channel_parse_result_prepare_new(std::uint64_t parse_result_ptr);
-std::uint64_t /* Decompiled name: parse_result_pool_required_additional_memory */
+std::uint64_t
 parse_result_pool_required_additional_memory(std::uint32_t pool_count);
-std::uint32_t /* Decompiled name: memory_parse_result_pool_count */
+std::uint32_t
 memory_parse_result_pool_count(
     std::uint32_t block_samples,
     std::uint32_t channel_count);
-/// IDA 0x13D750: три Accumulator_add_block — суммарный запрошенный объём полезной нагрузки (24+4+8)*n байт.
-std::uint64_t /* Decompiled name: memory_block_info_required_additional_memory */
+/// три Accumulator_add_block — суммарный запрошенный объём полезной нагрузки (24+4+8)*n байт.
+std::uint64_t
 memory_block_info_required_additional_memory(std::uint32_t n);
-/// IDA 0x106D20: аргумент для BlockInfo_t_required_additional_memory — (((*a2 + 255) >> 7) | 1).
-std::uint32_t /* Decompiled name: memory_block_info_slot_count */
+/// аргумент для BlockInfo_t_required_additional_memory — (((*a2 + 255) >> 7) | 1).
+std::uint32_t
 memory_block_info_slot_count(std::uint32_t block_samples);
-/// IDA 0x13D750 / auro_codec_v3_decoder_BlockInfo_t_construct @ 0x530900.
-std::uint32_t /* Decompiled name: block_info_construct */
+/// / auro_codec_v3_decoder_BlockInfo_t_construct.
+std::uint32_t
 block_info_construct(std::uint8_t* block_info, std::uint32_t slot_count);
-/// IDA 0x106D20 хвост: add_block(4, 8*(q&0x7FFFFFFF)) и add_block(4, (12*q)&0x3FFFFFFFCLL).
-std::uint64_t /* Decompiled name: memory_accumulator_tail_payload */
+/// хвост: add_block(4, 8*(q&0x7FFFFFFF)) и add_block(4, (12*q)&0x3FFFFFFFCLL).
+std::uint64_t
 memory_accumulator_tail_payload(std::uint64_t qword_at_a2);
-/// IDA 0x13D570: Accumulator_add_block(..., 8, 336 * n) — полезная нагрузка байт.
-std::uint64_t /* Decompiled name: memory_frame_deque_required_additional_memory */
+/// Accumulator_add_block(..., 8, 336 * n) — полезная нагрузка байт.
+std::uint64_t
 memory_frame_deque_required_additional_memory(std::uint32_t deque_capacity);
-/// Current IDA DelayLine required memory: add_block(4, 4*a*b*c) + add_block(8, 256*b); a=*a2, b=*(a2+16), c=*(a2+44).
-std::uint64_t /* Decompiled name: memory_delay_line_payload_sum */
+/// Current DelayLine required memory: add_block(4, 4*a*b*c) + add_block(8, 256*b); a=*a2, b=*(a2+16), c=*(a2+44).
+std::uint64_t
 memory_delay_line_payload_sum(
     std::uint64_t a2_qword0,
     std::uint64_t a2_qword16,
     std::uint32_t a2_dword44);
 
-/// BitReader @ channel_Parser_process: база `parser_u32 + 6` (см. 0x103840). Таблица масок: dword_2732C0 @ 0x2732C0.
-void /* Decompiled name: channel_bit_reader_set_data */
+/// BitReader channel_Parser_process: база `parser_u32 + 6` (см.). Таблица масок:.
+void
 channel_bit_reader_set_data(std::uint64_t br, std::uint64_t words_ptr, std::int32_t word_count);
-void /* Decompiled name: channel_bit_reader_set_bitlines */
+void
 channel_bit_reader_set_bitlines(std::uint64_t br, std::int32_t bitlines);
-std::uint32_t /* Decompiled name: channel_bit_reader_get_unsigned_bits */
+std::uint32_t
 channel_bit_reader_get_unsigned_bits(std::uint64_t br, std::int32_t bit_count);
-std::uint32_t /* Decompiled name: channel_bit_reader_get_remaining_nr_bits */
+std::uint32_t
 channel_bit_reader_get_remaining_nr_bits(std::uint64_t br);
-std::int64_t /* Decompiled name: channel_bit_reader_get_signed_bits */
+std::int64_t
 channel_bit_reader_get_signed_bits(std::uint64_t br, std::int32_t bit_count);
-void /* Decompiled name: channel_bit_reader_reset */
+void
 channel_bit_reader_reset(std::uint64_t br);
 
-/// IDA 0x1070D0
-void /* Decompiled name: channel_crc_reset */
+
+void
 channel_crc_reset(std::uint64_t crc_state);
-/// IDA 0x106F00 — глобальная таблица word_41ACF0[256] (512 байт), как в .so (lazy, один раз).
-void /* Decompiled name: channel_crc_table_init */
+/// глобальная таблица [256] (512 байт), как в.so (lazy, один раз).
+void
 channel_crc_table_init();
-/// IDA 0x1070E0 — обновление CRC по массиву 32-битных слов (счётчик слов в *(uint32*)(crc+4)).
-std::uint64_t /* Decompiled name: channel_crc_process */
+/// обновление CRC по массиву 32-битных слов (счётчик слов в *(uint32*)(crc+4)).
+std::uint64_t
 channel_crc_process(
     std::uint64_t crc_state,
     std::uint64_t words_ptr,
     std::int32_t word_count);
-/// IDA 0x107170 — сравнение с полями канала (как в хвосте 0x103840).
-std::int64_t /* Decompiled name: channel_crc_check */
+/// сравнение с полями канала (как в хвосте).
+std::int64_t
 channel_crc_check(
     std::uint64_t crc_state,
     std::int32_t dword_at_plus4_compare,
     std::int16_t expected_crc_word);
-/// IDA 0x105D50 — собирает метаданные канала после чтения слов @+76/+80.
-std::int64_t /* Decompiled name: channel_metadata_combine_info */
+/// собирает метаданные канала после чтения слов +76/+80.
+std::int64_t
 channel_metadata_combine_info(std::uint64_t frame_channel_ptr);
-/// IDA 0x104210 — полный Parser_t_construct: reset parser + инициализация полей канала (+52/+56/+72).
-std::int64_t /* Decompiled name: channel_parser_construct */
+/// полный Parser_t_construct: reset parser + инициализация полей канала (+52/+56/+72).
+std::int64_t
 channel_parser_construct(
     std::uint64_t parser_base,
     std::uint64_t frame_channel_ptr,
     std::uint64_t frame_meta_16b_ptr,
     std::uint64_t frame_slot_ptr);
 
-// Перенос auro_codec_v3_decoder_channel_Parser_process @ 0x103840.
+// Перенос auro_codec_v3_decoder_channel_Parser_process.
 std::int64_t channel_parser_process_103840(
     std::uint64_t parser_base,
     std::uint64_t frame_channel_ptr,
@@ -981,44 +981,44 @@ std::int64_t channel_parser_process_103840(
     std::uint32_t word_count,
     std::uint32_t* out_mode);
 
-bool /* Decompiled name: parse_result_pool_construct */
+bool
 parse_result_pool_construct(
     std::uint64_t pool_base_ptr,
     std::uint64_t storage_base_ptr,
     std::uint32_t pool_count);
-std::uint64_t /* Decompiled name: parse_result_pool_get_new */
+std::uint64_t
 parse_result_pool_get_new(std::uint64_t pool_base_ptr);
-void /* Decompiled name: frame_construct_parse_results */
+void
 frame_construct_parse_results(
     std::uint64_t frame_ptr,
     void (*construct_parse_result)(std::uint64_t parse_result_ptr));
-void /* Decompiled name: frame_construct */
+void
 frame_construct(
     std::uint64_t frame_ptr,
     std::uint64_t start,
     std::uint32_t span,
     std::uint32_t channel_mask,
     std::uint32_t active_mask);
-void /* Decompiled name: frame_assign_window */
+void
 frame_assign_window(
     std::uint64_t* io_next_frame_start,
     std::uint64_t frame_span,
     std::uint64_t frame_ptr);
-void /* Decompiled name: frame_mark_usage */
+void
 frame_mark_usage(
     std::uint64_t frame_ptr,
     std::uint32_t in_use,
     void (*mark_usage)(std::uint64_t parse_result_ptr, std::uint32_t in_use));
-void /* Decompiled name: frame_mark_as_unused */
+void
 frame_mark_as_unused(
     std::uint64_t frame_ptr,
     void (*mark_usage)(std::uint64_t parse_result_ptr, std::uint32_t in_use));
-void /* Decompiled name: frame_mark_as_unused_106cd0_default */
+void
 frame_mark_as_unused_106cd0_default(std::uint64_t frame_ptr);
-std::int64_t /* Decompiled name: parser_frame_mark_as_unused_cb */
+std::int64_t
 parser_frame_mark_as_unused_cb(std::uint64_t frame_ptr);
 
-// FrameDeque (IDA 0x13D570 / 0x13D5D0 / 0x13D670) minimal runtime layout.
+// FrameDeque (/ ) minimal runtime layout.
 struct FrameDequeState13d570 {
     std::uint64_t slot_ptrs[2]{};
     std::uint64_t frame_ptrs[2]{};
@@ -1030,22 +1030,22 @@ struct FrameDequeState13d570 {
     std::uint64_t frame_span = 0;
 };
 
-std::uint64_t /* Decompiled name: frame_deque_find_first_with_end_after */
+std::uint64_t
 frame_deque_find_first_with_end_after(
     std::uint64_t frame_deque_ptr,
     std::uint64_t sample_pos);
-std::int64_t /* Decompiled name: frame_deque_push_back */
+std::int64_t
 frame_deque_push_back(
     std::uint64_t frame_deque_ptr,
     std::uint64_t frame_ptr,
     std::uint64_t copy_bytes);
-std::uint64_t /* Decompiled name: frame_deque_pop_front */
+std::uint64_t
 frame_deque_pop_front(
     std::uint64_t frame_deque_ptr,
     void (*frame_mark_as_unused)(std::uint64_t frame_ptr));
-std::uint64_t /* Decompiled name: frame_deque_pop_front_keep_frame */
+std::uint64_t
 frame_deque_pop_front_keep_frame(std::uint64_t frame_deque_ptr);
-std::uint64_t /* Decompiled name: frame_deque_pop_back */
+std::uint64_t
 frame_deque_pop_back(
     std::uint64_t frame_deque_ptr,
     void (*frame_mark_as_unused)(std::uint64_t frame_ptr));
@@ -1060,7 +1060,7 @@ struct ParserRebindContext103610 {
     std::size_t channel_parser_count = 0;        // number of parser slots
 };
 
-void /* Decompiled name: parser_rebind_frame_parse_results */
+void
 parser_rebind_frame_parse_results(
     std::uint64_t frame_ptr,
     const ParserRebindContext103610* ctx);
@@ -1077,13 +1077,13 @@ struct ParserStateSinkContext {
     std::uint32_t* state_ptr = nullptr;
 };
 
-std::int64_t /* Decompiled name: parser_ready_frame_push_copy */
+std::int64_t
 parser_ready_frame_push_copy(
     std::uint64_t frame_deque_ptr,
     std::uint64_t frame_ptr,
     std::uint64_t copy_bytes,
     const ParserReadyFrameCopyContext* copy_ctx);
-void /* Decompiled name: parser_state_sink_notify */
+void
 parser_state_sink_notify(ParserStateSinkContext* sink, std::uint32_t state);
 
 struct DecoderParserRunContext1034e0 {
@@ -1099,7 +1099,7 @@ struct DecoderParserRunContext1034e0 {
     CodecV3ParserRuntimeFns1034e0 runtime_fns{};
 };
 
-std::int64_t /* Decompiled name: decoder_run_parser */
+std::int64_t
 decoder_run_parser(DecoderParserRunContext1034e0* ctx);
 
 struct DecoderParserStageContext1034e0 {
@@ -1119,7 +1119,7 @@ struct DecoderParserStageContext1034e0 {
     CodecV3ParserRuntimeFns1034e0 runtime_fns{};
 };
 
-std::int64_t /* Decompiled name: decoder_run_parser_stage */
+std::int64_t
 decoder_run_parser_stage(DecoderParserStageContext1034e0* ctx);
 
 struct DecoderOutputStageContext1024a9 {
@@ -1135,7 +1135,7 @@ struct DecoderOutputStageContext1024a9 {
     std::uint32_t* produced_output_mask = nullptr;
 };
 
-std::int64_t /* Decompiled name: decoder_run_output_stage */
+std::int64_t
 decoder_run_output_stage(
     const DecoderOutputStageContext1024a9* ctx,
     const void* runtime_fns);
@@ -1154,7 +1154,7 @@ struct DecoderInitFakeFrameChannelsContext106ba0 {
     std::uint32_t active_decode_probe_slots = 0;
 };
 
-void /* Decompiled name: decoder_init_fake_frame_channels */
+void
 decoder_init_fake_frame_channels(
     const DecoderInitFakeFrameChannelsContext106ba0* ctx);
 
@@ -1172,7 +1172,7 @@ struct DecoderInitFrameDequesContext13d5d0 {
     void* rebind_user = nullptr;
 };
 
-void /* Decompiled name: decoder_init_frame_deques */
+void
 decoder_init_frame_deques(DecoderInitFrameDequesContext13d5d0* ctx);
 
 struct DecoderDispatchRunContextEb5a0 {
@@ -1191,7 +1191,7 @@ struct DecoderDispatchRunContextEb5a0 {
     void* sync_user = nullptr;
 };
 
-std::int64_t /* Decompiled name: decoder_run_dispatch */
+std::int64_t
 decoder_run_dispatch(DecoderDispatchRunContextEb5a0* ctx);
 
 struct DecoderStepRunContext101800 {
@@ -1203,10 +1203,10 @@ struct DecoderStepRunContext101800 {
     void* output_user = nullptr;
 };
 
-std::int64_t /* Decompiled name: decoder_run_step */
+std::int64_t
 decoder_run_step(DecoderStepRunContext101800* ctx);
 
-// Перенос auro_codec_v3_decoder_OutputGenerator_process @ 0x102240.
+// Перенос auro_codec_v3_decoder_OutputGenerator_process.
 struct OutputGeneratorSegment {
     std::uint64_t start = 0;
     std::uint64_t len = 0;
@@ -1214,20 +1214,20 @@ struct OutputGeneratorSegment {
     std::uint32_t frame_flags = 0;
     std::uint64_t frame_ptr = 0;
     bool frame_has_started = false;
-    bool prefer_started_decode_path = false; // IDA v131: started flag для выбора decode-подветки.
+    bool prefer_started_decode_path = false; // v131: started flag для выбора decode-подветки.
 };
 static_assert(sizeof(OutputGeneratorSegment) >= 24, "OutputGeneratorSegment must hold IDA 24-byte range payload.");
 
 struct OutputGeneratorSegmentPlan {
     std::vector<OutputGeneratorSegment> segments;
     std::uint32_t segment_count = 0;
-    std::uint64_t delay_line_buffer = 0; // exact IDA buffer from DelayLine_get_buffer(...)
+    std::uint64_t delay_line_buffer = 0; // exact buffer from DelayLine_get_buffer(...)
     std::int64_t delay_line_state_offset = 0;
 };
 
 struct OutputGeneratorExtrapolateSources;
 
-// Callback-интерфейс для следующей фазы 0x1024A9 (decode/copy по сегментам).
+// Callback-интерфейс для следующей фазы (decode/copy по сегментам).
 struct OutputGeneratorApplyCallbacks {
     void* user = nullptr;
     bool copy_input_enabled = false;
@@ -1246,7 +1246,7 @@ struct OutputGeneratorApplyCallbacks {
         const OutputGeneratorExtrapolateSources* extrap_sources) = nullptr;
 };
 
-// Callback-интерфейс для IDA-блока 0x10247B..0x1024CB:
+// Callback-интерфейс для -блока:
 // цикл по frame channels с вызовами GolombRice_initialize + Extrapolate_initialize.
 struct OutputGeneratorFrameInitCallbacks {
     void* user = nullptr;
@@ -1280,14 +1280,14 @@ std::int64_t output_generator_apply_segments_1024a9(
     const OutputGeneratorApplyCallbacks& cb,
     std::uint32_t* io_channel_mask_out);
 
-// Частичный перенос фазы frame-init (0x10247B..0x1024CB) для одного сегмента.
-// Вызывается только если frame_start == timeline_cursor (IDA 0x102472..0x10247B).
+// Частичный перенос фазы frame-init (..) для одного сегмента.
+// Вызывается только если frame_start == timeline_cursor (..).
 std::int64_t output_generator_prepare_frame_channels_1024a9(
     const OutputGeneratorSegment& seg,
     std::uint64_t timeline_cursor,
     const OutputGeneratorFrameInitCallbacks& cb);
 
-// Объединённый частичный pipeline сегмента в порядке IDA:
+// Объединённый частичный pipeline сегмента в порядке:
 // optional frame-init -> decode/copy -> накопление channel mask.
 std::int64_t output_generator_process_segments_1024a9(
     const OutputGeneratorSegmentPlan& plan,
@@ -1296,7 +1296,7 @@ std::int64_t output_generator_process_segments_1024a9(
     const OutputGeneratorApplyCallbacks& apply_cb,
     std::uint32_t* io_channel_mask_out);
 
-// Raw-adapter к layout из IDA для частичного запуска 0x102240 на "живом" OutputGenerator-объекте.
+// Raw-adapter к layout из для частичного запуска на "живом" OutputGenerator-объекте.
 // Здесь frame-init callbacks собираются автоматически из смещений frame/channel.
 struct OutputGeneratorRuntimeFns1024a9 {
     std::uint64_t (*delay_line_get_channel)(std::uint64_t delay_line_buffer, std::uint32_t channel, std::uint64_t start) = nullptr;
@@ -1354,7 +1354,7 @@ std::int64_t output_generator_process_segments_raw_1024a9(
     const CodecV3IoBufferDescEb5a0* input_desc = nullptr,
     std::uint32_t input_mask = 0);
 
-std::int64_t /* Decompiled name: output_generator_cross_fade */
+std::int64_t
 output_generator_cross_fade(
     std::uint8_t* output_generator_base,
     std::uint64_t output_channels_table_base,
@@ -1362,7 +1362,7 @@ output_generator_cross_fade(
     std::uint64_t delay_line_buffer,
     std::uint64_t segment_start = 0u);
 
-// Entry-point по IDA 0x102240: build-plan -> pre-segments callback -> segment loop -> update cursor/pop_front.
+// Entry-point по: build-plan -> pre-segments callback -> segment loop -> update cursor/pop_front.
 // external_mask_inout соответствует аргументу a3 в оригинале (*a3 |= seg_mask).
 std::int64_t output_generator_process_1024a9(
     std::uint8_t* output_generator_base,
@@ -1373,7 +1373,7 @@ std::int64_t output_generator_process_1024a9(
     std::uint32_t input_mask = 0);
 
 // Совместимый wrapper для существующих вызовов.
-std::int64_t /* Decompiled name: output_generator_process */
+std::int64_t
 output_generator_process(
     std::uint8_t* output_generator_base,
     std::uint64_t output_channels_table_base,
@@ -1396,69 +1396,69 @@ struct DecoderOutputGeneratorRunContext1024a9 {
     OutputGeneratorRuntimeFns1024a9 runtime_fns{};
 };
 
-std::int64_t /* Decompiled name: decoder_run_output_generator */
+std::int64_t
 decoder_run_output_generator(
     const DecoderOutputGeneratorRunContext1024a9* ctx);
 
-void /* Decompiled name: output_generator_construct */
+void
 output_generator_construct(
     std::uint8_t* output_generator_base,
     const std::uint8_t* output_config,
     std::uint64_t memory_base);
 
-std::uint8_t* /* Decompiled name: auro_a3deng_v4_android_A3DENG_construct */
+std::uint8_t*
 auro_a3deng_v4_android_A3DENG_construct(
     std::uint8_t* a3deng_base,
     std::uint32_t pipeline_audio_block_size,
     std::uint32_t output_mode);
-std::uint8_t* /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroInitialize */
+std::uint8_t*
 auro_a3deng_v4_android_A3DENG_AuroInitialize(
     std::uint32_t pipeline_audio_block_size,
     std::uint32_t output_mode);
-void /* Decompiled name: auro_a3deng_v4_android_A3DENG_destroy */
+void
 auro_a3deng_v4_android_A3DENG_destroy(std::uint8_t* a3deng_base);
-std::string /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroVersion */
+std::string
 auro_a3deng_v4_android_A3DENG_AuroVersion();
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroIsValid */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_AuroIsValid(
     std::uint8_t* a3deng_base);
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroRelease */
+bool
 auro_a3deng_v4_android_A3DENG_AuroRelease(std::uint8_t* a3deng_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroReset */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_AuroReset(
     std::uint8_t* a3deng_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroPush */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_AuroPush(
     std::uint8_t* a3deng_base,
     const std::uint8_t* input_bytes,
     std::int32_t input_byte_count);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroGetLatencyUs */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_AuroGetLatencyUs(
     std::uint8_t* a3deng_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroGetOutputChannelCount */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_AuroGetOutputChannelCount(
     std::uint8_t* a3deng_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroPop */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_AuroPop(
     std::uint8_t* a3deng_base,
     std::uint8_t* output_bytes,
     std::int32_t output_byte_count);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroGetMaximumOutputBytecount */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_AuroGetMaximumOutputBytecount(
     std::uint8_t* a3deng_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroInputBlockSize */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_AuroInputBlockSize(
     std::uint8_t* a3deng_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroResetAudioState */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_AuroResetAudioState(
     std::uint8_t* a3deng_base);
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroSetDebugPath */
+bool
 auro_a3deng_v4_android_A3DENG_AuroSetDebugPath(
     std::uint8_t* a3deng_base,
     const char* path_utf8,
     const char* tag_utf8);
 
-/// Поля в порядке JNI AuroUpdate2 (Artist Connection libauro.so @ 0x318D60).
+/// Поля в порядке JNI AuroUpdate2 (Artist Connection libauro.so).
 struct A3DENGSettingsFields318d60 {
     bool is_stereo_device = false;
     bool headset_connected = false;
@@ -1480,23 +1480,23 @@ struct A3DENGSettingsFields318d60 {
 void auro_a3deng_v4_android_A3DENG_settings_pack_like_jni_318d60(
     std::uint8_t* out_0x34,
     const A3DENGSettingsFields318d60& f);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_AuroUpdate2 */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_AuroUpdate2(
     std::uint8_t* a3deng_base,
     const A3DENGSettingsFields318d60& f);
 
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_update */
+bool
 auro_a3deng_v4_android_A3DENG_update(
     std::uint8_t* a3deng_base,
     const std::uint8_t* settings_0x34);
 bool a3deng_output_info_valid_31b4e0(std::uint64_t output_info);
-std::uint64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_get_output_info */
+std::uint64_t
 auro_a3deng_v4_android_A3DENG_get_output_info(
     std::uint8_t* a3deng_base);
-std::uint64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_get_maximum_output_bytecount */
+std::uint64_t
 auro_a3deng_v4_android_A3DENG_get_maximum_output_bytecount(
     std::uint8_t* a3deng_base);
-std::uint32_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_input_block_size */
+std::uint32_t
 auro_a3deng_v4_android_A3DENG_input_block_size(
     const std::uint8_t* a3deng_base);
 struct A3DENGVersionFields31bbe0 {
@@ -1506,77 +1506,77 @@ struct A3DENGVersionFields31bbe0 {
     std::uint32_t beta = 0x7FFFFFFFu;
     const char* tag = nullptr;
 };
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_get_version */
+bool
 auro_a3deng_v4_android_A3DENG_get_version(
     const std::uint8_t* a3deng_base,
     A3DENGVersionFields31bbe0* out);
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_destroy_instance */
+bool
 auro_a3deng_v4_android_A3DENG_destroy_instance(
     std::uint8_t* a3deng_base);
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_create_instance */
+bool
 auro_a3deng_v4_android_A3DENG_create_instance(
     std::uint8_t* a3deng_base,
     std::uint32_t decoder_mode);
-std::uint8_t* /* Decompiled name: auro_a3deng_v4_android_A3DENG_settings */
+std::uint8_t*
 auro_a3deng_v4_android_A3DENG_settings(
     std::uint8_t* a3deng_base);
-const std::uint8_t* /* Decompiled name: auro_a3deng_v4_android_A3DENG_settings */
+const std::uint8_t*
 auro_a3deng_v4_android_A3DENG_settings(
     const std::uint8_t* a3deng_base);
-std::uint32_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_calculate_output_sample_rate */
+std::uint32_t
 auro_a3deng_v4_android_A3DENG_calculate_output_sample_rate(
     std::uint32_t input_sample_rate,
     std::uint32_t output_mode);
-std::uint32_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_get_output_sample_rate */
+std::uint32_t
 auro_a3deng_v4_android_A3DENG_get_output_sample_rate(
     const std::uint8_t* a3deng_base);
-std::uint32_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_Settings_Config_target_device */
+std::uint32_t
 auro_a3deng_v4_android_A3DENG_Settings_Config_target_device(
     const std::uint8_t* settings_0x34);
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_Settings_Config_equals */
+bool
 auro_a3deng_v4_android_A3DENG_Settings_Config_equals(
     const std::uint8_t* lhs_0x34,
     const std::uint8_t* rhs_0x34);
-std::uint32_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_Settings_virtualization_mode */
+std::uint32_t
 auro_a3deng_v4_android_A3DENG_Settings_virtualization_mode(
     const std::uint8_t* settings_0x34);
-std::uint32_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_Settings_listening_mode */
+std::uint32_t
 auro_a3deng_v4_android_A3DENG_Settings_listening_mode(
     const std::uint8_t* settings_0x34);
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_reset */
+bool
 auro_a3deng_v4_android_A3DENG_reset(std::uint8_t* a3deng_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_get_latency_nr_samples */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_get_latency_nr_samples(
     std::uint8_t* a3deng_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_get_latency_us */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_get_latency_us(
     std::uint8_t* a3deng_base);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_push */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_push(
     std::uint8_t* a3deng_base,
     const std::uint8_t* input_bytes,
     std::uint32_t input_byte_count);
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_reset_audio_state */
+bool
 auro_a3deng_v4_android_A3DENG_reset_audio_state(std::uint8_t* a3deng_base);
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_set_debug_path */
+bool
 auro_a3deng_v4_android_A3DENG_set_debug_path(
     std::uint8_t* a3deng_base,
     const char* path_utf8,
     const char* tag_utf8);
-std::int64_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_pop */
+std::int64_t
 auro_a3deng_v4_android_A3DENG_pop(
     std::uint8_t* a3deng_base,
     std::uint8_t* output_bytes,
     std::int32_t output_byte_count);
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_pop_internal */
+bool
 auro_a3deng_v4_android_A3DENG_pop_internal(
     std::uint8_t* a3deng_base,
     std::uint8_t*& output_bytes,
     std::int32_t& remaining_output_byte_count);
-std::uint32_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_get_output_layout */
+std::uint32_t
 auro_a3deng_v4_android_A3DENG_get_output_layout(
     std::uint8_t* a3deng_base);
-std::uint32_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_get_output_channel_count */
+std::uint32_t
 auro_a3deng_v4_android_A3DENG_get_output_channel_count(
     std::uint8_t* a3deng_base);
 
@@ -1588,25 +1588,25 @@ using A3dengCodecV3PopRenderFn = std::uint64_t (*)(
     std::uint32_t frames,
     std::uint32_t output_mask,
     std::uint32_t input_mask);
-void /* Decompiled name: auro_a3deng_v4_android_A3DENG_set_codec_v3_pop_render_hook */
+void
 auro_a3deng_v4_android_A3DENG_set_codec_v3_pop_render_hook(
     std::uint8_t* a3deng_base,
     A3dengCodecV3PopRenderFn fn,
     void* user);
-const std::uint8_t* /* Decompiled name: auro_a3deng_v4_android_A3DENG_partial_queue_input_data */
+const std::uint8_t*
 auro_a3deng_v4_android_A3DENG_partial_queue_input_data(
     std::uint8_t* a3deng_base);
-std::size_t /* Decompiled name: auro_a3deng_v4_android_A3DENG_partial_queue_input_size */
+std::size_t
 auro_a3deng_v4_android_A3DENG_partial_queue_input_size(
     std::uint8_t* a3deng_base);
-bool /* Decompiled name: auro_a3deng_v4_android_A3DENG_consume_interleaved_input_to_planar_i32 */
+bool
 auro_a3deng_v4_android_A3DENG_consume_interleaved_input_to_planar_i32(
     std::uint8_t* a3deng_base,
     std::uint32_t frames,
     std::uint32_t input_mask,
     const std::uint64_t* out_channel_ptrs_27,
     std::uint32_t plane_stride_samples);
-std::uint64_t /* Decompiled name: a3deng_write_pruned_interleaved_from_planar_i32 */
+std::uint64_t
 a3deng_write_pruned_interleaved_from_planar_i32(
     std::uint8_t* a3deng_base,
     std::uint8_t* output_bytes,
@@ -1614,187 +1614,187 @@ a3deng_write_pruned_interleaved_from_planar_i32(
     const std::uint64_t* channel_ptrs_27,
     std::uint32_t output_sample_type);
 
-void /* Decompiled name: auro_a3deng_v4_android_channel_layout */
+void
 auro_a3deng_v4_android_channel_layout(
     std::uint8_t* layout_0x188,
     std::uint32_t channel_mask,
     std::uint32_t hdmi_channel_mapping);
 
-/// sub_31CB30 @ 0x31CB30 — три QWORD как `std::vector` begin/end/cap конца.
-void /* Decompiled name: a3deng_u32_vector_assign_sub */
+/// три QWORD как `std:vector` begin/end/cap конца.
+void
 a3deng_u32_vector_assign_sub(
     std::uint8_t* vector_base24,
     const void* src_bytes,
     std::size_t uint32_element_count);
 
-/// Порядок слотов при hdmi_channel_mapping==1 (xmmword_1DB2B0 в sub_31ACE0).
-std::uint32_t /* Decompiled name: a3deng_channel_mask_slots_hdmi_back_before_surround */
+/// Порядок слотов при hdmi_channel_mapping==1 (в).
+std::uint32_t
 a3deng_channel_mask_slots_hdmi_back_before_surround(
     std::uint32_t* out_slots,
     std::uint32_t out_cap,
     std::uint32_t channel_mask);
 
-/// auro_iir_biquad_parameter_Config_float32_t_compute @ 0x6387D0 (float64 construct/update/get_coeffs → float32 coeffs).
-std::int64_t /* Decompiled name: auro_iir_biquad_parameter_Config_float32_t_compute */
+/// auro_iir_biquad_parameter_Config_float32_t_compute (float64 construct/update/get_coeffs → float32 coeffs).
+std::int64_t
 auro_iir_biquad_parameter_Config_float32_t_compute(
     std::uint8_t* param_stack12,
     std::uint64_t cfg_ptr,
     std::uint8_t* coeff_state_out);
 
 constexpr std::size_t kAsc4heElevationEqStateBytes = 160u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_ElevationEQ_initialize */
+std::int64_t
 auro_asc4he_v1_ElevationEQ_initialize(std::uint8_t* state, std::uint64_t cfg_ptr);
-void /* Decompiled name: auro_asc4he_v1_ElevationEQ_reset_audio_state */
+void
 auro_asc4he_v1_ElevationEQ_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_ElevationEQ_process */
+std::int64_t
 auro_asc4he_v1_ElevationEQ_process(float* block, std::uint64_t* io_pair);
 
 constexpr std::size_t kAsc4heVirtualHeightStateBytes = 2048u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_blocked_Delay_initialize */
+std::int64_t
 auro_asc4he_v1_blocked_Delay_initialize(
     std::uint8_t* delay_state,
     std::int32_t a2,
     std::uint8_t* buffer_base,
     std::uint32_t buffer_bytes,
     std::int32_t a5);
-std::int64_t /* Decompiled name: auro_asc4he_v1_blocked_Delay_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_blocked_Delay_reset_audio_state(std::uint8_t* delay_state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_blocked_Delay_process */
+std::int64_t
 auro_asc4he_v1_blocked_Delay_process(
     std::uint8_t* delay_state,
     std::uint8_t* io_pair_16);
 
 constexpr std::size_t kAsc4heDelay7msStateBytes = 3360u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_Delay7ms_initialize */
+std::int64_t
 auro_asc4he_v1_Delay7ms_initialize(std::uint8_t* state, std::uint32_t sample_rate);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Delay7ms_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_Delay7ms_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Delay7ms_process */
+std::int64_t
 auro_asc4he_v1_Delay7ms_process(std::uint8_t* state, std::uint8_t* io_pair_16);
 
 constexpr std::size_t kAsc4heDelay10msStateBytes = 4384u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_Delay10ms_initialize */
+std::int64_t
 auro_asc4he_v1_Delay10ms_initialize(
     std::uint8_t* state,
     std::int32_t delay_us,
     std::uint32_t sample_rate);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Delay10ms_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_Delay10ms_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Delay10ms_process */
+std::int64_t
 auro_asc4he_v1_Delay10ms_process(std::uint8_t* state, std::uint8_t* io_pair_16);
 
 constexpr std::size_t kAsc4heDecorrelatorStateBytes = 320u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_Decorrelator_initialize */
+std::int64_t
 auro_asc4he_v1_Decorrelator_initialize(std::uint8_t* state, std::uint64_t cfg_ptr);
-void /* Decompiled name: auro_asc4he_v1_Decorrelator_reset_audio_state */
+void
 auro_asc4he_v1_Decorrelator_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Decorrelator_process */
+std::int64_t
 auro_asc4he_v1_Decorrelator_process(float* block, std::uint64_t* io_pair);
 
 constexpr std::size_t kAsc4heCrossTalkCompensationStateBytes = 112u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_CrossTalkCompensation_initialize */
+std::int64_t
 auro_asc4he_v1_CrossTalkCompensation_initialize(
     std::uint8_t* state,
     const std::uint8_t* params,
     std::uint32_t sample_rate);
-void /* Decompiled name: auro_asc4he_v1_CrossTalkCompensation_reset_audio_state */
+void
 auro_asc4he_v1_CrossTalkCompensation_reset_audio_state(std::uint8_t* state);
-float* /* Decompiled name: auro_asc4he_v1_CrossTalkCompensation_process */
+float*
 auro_asc4he_v1_CrossTalkCompensation_process(float* state, float** io_pair);
 
-std::int64_t /* Decompiled name: auro_asc4he_v1_VirtualHeight_initialize */
+std::int64_t
 auro_asc4he_v1_VirtualHeight_initialize(std::uint8_t* state, std::uint64_t cfg_ptr);
-std::int64_t /* Decompiled name: auro_asc4he_v1_VirtualHeight_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_VirtualHeight_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_VirtualHeight_process */
+std::int64_t
 auro_asc4he_v1_VirtualHeight_process(std::uint8_t* state, void** channel_ptrs);
 
 constexpr std::size_t kAsc4heCrossTalkStateBytes = 128u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_CrossTalk_initialize */
+std::int64_t
 auro_asc4he_v1_CrossTalk_initialize(std::uint8_t* state, const float* params2);
-void /* Decompiled name: auro_asc4he_v1_CrossTalk_reset_audio_state */
+void
 auro_asc4he_v1_CrossTalk_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_CrossTalk_process */
+std::int64_t
 auro_asc4he_v1_CrossTalk_process(std::uint8_t* state, std::uint64_t* io_pair);
 
 constexpr std::size_t kAsc4heCenterGenFixedDefaultsBytes = 20u;
 constexpr std::size_t kAsc4heCenterGenDynamicDefaultsBytes = 56u;
-void /* Decompiled name: auro_asc4he_v1_CenterGen_get_default_fixed_parameters */
+void
 auro_asc4he_v1_CenterGen_get_default_fixed_parameters(std::uint8_t* out20);
-void /* Decompiled name: auro_asc4he_v1_CenterGen_get_default_dynamic_parameters */
+void
 auro_asc4he_v1_CenterGen_get_default_dynamic_parameters(std::uint8_t* out56);
 
-/// auro_centergen_v3_Processor_t @ libauro (memset 0x428 в construct).
+/// auro_centergen_v3_Processor_t libauro (memset 0x428 в construct).
 constexpr std::size_t kCentergenV3ProcessorBytes = 0x428u;
-void /* Decompiled name: auro_centergen_v3_default_fixed_params */
+void
 auro_centergen_v3_default_fixed_params(std::uint8_t* out20);
-void /* Decompiled name: auro_centergen_v3_default_dynamic_params */
+void
 auro_centergen_v3_default_dynamic_params(std::uint8_t* out56);
-std::int64_t /* Decompiled name: auro_centergen_v3_Processor_set_fixed_parameters */
+std::int64_t
 auro_centergen_v3_Processor_set_fixed_parameters(std::uint8_t* proc, const std::uint8_t* fixed20);
-void /* Decompiled name: auro_centergen_v3_Processor_set_dynamic_parameters */
+void
 auro_centergen_v3_Processor_set_dynamic_parameters(std::uint8_t* proc, const std::uint8_t* dyn56);
-std::uint64_t /* Decompiled name: auro_centergen_v3_Processor_t_construct */
+std::uint64_t
 auro_centergen_v3_Processor_t_construct(std::uint8_t* proc, std::int32_t* sample_rate_and_mode);
-std::int64_t /* Decompiled name: auro_asc4he_v1_CenterGen_initialize */
+std::int64_t
 auro_asc4he_v1_CenterGen_initialize(
     std::uint8_t* proc,
     std::int32_t sample_rate_hz,
     const std::uint8_t* fixed20,
     const std::uint8_t* dyn56);
-std::int64_t /* Decompiled name: auro_asc4he_v1_CenterGen_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_CenterGen_reset_audio_state(std::uint8_t* proc);
-std::int64_t /* Decompiled name: auro_centergen_v3_Processor_reset_audio_state */
+std::int64_t
 auro_centergen_v3_Processor_reset_audio_state(std::uint8_t* proc);
-std::int64_t /* Decompiled name: auro_centergen_v3_Processor_get_fixed_parameters */
+std::int64_t
 auro_centergen_v3_Processor_get_fixed_parameters(const std::uint8_t* proc, std::uint8_t* out20);
-std::int64_t /* Decompiled name: auro_centergen_v3_Processor_get_dynamic_parameters */
+std::int64_t
 auro_centergen_v3_Processor_get_dynamic_parameters(const std::uint8_t* proc, std::uint8_t* out56);
-std::int64_t /* Decompiled name: auro_asc4he_v1_CenterGen_get_fixed_parameters */
+std::int64_t
 auro_asc4he_v1_CenterGen_get_fixed_parameters(const std::uint8_t* proc, std::uint8_t* out20);
-std::int64_t /* Decompiled name: auro_asc4he_v1_CenterGen_set_dynamic_parameters */
+std::int64_t
 auro_asc4he_v1_CenterGen_set_dynamic_parameters(std::uint8_t* proc, const std::uint8_t* dyn56);
-std::int64_t /* Decompiled name: auro_asc4he_v1_CenterGen_get_dynamic_parameters */
+std::int64_t
 auro_asc4he_v1_CenterGen_get_dynamic_parameters(const std::uint8_t* proc, std::uint8_t* out56);
-std::int64_t /* Decompiled name: auro_centergen_v3_Processor_process */
+std::int64_t
 auro_centergen_v3_Processor_process(
     std::uint8_t* proc,
     std::uint64_t io_pair_q0,
     std::uint64_t io_pair_q1,
     std::uint8_t* block_or_side_ctx,
     std::int32_t frame_count);
-std::int64_t /* Decompiled name: auro_asc4he_v1_CenterGen_process */
+std::int64_t
 auro_asc4he_v1_CenterGen_process(
     std::uint8_t* proc,
     std::uint64_t* io_pair,
     std::uint8_t* block_or_side_ctx);
 
 constexpr std::size_t kAsc4heCenterCrossOverStateBytes = 60u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_CenterCrossOver_initialize */
+std::int64_t
 auro_asc4he_v1_CenterCrossOver_initialize(
     std::uint8_t* state,
     std::uint64_t sample_rate,
     std::int32_t enabled);
-void /* Decompiled name: auro_asc4he_v1_CenterCrossOver_reset_audio_state */
+void
 auro_asc4he_v1_CenterCrossOver_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_CenterCrossOver_process */
+std::int64_t
 auro_asc4he_v1_CenterCrossOver_process(
     std::uint8_t* state,
     std::uint64_t out_center,
     std::uint64_t in_center);
 
-// Точный выбор источников для Extrapolate_process из 0x1024A9:
+// Точный выбор источников для Extrapolate_process из:
 // frame_channel[27..29] -> output table channel ptr + 4*segment_start, иначе fallback в scratch.
 constexpr std::size_t kAsc4heCrossoverStateBytes = 504u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_Crossover_initialize */
+std::int64_t
 auro_asc4he_v1_Crossover_initialize(
     std::uint8_t* state,
     std::uint32_t sample_rate,
     std::int32_t mode,
     std::int32_t channels);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Crossover_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_Crossover_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Crossover_process */
+std::int64_t
 auro_asc4he_v1_Crossover_process(
     std::uint8_t* state,
     std::uint64_t* in_pair,
@@ -1803,15 +1803,15 @@ auro_asc4he_v1_Crossover_process(
     std::uint64_t* top_pair = nullptr);
 
 constexpr std::size_t kAsc4heSideUpCrossoverStateBytes = 124u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_SideUpCrossover_initialize */
+std::int64_t
 auro_asc4he_v1_SideUpCrossover_initialize(
     std::uint8_t* state,
     std::int32_t enabled,
     std::uint32_t cutoff_bits,
     std::uint32_t sample_rate);
-std::int64_t /* Decompiled name: auro_asc4he_v1_SideUpCrossover_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_SideUpCrossover_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_SideUpCrossover_process */
+std::int64_t
 auro_asc4he_v1_SideUpCrossover_process(
     std::uint8_t* state,
     std::uint64_t* in_pair,
@@ -1820,38 +1820,38 @@ auro_asc4he_v1_SideUpCrossover_process(
     std::uint64_t* add_pair);
 
 constexpr std::size_t kAsc4heSurroundSatellitesStateBytes = 168u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_SurroundSatellites_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_sb_SurroundSatellites_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_SurroundSatellites_initialize */
+std::int64_t
 auro_asc4he_v1_sb_SurroundSatellites_initialize(
     std::uint8_t* state,
     const std::uint8_t* params,
     std::uint32_t sample_rate);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_SurroundSatellites_process_2_2 */
+std::int64_t
 auro_asc4he_v1_sb_SurroundSatellites_process_2_2(
     float* state,
     std::uint64_t* channel_table);
-void /* Decompiled name: auro_asc4he_v1_sb_SurroundSatellites_process_2_0 */
+void
 auro_asc4he_v1_sb_SurroundSatellites_process_2_0(
     float* state,
     std::uint64_t* channel_table);
 
 constexpr std::size_t kAsc4heHeightSatellitesStateBytes = 4116u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_HeightSatellites_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_sb_HeightSatellites_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_HeightSatellites_initialize */
+std::int64_t
 auro_asc4he_v1_sb_HeightSatellites_initialize(
     std::uint8_t* state,
     const std::uint8_t* params,
     std::uint32_t sample_rate,
     std::uint32_t crossover_mode);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_HeightSatellites_process_2_0 */
+std::int64_t
 auro_asc4he_v1_sb_HeightSatellites_process_2_0(
     std::uint8_t* state,
     std::uint64_t* channel_table,
     std::uint8_t* a3,
     float* work_128);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_HeightSatellites_process_2_2 */
+std::int64_t
 auro_asc4he_v1_sb_HeightSatellites_process_2_2(
     std::uint8_t* state,
     std::uint8_t* channel_table,
@@ -1859,24 +1859,24 @@ auro_asc4he_v1_sb_HeightSatellites_process_2_2(
     float* work_128);
 
 constexpr std::size_t kAsc4heCGenXOverBlockStateBytes = 1656u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_CGenXOverBlock_initialize */
+std::int64_t
 auro_asc4he_v1_CGenXOverBlock_initialize(
     std::uint8_t* state,
     std::uint32_t sample_rate,
     std::uint32_t crossover_mode,
     const std::uint8_t* fixed20,
     const std::uint8_t* dyn56);
-std::int64_t /* Decompiled name: auro_asc4he_v1_CGenXOverBlock_get_cgen_dynamic_parameters */
+std::int64_t
 auro_asc4he_v1_CGenXOverBlock_get_cgen_dynamic_parameters(
     const std::uint8_t* state,
     std::uint8_t* out56);
-std::int64_t /* Decompiled name: auro_asc4he_v1_CGenXOverBlock_set_cgen_dynamic_parameters */
+std::int64_t
 auro_asc4he_v1_CGenXOverBlock_set_cgen_dynamic_parameters(
     std::uint8_t* state,
     const std::uint8_t* dyn56);
-std::int64_t /* Decompiled name: auro_asc4he_v1_CGenXOverBlock_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_CGenXOverBlock_reset_audio_state(std::uint8_t* state);
-float* /* Decompiled name: auro_asc4he_v1_CGenXOverBlock_process_without_external_center */
+float*
 auro_asc4he_v1_CGenXOverBlock_process_without_external_center(
     std::uint8_t* state,
     float** io_pair,
@@ -1884,7 +1884,7 @@ auro_asc4he_v1_CGenXOverBlock_process_without_external_center(
     float** surround_pair,
     std::uint64_t a5,
     float* work_768);
-float* /* Decompiled name: auro_asc4he_v1_CGenXOverBlock_process_with_external_center */
+float*
 auro_asc4he_v1_CGenXOverBlock_process_with_external_center(
     std::uint8_t* state,
     float** io_pair,
@@ -1895,155 +1895,155 @@ auro_asc4he_v1_CGenXOverBlock_process_with_external_center(
     std::uint64_t work_bytes,
     float* work_768);
 
-bool /* Decompiled name: is_median_symmetric */
+bool
 is_median_symmetric(std::uint32_t layout);
 constexpr std::size_t kAsc4heBaseProcessorBytes = 0x3718u;
 constexpr std::size_t kAsc4heSbProcessorBytes = 20196u;
-std::int64_t /* Decompiled name: auro_asc4he_v1_base_Processor_t_construct */
+std::int64_t
 auro_asc4he_v1_base_Processor_t_construct(
     std::uint8_t* state,
     const std::uint8_t* construct_params_32,
     const std::uint8_t* config);
-std::int64_t /* Decompiled name: auro_asc4he_v1_base_Processor_default_process */
+std::int64_t
 auro_asc4he_v1_base_Processor_default_process(
     std::uint8_t* state,
     std::uint64_t channel_table,
     std::uint64_t scratch_bytes,
     std::uint64_t scratch);
-std::int64_t /* Decompiled name: auro_asc4he_v1_base_Processor_default_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_base_Processor_default_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_base_Processor_default_initialize */
+std::int64_t
 auro_asc4he_v1_base_Processor_default_initialize(
     std::uint8_t* state,
     const std::uint8_t* params,
     std::uint32_t sample_rate);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_Processor_t_is_supported */
+std::int64_t
 auro_asc4he_v1_sb_Processor_t_is_supported(std::uint32_t layout);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_Processor_t_get_required_input_layout */
+std::int64_t
 auro_asc4he_v1_sb_Processor_t_get_required_input_layout(
     std::uint32_t layout,
     std::uint32_t* out_layout);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_Processor_t_construct */
+std::int64_t
 auro_asc4he_v1_sb_Processor_t_construct(
     std::uint8_t* state,
     const std::uint8_t* config);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_Processor_surround_reset */
+std::int64_t
 auro_asc4he_v1_sb_Processor_surround_reset(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_Processor_surround_initialize */
+std::int64_t
 auro_asc4he_v1_sb_Processor_surround_initialize(
     std::uint8_t* state,
     const std::uint8_t* params,
     std::uint32_t sample_rate);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_Processor_surround_process_2_2 */
+std::int64_t
 auro_asc4he_v1_sb_Processor_surround_process_2_2(
     std::uint8_t* state,
     std::uint64_t channel_table,
     std::uint64_t scratch_bytes,
     std::uint64_t scratch);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_Processor_surround_process_2_0 */
+std::int64_t
 auro_asc4he_v1_sb_Processor_surround_process_2_0(
     std::uint8_t* state,
     std::uint64_t channel_table,
     std::uint64_t scratch_bytes,
     std::uint64_t scratch);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_Processor_height_reset */
+std::int64_t
 auro_asc4he_v1_sb_Processor_height_reset(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_Processor_height_initialize */
+std::int64_t
 auro_asc4he_v1_sb_Processor_height_initialize(
     std::uint8_t* state,
     const std::uint8_t* params,
     std::uint32_t sample_rate);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_Processor_height_process_2_2 */
+std::int64_t
 auro_asc4he_v1_sb_Processor_height_process_2_2(
     std::uint8_t* state,
     std::uint64_t channel_table,
     std::uint64_t scratch_bytes,
     std::uint64_t scratch);
-std::int64_t /* Decompiled name: auro_asc4he_v1_sb_Processor_height_process_2_0 */
+std::int64_t
 auro_asc4he_v1_sb_Processor_height_process_2_0(
     std::uint8_t* state,
     std::uint64_t channel_table,
     std::uint64_t scratch_bytes,
     std::uint64_t scratch);
-std::int64_t /* Decompiled name: auro_asc4he_v1_multichannel_Processor_t_is_supported */
+std::int64_t
 auro_asc4he_v1_multichannel_Processor_t_is_supported(std::uint32_t layout);
-std::int64_t /* Decompiled name: auro_asc4he_v1_multichannel_Processor_t_get_required_input_layout */
+std::int64_t
 auro_asc4he_v1_multichannel_Processor_t_get_required_input_layout(
     std::uint32_t layout,
     std::uint32_t* out_layout);
-std::int64_t /* Decompiled name: auro_asc4he_v1_multichannel_Processor_t_construct */
+std::int64_t
 auro_asc4he_v1_multichannel_Processor_t_construct(
     std::uint8_t* state,
     const std::uint8_t* config);
-std::int64_t /* Decompiled name: auro_asc4he_v1_multichannel_Processor_process */
+std::int64_t
 auro_asc4he_v1_multichannel_Processor_process(
     std::uint8_t* state,
     std::uint64_t channel_table,
     std::uint64_t scratch_bytes,
     std::uint64_t scratch);
-std::int64_t /* Decompiled name: auro_asc4he_v1_multichannel_Processor_reset */
+std::int64_t
 auro_asc4he_v1_multichannel_Processor_reset(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_multichannel_Processor_initialize */
+std::int64_t
 auro_asc4he_v1_multichannel_Processor_initialize(
     std::uint8_t* state,
     const std::uint8_t* params,
     std::uint32_t sample_rate);
-std::int64_t /* Decompiled name: auro_asc4he_v1_multichannel_HXs_process */
+std::int64_t
 auro_asc4he_v1_multichannel_HXs_process(
     std::uint8_t* state,
     std::uint64_t* channel_table,
     std::uint64_t scratch_bytes,
     float* scratch);
-std::int64_t /* Decompiled name: auro_asc4he_v1_multichannel_HXs_reset */
+std::int64_t
 auro_asc4he_v1_multichannel_HXs_reset(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_multichannel_HXs_initialize */
+std::int64_t
 auro_asc4he_v1_multichannel_HXs_initialize(
     std::uint8_t* state,
     const std::uint8_t* params,
     std::uint32_t sample_rate);
-std::int64_t /* Decompiled name: auro_asc4he_v1_ss_Processor_t_is_supported */
+std::int64_t
 auro_asc4he_v1_ss_Processor_t_is_supported(std::uint32_t layout);
-std::int64_t /* Decompiled name: auro_asc4he_v1_ss_Processor_t_get_required_input_layout */
+std::int64_t
 auro_asc4he_v1_ss_Processor_t_get_required_input_layout(
     std::uint32_t layout,
     std::uint32_t* out_layout);
-std::int64_t /* Decompiled name: auro_asc4he_v1_ss_Processor_t_construct */
+std::int64_t
 auro_asc4he_v1_ss_Processor_t_construct(
     std::uint8_t* state,
     const std::uint8_t* config);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Processor_t_is_supported */
+std::int64_t
 auro_asc4he_v1_Processor_t_is_supported(
     std::uint32_t processor_type,
     std::uint32_t layout);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Processor_t_get_required_input_layout */
+std::int64_t
 auro_asc4he_v1_Processor_t_get_required_input_layout(
     std::uint32_t processor_type,
     std::uint32_t layout,
     std::uint32_t* out_layout);
-std::int64_t /* Decompiled name: auro_asc4he_v1_TuningManager_t_get */
+std::int64_t
 auro_asc4he_v1_TuningManager_t_get(
     std::uint8_t* out240,
     std::uint32_t processor_type,
     std::uint32_t layout);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Processor_t_check_static_parameters */
+std::int64_t
 auro_asc4he_v1_Processor_t_check_static_parameters(const std::uint8_t* params);
-std::uint8_t* /* Decompiled name: auro_asc4he_v1_Processor_t_construct */
+std::uint8_t*
 auro_asc4he_v1_Processor_t_construct(
     std::uint8_t* state,
     const std::uint8_t* params);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Processor_t_get_latency */
+std::int64_t
 auro_asc4he_v1_Processor_t_get_latency();
-std::int64_t /* Decompiled name: auro_asc4he_v1_Processor_get_dynamic_parameters */
+std::int64_t
 auro_asc4he_v1_Processor_get_dynamic_parameters(
     const std::uint8_t* state,
     std::uint8_t* out_params);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Processor_set_dynamic_parameters */
+std::int64_t
 auro_asc4he_v1_Processor_set_dynamic_parameters(
     std::uint8_t* state,
     const std::uint8_t* params);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Processor_reset_audio_state */
+std::int64_t
 auro_asc4he_v1_Processor_reset_audio_state(std::uint8_t* state);
-std::int64_t /* Decompiled name: auro_asc4he_v1_Processor_process */
+std::int64_t
 auro_asc4he_v1_Processor_process(
     std::uint8_t* state,
     std::uint32_t* block_desc);

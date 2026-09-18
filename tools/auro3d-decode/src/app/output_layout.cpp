@@ -19,13 +19,13 @@ std::string to_lower_ascii(std::string s) {
 
 std::string normalize_layout_name(std::string s) {
     s = to_lower_ascii(std::move(s));
-    // 5.1.4 / 7.1.4 → 5.1_4h / 7.1_4h style used by auro_channel_layout_to_string.
+    // 5.1.4 7.1.4 → 5.1_4h 7.1_4h style used by auro_channel_layout_to_string.
     std::string out;
     out.reserve(s.size());
     for (std::size_t i = 0; i < s.size(); ++i) {
         const char c = s[i];
         if (c == '.' && i + 1 < s.size() && std::isdigit(static_cast<unsigned char>(s[i + 1]))) {
-            // Keep first two dots of "5.1" / "7.1"; turn height/top dots into '_'.
+            // Keep first two dots of "5.1" "7.1"; turn height/top dots into '_'.
             const std::size_t dots = static_cast<std::size_t>(
                 std::count(out.begin(), out.end(), '.'));
             if (dots >= 1)
@@ -264,8 +264,8 @@ bool is_compatible_post_dematrix_upmix(
 }
 
 std::uint32_t auro_cx_api_supported_layout_mask(std::uint32_t requested) {
-    // Port of auro::cx::object_renderer::speaker_layout::get_api_supported_layout_cicp
-    // @ 0x4C38B0. Returns the largest API layout whose bits are all set in `requested`.
+    // Port of auro:cx:object_renderer:speaker_layout:get_api_supported_layout_cicp
+    // Returns the largest API layout whose bits are all set in `requested`.
     const std::uint32_t m = requested;
     const std::uint8_t lo = static_cast<std::uint8_t>(m);
     const std::uint8_t nlo = static_cast<std::uint8_t>(~lo);

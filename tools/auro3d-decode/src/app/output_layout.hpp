@@ -5,7 +5,7 @@
 
 namespace auro3d {
 
-/// ACV3Decoder::get_max_allowed_output_layout @ 0x372C60.
+/// ACV3Decoder:get_max_allowed_output_layout.
 constexpr std::uint32_t kCodecV3MaxAllowedOutputLayout = 0x7FFFu;
 
 struct DspOutputLayoutRequest {
@@ -18,7 +18,7 @@ struct DspOutputLayoutRequest {
     std::string raw;
 };
 
-/// Parse CLI value for --dsp-output-channels / --dsp-output-layout.
+/// Parse CLI value for --dsp-output-channels --dsp-output-layout.
 /// Accepts: 0/omitted-style "0", legacy counts 1..14, hex 0x..., decimal mask >=15,
 /// named layouts (5.1_4H, 5.1.4, 7.1_5H_1T, …).
 bool parse_dsp_output_layout_arg(
@@ -42,7 +42,7 @@ bool is_compatible_post_dematrix_upmix(
     std::uint32_t stream_layout,
     std::uint32_t requested);
 
-/// AuroCX ObjectRenderer::get_api_supported_layout_cicp @ 0x4C38B0.
+/// AuroCX ObjectRenderer:get_api_supported_layout_cicp.
 /// Returns the canonical API layout contained in `requested`, or 0 if none.
 std::uint32_t auro_cx_api_supported_layout_mask(std::uint32_t requested);
 

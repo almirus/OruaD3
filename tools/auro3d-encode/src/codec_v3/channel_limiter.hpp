@@ -6,8 +6,8 @@
 
 namespace auro3d::encode {
 
-/// Direct port of auro::codec::v3::cts::dmx::ChannelLimiter @ 0x5065xx.
-/// Used by Limiter::limit_new / cts_dmx_coeff_limit_ when Config+136 is set.
+/// Direct port of auro:codec:v3:cts:dmx:ChannelLimiter.
+/// Used by Limiter:limit_new cts_dmx_coeff_limit_ when Config+136 is set.
 struct ChannelLimiter {
     float release = 1.0f;              // +0
     float inv_release = 1.0f;          // +4
@@ -24,28 +24,28 @@ struct ChannelLimiter {
     float peak_floor = 0.0f;           // +48
 };
 
-/// ChannelLimiter::ChannelLimiter @ 0x5065F0.
+/// ChannelLimiter:ChannelLimiter.
 void channel_limiter_init(
     ChannelLimiter& limiter,
     std::uint32_t sample_count,
     std::int32_t sample_rate);
 
-/// set_gain_distrubution_factor @ 0x506730. Accepts (0,1) exclusive.
+/// set_gain_distrubution_factor. Accepts (0,1) exclusive.
 bool channel_limiter_set_distribution_factor(
     ChannelLimiter& limiter,
     float factor);
 
-/// set_release @ 0x506760. `seconds` must be >= 0.
+/// set_release. `seconds` must be >= 0.
 bool channel_limiter_set_release(
     ChannelLimiter& limiter,
     float seconds);
 
-/// set_max_gain_dB @ 0x506820. Accepts gains <= 0.
+/// set_max_gain_dB. Accepts gains <= 0.
 bool channel_limiter_set_max_gain_db(
     ChannelLimiter& limiter,
     float gain_db);
 
-/// Two-source dmx_limit_coeff @ 0x506880. Returns false on native failure
+/// Two-source dmx_limit_coeff. Returns false on native failure
 /// (any input gain > 1).
 bool channel_limiter_dmx_limit_coeff2(
     ChannelLimiter& limiter,
@@ -55,7 +55,7 @@ bool channel_limiter_dmx_limit_coeff2(
     const float* samples1,
     std::string& error);
 
-/// Three-source dmx_limit_coeff @ 0x506C30.
+/// Three-source dmx_limit_coeff.
 bool channel_limiter_dmx_limit_coeff3(
     ChannelLimiter& limiter,
     float& gain0,
@@ -66,4 +66,4 @@ bool channel_limiter_dmx_limit_coeff3(
     const float* samples2,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -5,7 +5,7 @@
 
 namespace auro3deng {
 
-// Descriptor used by auro_a3deng_v3_Processor_process (IDA 0xD9AE0).
+// Descriptor used by auro_a3deng_v3_Processor_process.
 // AuroDecoderImpl places input at +40 and output at +272, so the descriptor
 // span is 232 bytes: 16 bytes of header plus 27 channel pointers.
 struct ProcessorIOBufferDesc {

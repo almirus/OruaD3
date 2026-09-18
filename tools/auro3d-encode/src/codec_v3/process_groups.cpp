@@ -52,7 +52,7 @@ bool finish_carrier(
     std::uint32_t bit_line,
     AnalyzedEncodeGroup& out,
     std::string& error) {
-    // Mixer::operator() @ 0x4EAAC0 sets Group+664 only when every mixed
+    // Mixer:operator sets Group+664 only when every mixed
     // carrier sample fits [-2^(23-bit_line), 2^(23-bit_line)-1].
     if (!carrier_fits_bit_line(out.carrier.samples, bit_line)) {
         out.carrier_overflow = true;
@@ -98,8 +98,8 @@ bool analysis_scaler_index(
         if (magnitude > maximum)
             maximum = static_cast<std::uint32_t>(magnitude);
     }
-    // Rescaler @ 0x4EA080 leaves index zero below 0x7EB851. At or above
-    // that threshold scaler_to_ix receives max / 8304720.0f.
+    // Rescaler leaves index zero below. At or above
+    // that threshold scaler_to_ix receives max 8304720.0f.
     if (maximum < 0x7EB851u)
     {
         scaler_index = group.minimum_scaler_index;
@@ -210,7 +210,7 @@ bool compute_reconstruction_quality(
     out.frame_quality.clear();
     out.frame_quality.reserve(group.frames.size());
     for (std::size_t plane = 0u; plane < reconstructed.size(); ++plane) {
-        // ComputeQuality::unscale_ @ 0x4EF160 applies only Group+24 here.
+        // ComputeQuality:unscale_ applies only Group+24 here.
         // The encoder's external PCM24 samples are right-aligned whereas the
         // native audio-frame comparison domain has its eight padding bits
         // removed. Put both operands in that same domain.
@@ -429,7 +429,7 @@ bool analyze_encode_group_impl(
     }
 
     out.carrier.carrier_channel_id = group.carrier_channel;
-    // prepare_mix_ @ 0x4E6AB0 left-shifts by Group+24 (bit_line), not VQ shift.
+    // prepare_mix_ left-shifts by Group+24 (bit_line), not VQ shift.
     out.carrier.quantization_shift = group.bit_line;
     if (!calculate_native_rescaler_bit_cost(
             group.rescaler_accounting,
@@ -447,9 +447,9 @@ bool analyze_encode_group_impl(
         }
     }
     if (all_silent) {
-        // DetectSilence @ 0x4E9E50 all-silent path: one zero analysis frame with
+        // DetectSilence all-silent path: one zero analysis frame with
         // channel id from the first source Frame+24, then
-        // Group+192 = dword_287F20[0] = 0. Carrier stays zero through Mixer case 1.
+        // Group+192 = [0] = 0. Carrier stays zero through Mixer case 1.
         out.silent = true;
         out.carrier_ready = true;
         out.silence_mode = 0u;
@@ -471,7 +471,7 @@ bool analyze_encode_group_impl(
                 group, 0u, out.carrier.samples, out, error)) {
             return false;
         }
-        // ComputeQuality @ 0x4EB090 recognizes the retained Group+360
+        // ComputeQuality recognizes the retained Group+360
         // synthetic zero frame and replaces the aggregate RMS result with
         // Group+24 * 0.01. Per-source measurements above still run.
         out.quality_error_db =
@@ -490,7 +490,7 @@ bool analyze_encode_group_impl(
         return false;
     }
 
-    // Rescaler @ 0x4EA080 first applies a Q31 coefficient scaled by 2^39,
+    // Rescaler first applies a Q31 coefficient scaled by 2^39,
     // then shift_right(bit_line+8). For scaler 1 this is exactly
     // shift_right(bit_line); keeping the coefficient step also covers the
     // automatic mix-peak scaler selected below.
@@ -528,7 +528,7 @@ bool analyze_encode_group_impl(
 
     if (active_indices.size() == 1u) {
         // DetectSilence removes silent source frames before Mixer dispatch;
-        // Mixer case 1 @ 0x4EAAC0 then memmoves the shifted plane.
+        // Mixer case 1 then memmoves the shifted plane.
         const std::size_t active = active_indices[0];
         out.analysis_arity = 1u;
         out.analysis_source_ids = {group.frames[active].channel_id};
@@ -541,7 +541,7 @@ bool analyze_encode_group_impl(
     }
 
     if (active_indices.size() == 2u) {
-        // Mixer case 2 @ 0x4EE540 consumes the two remaining analysis frames.
+        // Mixer case 2 consumes the two remaining analysis frames.
         const std::size_t first = active_indices[0];
         const std::size_t second = active_indices[1];
         out.analysis_arity = 2u;
@@ -566,7 +566,7 @@ bool analyze_encode_group_impl(
                 return false;
             }
         }
-        // Quantization::run_ mix2 @ 0x501750 then Mixer mix2 @ 0x4EE540.
+        // Quantization:run_ mix2 then Mixer mix2.
         ClusterDeltasQuantizationResult quant{};
         if (!cluster_deltas_quantize_mix2(
                 out.deltas,
@@ -803,4 +803,4 @@ bool analyzed_groups_to_encoded_pcm(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

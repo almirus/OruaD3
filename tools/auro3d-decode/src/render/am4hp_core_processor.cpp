@@ -435,8 +435,8 @@ bool Am4hpCoreProcessor::prepare_renderer_input(
         return false;
     // With an external center plane native Core keeps the original front
     // work pair for HPv2 and lets CenterFront mutate only a separate pair
-    // consumed by XinN.  It scales that preserved renderer pair by +2 dB
-    // after XinN returns (0x54ACD6..0x54AD04).
+    // consumed by XinN. It scales that preserved renderer pair by +2 dB
+    // after XinN returns (..).
     if ((layout_mask_ & 4u) != 0u) {
         const std::uint32_t native_front_scale_bits = 0x3fa12478u;
         float native_front_scale = 0.0f;
@@ -494,7 +494,7 @@ bool Am4hpCoreProcessor::finish_renderer_output(
     }
     debug_snapshot_.accumulated_before_core_gain_left = accumulated_left_;
     debug_snapshot_.accumulated_before_core_gain_right = accumulated_right_;
-    // Native sub_54BB80 applies DynamicProcessing+144 (smoothed PresetManager
+    // Native applies DynamicProcessing+144 (smoothed PresetManager
     // v10) immediately before the linear fader/compressor stage.
     const float core_output_gain =
         dynamic_state_.output_gain_linear() * native_core_gain_;

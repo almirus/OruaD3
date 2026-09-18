@@ -28,4 +28,4 @@ bool pack_golomb_error_codebook(
     std::vector<std::uint32_t>& packed_words,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

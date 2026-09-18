@@ -265,10 +265,10 @@ public:
                               std::int32_t azimuth_q23_degrees,
                               std::int32_t elevation_q23_degrees,
                               HeadphonePcaScoreState& state) const noexcept;
-    // Native fade-end StaticTuning_update_hp_from_preset writes dword_1DC510
+    // Native fade-end StaticTuning_update_hp_from_preset writes
     // into the first 3 (stereo) or 5 (surround) Explicit distances, then
     // Renderer_t_construct rebuilds delay = dist*rate/340 - min(dist)*rate/340
-    // and gain = 1/dist. Packed resource 107 still holds the preset-2 5 m / 706
+    // and gain = 1/dist. Packed resource 107 still holds the preset-2 5 m 706
     // sample image.
     bool apply_am4hp_static_source_distances(unsigned preset,
                                             unsigned layout) noexcept;

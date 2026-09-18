@@ -16,7 +16,7 @@ struct Am4hpStaticParameters {
     std::uint32_t mode = 0u;
 };
 
-// Exact CoreProcessor_check_static_parameters result codes from x86_64 IDA.
+// Exact CoreProcessor_check_static_parameters result codes from.
 // Zero means the native AM4HP core accepts the static configuration.
 std::uint32_t check_am4hp_static_parameters(
     const Am4hpStaticParameters& parameters) noexcept;
@@ -42,7 +42,7 @@ struct Am4hpDynamicParameters {
 // Captured DEFAULT CoreProcessor dynamic record uses preset 2.
 Am4hpDynamicParameters am4hp_native_dynamic_48000_default() noexcept;
 
-// Exact CoreProcessor_set_dynamic_parameters validation from 0x549C10.
+// Exact CoreProcessor_set_dynamic_parameters validation from.
 // The update owner may use the result to choose in-place update versus
 // reconstruct; this function only validates and never changes audio state.
 std::uint32_t check_am4hp_dynamic_parameters(
@@ -60,8 +60,8 @@ bool encode_am4hp_dynamic_parameters(
 float am4hp_output_gain_linear(float output_gain_db) noexcept;
 
 // Decision made by CoreProcessor_set_dynamic_parameters after the payload
-// passes validation.  Native LinearFader states are 0=done-at-start,
-// 1=running, and 2=done-at-end for the tested x86_64 build.
+// passes validation. Native LinearFader states are 0=done-at-start,
+// 1=running, and 2=done-at-end for the tested build.
 enum class Am4hpDynamicUpdateAction : std::uint8_t {
     reject,
     apply_in_place,
@@ -76,7 +76,7 @@ struct Am4hpDynamicUpdatePlan {
     bool preset_changed = false;
 };
 
-// Address-free model of the native setter's ownership decision.  This does
+// Address-free model of the native setter's ownership decision. This does
 // not process audio or claim to replace CoreProcessor; it makes the update
 // boundary explicit for the eventual connected implementation.
 Am4hpDynamicUpdatePlan plan_am4hp_dynamic_update(

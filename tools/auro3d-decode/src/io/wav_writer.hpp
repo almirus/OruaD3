@@ -10,14 +10,14 @@ namespace wav {
 
 /// Embedded output tags written into WAV LIST/INFO and FLAC vorbis comments.
 struct OutputMetadata {
-    /// e.g. "Decoded by orua3d-decode 0.5.10, @almirus"
+    /// e.g. "Decoded by orua3d-decode 0.5.10, almirus"
     std::string comment;
 
     bool empty() const { return comment.empty(); }
 };
 
 /// Classic RIFF WAV max payload before RF64 is required (leave headroom for LIST/INFO).
-/// Override at compile-time: /DORUA3D_RIFF_SAFE_MAX_DATA_BYTES=N
+/// Override at compile-time: DORUA3D_RIFF_SAFE_MAX_DATA_BYTES=N
 #ifndef ORUA3D_RIFF_SAFE_MAX_DATA_BYTES
 #define ORUA3D_RIFF_SAFE_MAX_DATA_BYTES 0xFFFF0000ull
 #endif
@@ -26,8 +26,8 @@ inline constexpr std::uint64_t kRiffSafeMaxDataBytes =
 
 /// Output container for PCM writers.
 enum class PcmContainer {
-    WavAuto, ///< Classic RIFF, or RF64 when data exceeds kRiffSafeMaxDataBytes.
-    W64,     ///< Sony Wave64 (.w64) — no 4 GiB limit; preferred for large multichannel masters.
+    WavAuto, /// < Classic RIFF, or RF64 when data exceeds kRiffSafeMaxDataBytes.
+    W64,     /// < Sony Wave64 (.w64) — no 4 GiB limit; preferred for large multichannel masters.
 };
 
 /// WAV/W64 PCM 16-bit little-endian.

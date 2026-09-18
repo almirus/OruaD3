@@ -91,7 +91,7 @@ constexpr std::uintptr_t kCodecV3FrameSlotOffChannelIndex = 0u;
 constexpr std::uintptr_t kCodecV3FrameSlotOffActiveFlag = 4u;
 constexpr std::uintptr_t kCodecV3FrameSlotOffChannelPtr = 24u;
 constexpr std::size_t kCodecV3FakeFrameBytes = kCodecV3FrameOffSlotBase + kCodecV3FrameSlotCapacity * kCodecV3FrameSlotStride;
-constexpr std::size_t kCodecV3FrameDequeSlotCopyBytes = 0x150u; // IDA 0x13d5d0 memcpy size
+constexpr std::size_t kCodecV3FrameDequeSlotCopyBytes = 0x150u; // memcpy size
 static_assert(
     (kCodecV3FrameDequeSlotCopyBytes - kCodecV3FrameOffSlotBase) % kCodecV3FrameSlotStride == 0u,
     "FrameDeque memcpy size must align to full slot stride.");
@@ -140,10 +140,10 @@ constexpr std::uintptr_t kCodecV3GrOffCounter = 36u;
 constexpr std::uintptr_t kCodecV3ExOffHead = 0u;
 constexpr std::uintptr_t kCodecV3ExOffPhase = 20u;
 constexpr std::uintptr_t kCodecV3ExOffFrameChannelPtr = 40u;
-constexpr std::size_t kCodecV3ParseResultBytes = 3672u;      // current IDA ParseResult stride
+constexpr std::size_t kCodecV3ParseResultBytes = 3672u;      // current ParseResult stride
 constexpr std::size_t kCodecV3ParseResultPoolStateBytes = 16u; // [base qword][cursor dword][count dword]
 constexpr std::size_t kCodecV3NativeFrameDequeBytes = 32u;
-/// IDA channel_Parser_t: BitReader @ a1+24, CRC @ a1+12, состояние в *(_DWORD*)(a1+8) == a1_u32[2].
+/// channel_Parser_t: BitReader a1+24, CRC a1+12, состояние в *(_DWORD*)(a1+8) == a1_u32[2].
 constexpr std::size_t kCodecV3ChannelParserBytes = 64u;
 
 std::uint32_t mask_count_27(std::uint32_t mask) {
@@ -335,10 +335,10 @@ std::uint32_t derive_listening_mode_aurodeco(
     std::uint32_t virtualizer_mode,
     bool headphone_connected,
     bool stereo_device_connected) {
-    // AuroDecoderImpl::UpdateConfiguration / Initialize:
+    // AuroDecoderImpl:UpdateConfiguration Initialize:
     // v9 = 2 * (virtualizer_mode != 0);
     // if (!virtualizer_mode && !headphone_connected)
-    //     v9 = 2 * (stereo_device_connected == 0);
+    // v9 = 2 * (stereo_device_connected == 0);
     std::uint32_t listening_mode = 2u * static_cast<std::uint32_t>(virtualizer_mode != 0);
     if (virtualizer_mode == 0u && !headphone_connected)
         listening_mode = 2u * static_cast<std::uint32_t>(!stereo_device_connected);
@@ -348,7 +348,7 @@ std::uint32_t derive_listening_mode_aurodeco(
 std::uint32_t derive_effective_virtualizer_mode_aurodeco(
     std::uint32_t requested_virtualizer_mode,
     std::uint16_t output_audio_configuration_bits) {
-    // AuroDecoderImpl::Initialize / UpdateConfiguration:
+    // AuroDecoderImpl:Initialize UpdateConfiguration:
     // if ((bits & 0x101) == 0) effective virtualizer becomes 1 ("Disabled"),
     // otherwise it keeps the requested mode.
     if ((output_audio_configuration_bits & 0x101u) == 0)
@@ -359,7 +359,7 @@ std::uint32_t derive_effective_virtualizer_mode_aurodeco(
 std::uint32_t derive_effective_virtualizer_mode_a3deng(
     bool dynamic_request_flag,
     bool stereo_device_connected) {
-    // A3DENG::update dynamic params:
+    // A3DENG:update dynamic params:
     // actual_virtualization_mode = !stereo_device || !dynamic_request_flag.
     return (!stereo_device_connected || !dynamic_request_flag) ? 1u : 0u;
 }
@@ -367,7 +367,7 @@ std::uint32_t derive_effective_virtualizer_mode_a3deng(
 std::uint32_t derive_listening_mode_a3deng(
     bool stereo_device_connected,
     bool headphone_dynamic_enabled) {
-    // A3DENG::update dynamic params:
+    // A3DENG:update dynamic params:
     // listening_mode = 3 * (!stereo_device || !dynamic_headphone_flag).
     return (!stereo_device_connected || !headphone_dynamic_enabled) ? 3u : 0u;
 }
@@ -376,7 +376,7 @@ std::uint32_t derive_target_device_a3deng(
     std::uint32_t decoder_mode,
     bool stereo_device_connected,
     bool headphone_connected) {
-    // A3DENG::update config path:
+    // A3DENG:update config path:
     // format-detector mode keeps target_device=0; non-stereo routes to 5;
     // stereo routes to 1 or 3 depending on headset_connected.
     if (decoder_mode == 2u)
@@ -390,7 +390,7 @@ void format_detector_sink_notify_1056c0_bridge(void* user, std::int64_t kind) {
     auto* dispatch = reinterpret_cast<auro3deng::CodecV3DispatchStateEb5a0*>(user);
     if (!dispatch)
         return;
-    // IDA FormatDetector sink: 0 = unlock, 1 = lock (sub_52CED0).
+    // FormatDetector sink: 0 = unlock, 1 = lock.
     auro3deng::codec_v3_sync_callback_eb840(dispatch, static_cast<int>(kind));
 }
 
@@ -404,7 +404,7 @@ void sync_detector_notify_105ee0_bridge(void* ctx, std::int64_t kind, std::uint6
 void sync_detector_process_block_32_bridge(
     void* ctx,
     const std::uint64_t* channel_ptrs_27) {
-    // FormatDetector_process @ 0x52D060 advances in fixed 32-sample chunks.
+    // FormatDetector_process advances in fixed 32-sample chunks.
     auro3deng::sync_detector_process_block(
         reinterpret_cast<auro3deng::SyncDetectorState105ee0*>(ctx),
         channel_ptrs_27,
@@ -412,7 +412,7 @@ void sync_detector_process_block_32_bridge(
 }
 
 void codec_v3_frame_deque_pop_front_keep_frame_13d670_bridge(std::uint64_t frame_deque_ptr) {
-    // Path where mark_as_unused is done by caller (e.g. IDA 0x103063/0x10306F).
+    // Path where mark_as_unused is done by caller (e.g. ).
     (void)auro3deng::frame_deque_pop_front_keep_frame(frame_deque_ptr);
 }
 
@@ -508,7 +508,7 @@ void sync_detector_notify_frame_builder_105530_bridge(
         (void)auro3deng::frame_deque_pop_back(
             ctx->frame_deque_ptr,
             auro3deng::frame_mark_as_unused_106cd0_default);
-        // IDA sub_52CED0/sub_105530 kind==2: clear sync_state only (not expected_frame_end).
+        // / kind==2: clear sync_state only (not expected_frame_end).
         if (ctx->format_detector->sync_state != 0u) {
             ctx->format_detector->sync_state = 0;
             auro3deng::codec_v3_sync_callback_eb840(ctx->dispatch, 0);
@@ -518,7 +518,7 @@ void sync_detector_notify_frame_builder_105530_bridge(
 
     if (kind == 0 && ctx->format_detector && ctx->sync_detector && ctx->frame_deque_ptr != 0u) {
         std::array<std::uint8_t, kCodecV3FrameDequeSlotCopyBytes> frame{};
-        // IDA sub_105530: v5 = processed_samples + (int)a3 — signed add with uint64 wrap.
+        // v5 = processed_samples + (int)a3 — signed add with uint64 wrap.
         const std::int32_t rel_start = static_cast<std::int32_t>(a);
         const std::uint64_t frame_start =
             ctx->format_detector->processed_samples + static_cast<std::uint64_t>(static_cast<std::int64_t>(rel_start));
@@ -538,7 +538,7 @@ void sync_detector_notify_frame_builder_105530_bridge(
             layout_word,
             active_mask);
 
-        // IDA: construct always, then push only when common_header is valid.
+        // construct always, then push only when common_header is valid.
         const std::uint32_t* common_header =
             auro3deng::sync_detector_get_common_header(ctx->sync_detector);
         if (!common_header)
@@ -559,7 +559,7 @@ void sync_detector_notify_frame_builder_105530_bridge(
                 auro3deng::sync_detector_find_channel_header(ctx->sync_detector, ch);
             if (!header)
                 return;
-            // IDA: get_channel_header returns &aligned_word; qword@+0 -> slot+8, dword@+8 -> slot+16.
+            // get_channel_header returns &aligned_word; qword +0 -> slot+8, dword +8 -> slot+16.
             *reinterpret_cast<std::uint64_t*>(slot + 8u) =
                 (static_cast<std::uint64_t>(header->aligned_bit) << 32)
                 | static_cast<std::uint64_t>(header->aligned_word);
@@ -671,7 +671,7 @@ std::int64_t run_output_stage_1024a9_bridge(void* user) {
     auto* step = reinterpret_cast<DecoderStepBridgeCtx*>(user);
     if (!step || !step->output_generator_base || !step->output_table_base || !step->output_channel_ptrs_27)
         return 0;
-    // OutputGenerator_t_construct @ 0x52AF10 initializes its own absolute
+    // OutputGenerator_t_construct initializes its own absolute
     // stream index. It is independent of the Parser cursor.
     if (step->og_timeline_cursor_ptr) {
         *reinterpret_cast<std::uint64_t*>(
@@ -780,8 +780,8 @@ void push_layout_slots_from_mask(
     std::uint32_t mask,
     unsigned channel_count,
     std::uint32_t channel_mapping) {
-    // IDA sub_31ACE0: mapping 1 uses the static table initialized from
-    // xmmword_1DB2B0/1DB2C0; other mappings iterate channel ids 0..30.
+    // mapping 1 uses the static table initialized from
+    // /1DB2C0; other mappings iterate channel ids 0..30.
     static constexpr std::uint32_t kBacksBeforeSurroundsOrder[] = {
         auro_codec_v3_ida::kAuroChMapSlotFrontLeft,
         auro_codec_v3_ida::kAuroChMapSlotFrontRight,
@@ -2025,7 +2025,7 @@ bool try_parse_wav_s24le(
             return false;
         }
         // Non-data chunks must be fully present so we can parse or skip them.
-        // The data payload may live only on disk (streaming / header-only probe).
+        // The data payload may live only on disk (streaming header-only probe).
         if (!size_from_ds64 && !is_data_chunk && pos + csz > n) {
             err = "truncated chunk";
             return false;
@@ -2223,7 +2223,7 @@ bool is_mpegts_stream(const std::vector<std::uint8_t>& bytes) {
     return false;
 }
 
-/// Raw DTS / DTS-HD elementary stream or DTSHD container (*.dts / *.dtshd).
+/// Raw DTS DTS-HD elementary stream or DTSHD container (*.dts *.dtshd).
 bool is_dts_stream(const std::vector<std::uint8_t>& bytes) {
     if (bytes.size() >= 8 && std::memcmp(bytes.data(), "DTSHDHDR", 8) == 0)
         return true;
@@ -2238,7 +2238,7 @@ bool is_dts_stream(const std::vector<std::uint8_t>& bytes) {
     case 0xFE7F0180u: // core LE
     case 0x1FFFE800u: // core 14-bit BE
     case 0xFF1F00E8u: // core 14-bit LE
-    case 0x64582025u: // EXSS / DTS-HD substream BE
+    case 0x64582025u: // EXSS DTS-HD substream BE
     case 0x25205864u: // EXSS LE
         return true;
     default:
@@ -3216,18 +3216,18 @@ void Decoder::rebuild_native_xinn_partial_state() {
     }
 
     // Native Matic/XinN is a 48 kHz engine: auro_matic_v3_XinN_fl32_configure
-    // accepts only 32/44.1/48 kHz (IDB 0x556330).  For a host rate above 48 kHz
+    // accepts only 32/44.1/48 kHz (IDB). For a host rate above 48 kHz
     // native therefore runs the upmix core at the normalized core rate and
     // brackets it with its factor-2 matic_resample FIR (Down input, Up output):
-    // IDB MetaInfo::resample_to_1fs 0x3658B0 and configure_resamplers 0x365960.
-    // Mirror that here instead of the pair-average / sample-hold stand-in.
+    // IDB MetaInfo:resample_to_1fs and configure_resamplers.
+    // Mirror that here instead of the pair-average sample-hold stand-in.
     meta_xinn_rate_decimation_ = 1u;
     meta_xinn_core_rate_ = 0u;
     std::uint32_t xinn_sample_rate = sample_rate_;
     if ((legacy_auromatic_upmix_ || meta_auromatic_upmix_)
         && (sample_rate_ == 88200u || sample_rate_ == 96000u)) {
         meta_xinn_rate_decimation_ = 2u;
-        xinn_sample_rate = sample_rate_ / 2u; // 44100 / 48000
+        xinn_sample_rate = sample_rate_ / 2u; // 44100 48000
         meta_xinn_core_rate_ = xinn_sample_rate;
     } else if (
         sample_rate_ != 32000u && sample_rate_ != 44100u && sample_rate_ != 48000u) {
@@ -3409,7 +3409,7 @@ void Decoder::rebuild_codec_v3_partial_state() {
         reinterpret_cast<std::uint64_t>(codec_v3_delay_line_slots_.data());
     codec_v3_delay_line_.ring_slot_count = slot_count;
     rebuild_codec_v3_output_generator_state();
-    // IDA FormatDetector+312: input FrameDeque (parser ingest), not ready deque.
+    // FormatDetector+312: input FrameDeque (parser ingest), not ready deque.
     codec_v3_format_detector_.frame_deque_ptr = codec_v3_fake_frame_deque_storage_.empty()
         ? 0u
         : reinterpret_cast<std::uint64_t>(codec_v3_fake_frame_deque_storage_.data());
@@ -3622,7 +3622,7 @@ bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
     };
 
     // At decimated rate avoid cross-block tail state: host blocks are aligned
-    // (e.g. 1024 @96k → 512 @48k).
+    // (e.g. 1024 96k → 512 48k).
     if (decim == 2u)
         native_xinn_tail_samples_ = 0u;
 
@@ -3751,9 +3751,9 @@ bool Decoder::run_native_xinn_partial_step(std::uint32_t copy_back_mask) {
     // and quantizes only after the output PeakLimiter. Direct PCM24 conversion
     // here used to destroy every XinN excursion above 1.0 before the linked
     // limiter could see it, most visibly in HL/HR.
-    // PeakLimiter::prepare @ 0x360950 installs {attack=0, release=.15,
+    // PeakLimiter:prepare installs {attack=0, release=.15,
     // ratio=50, knee=0, threshold=-.5 dB}; its follower and gain computer are
-    // at 0x599E30 and 0x5980E0.
+    // at and.
     constexpr double kReleaseSeconds = 0.15;
     constexpr double kRatio = 50.0;
     constexpr double kEnvelopeTarget = 0.368;
@@ -3907,7 +3907,7 @@ void Decoder::run_codec_v3_partial_step() {
     dispatch_ctx.delay_line = &codec_v3_delay_line_;
     dispatch_ctx.sample_rate = sample_rate_;
     dispatch_ctx.block_size = static_cast<std::uint32_t>(block_size_);
-    // Decoder_process @ 0x52AD60 consumes the caller's per-call mask and
+    // Decoder_process consumes the caller's per-call mask and
     // requires a non-null plane for every bit that remains set.
     dispatch_ctx.input_mask = input_mask;
     dispatch_ctx.output_mask = native_config_state_.effective_output_mask & kCodecV3ChannelMask;
@@ -3950,7 +3950,7 @@ void Decoder::run_codec_v3_partial_step() {
         : codec_v3_fake_parse_result_pool_state_.data();
     step_bridge.parser_slots_base = codec_v3_channel_parser_storage_.data();
     step_bridge.parser_slots_size = codec_v3_channel_parser_storage_.size();
-    // Native FrameDeque_push_back copies only the Frame.  Its ParseResult
+    // Native FrameDeque_push_back copies only the Frame. Its ParseResult
     // pointers continue to reference the parser pool until OutputGenerator
     // consumes the frame; the pool size is derived from the pipeline depth.
     step_bridge.ready_parse_result_base = nullptr;
@@ -4287,7 +4287,7 @@ const std::uint8_t* Decoder::pcm_block_ptr(std::size_t absolute_offset, std::siz
 }
 
 DecodeError Decoder::open(const std::string& path) {
-    // IDA 0x101760: Decoder construct starts with CRC_t_init.
+    // Decoder construct starts with CRC_t_init.
     auro3deng::decoder_crc_t_init_106f00();
     file_bytes_.clear();
     pcm_stream_path_.clear();
@@ -4542,7 +4542,7 @@ DecodeError Decoder::open(const std::string& path) {
                 last_error_detail_ = codec_v3_invalid_output_layout_message(requested_mask);
                 return DecodeError::InvalidOutputLayout;
             }
-            // Plain PCM / discrete multichannel without ADOL: Auro dematrix is
+            // Plain PCM discrete multichannel without ADOL: Auro dematrix is
             // impossible. Legacy Orua-Matic needs an explicit taller layout.
             if (requested_mask == 0u && dsp_output_channels_req_ == 0u) {
                 last_error_detail_ =
@@ -4738,9 +4738,9 @@ DecodeError Decoder::open(const std::string& path) {
         return DecodeError::InvalidOutputLayout;
     }
     input_signal_channel_mask_ = input_layout.mask;
-    // Decoder_process @ 0x52AD60 accepts a per-call input mask that is a
+    // Decoder_process accepts a per-call input mask that is a
     // subset of the configured carrier mask. SyncDetector_process_block
-    // @ 0x52C680 combines the metadata bits of every channel in that mask, so
+    // combines the metadata bits of every channel in that mask, so
     // a completely zero plane must stay outside it or it clears the common
     // sync preamble. The scan must cover the entire stream: a plane can be
     // silent in a bounded prefix yet zero for the whole title (e.g. the LFE
@@ -4891,7 +4891,7 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
         if (dst_plane)
             std::memset(dst_plane, 0, plane_bytes);
     }
-    // AuroDecoderImpl::Decode → Processor_process → codec-v3 partial step.
+    // AuroDecoderImpl:Decode → Processor_process → codec-v3 partial step.
     if (legacy_auromatic_upmix_) {
         for (std::uint32_t slot = 0; slot < auro_codec_v3_ida::kAuroProcessorIoChannelPtrCount; ++slot) {
             if ((native_config_state_.input_mask & (1u << slot)) == 0u)
@@ -4917,10 +4917,10 @@ DecodeError Decoder::decode_next(std::vector<std::uint8_t>& pcm_out) {
         : (codec_v3_dispatch_.produced_output_mask & kCodecV3ChannelMask);
     const std::uint32_t requested_mask = native_config_state_.requested_output_mask & kCodecV3ChannelMask;
     const std::uint32_t input_mask = native_config_state_.input_mask & kCodecV3ChannelMask;
-    // OutputGenerator writes only channels named by the decoded frame.  Input
+    // OutputGenerator writes only channels named by the decoded frame. Input
     // carrier channels outside that mask are true passthrough channels and
     // must be copied explicitly (for example LS/RS in the Deus Ex Machina
-    // 7.0 carrier).  Do not overwrite carrier slots reconstructed by mix3.
+    // 7.0 carrier). Do not overwrite carrier slots reconstructed by mix3.
     std::uint32_t carrier_passthrough_mask = input_mask & ~produced_mask;
     for (std::uint32_t slot = 0; slot < auro_codec_v3_ida::kAuroProcessorIoChannelPtrCount; ++slot) {
         if ((carrier_passthrough_mask & (1u << slot)) == 0u

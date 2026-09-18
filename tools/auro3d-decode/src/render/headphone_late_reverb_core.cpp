@@ -202,7 +202,7 @@ bool HeadphoneLateReverbCore::set_dynamic_shelf(
     if (last_shelf_coeff_ == damping_coeff && last_shelf_hz_ == frequency_hz)
         return true;
     // Native LateReverb_set_dynamic_parameters uses type 12, Q=0.9, and
-    // gain = coeff*-30 on the shared band damper / coeff*15 on +116.
+    // gain = coeff*-30 on the shared band damper coeff*15 on +116.
     constexpr float kNativeType12Q = 0.8999999761581421f;
     std::array<float, 5> correction{};
     std::array<float, 5> band_damping{};
@@ -280,8 +280,8 @@ bool HeadphoneLateReverbCore::process(
     std::array<float, 32> corrected_before_normalization{};
     if (trace_enabled)
         corrected_before_normalization = corrected;
-    // Native sub_56DF40 normalizes the corrected input by 1/sqrt(v7), where
-    // v7 is the selected band count.  The legacy 16-band case is 0.25; AM4HP
+    // Native normalizes the corrected input by 1/sqrt(v7), where
+    // v7 is the selected band count. The legacy 16-band case is 0.25; AM4HP
     // uses the distinct 8-band coefficient 0x3eb504f3.
     const float normalization = bands_.size() == 8u
         ? bits_to_float(0x3eb504f3u) : 0.25f;
@@ -295,7 +295,7 @@ bool HeadphoneLateReverbCore::process(
                                                    ? &raw_delayed_blocks[band]
                                                    : nullptr))
             return false;
-        // Native layout 3 uses qword_1DB0D0[3] == 7 as a binary-tree
+        // Native layout 3 uses [3] == 7 as a binary-tree
         // routing mask, so the band index is masked rather than truncated
         // to its low three bits.
         auto& output = outputs[7u & band];

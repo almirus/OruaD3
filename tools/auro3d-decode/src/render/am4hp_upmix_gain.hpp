@@ -6,7 +6,7 @@
 
 namespace auro3d {
 
-// Native auro_matic_hp_v4_UpmixGain_process (x86_64 0x54EA10) applies one
+// Native auro_matic_hp_v4_UpmixGain_process applies one
 // gain per active destination plane to 32-sample float blocks. The descriptor
 // mapping is explicit: a null plane before the configured count is an error.
 class Am4hpUpmixGain {

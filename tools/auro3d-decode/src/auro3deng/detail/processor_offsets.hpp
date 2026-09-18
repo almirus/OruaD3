@@ -4,7 +4,7 @@
 
 namespace auro3deng {
 
-/// Поля Processor, с которыми сравниваются дескрипторы в Processor_process (IDA 0xD9AE0).
+/// Поля Processor, с которыми сравниваются дескрипторы в Processor_process.
 /// Смещения из машинного кода: mov eax, [rdi+imm32].
 constexpr std::uint32_t kProcOff_InputLayout12 = 0x25E7C8;
 constexpr std::uint32_t kProcOff_InputChannelMask = 0x25E7BC;

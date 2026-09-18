@@ -116,14 +116,14 @@ private:
     std::uint32_t sample_rate_ = 0u;
     std::uint32_t layout_mask_ = 0u;
     float output_gain_ = 1.0f;
-    // Native DynamicProcessing+144 / Core+1384 is lin(PresetManager v10):
+    // Native DynamicProcessing+144 Core+1384 is lin(PresetManager v10):
     // stereo 1.5→2.0 dB and surround 3.5→4.0 dB across Core presets 2→3.
     // Preset-2 identity keeps the captured words below while smoothed dB is
     // exactly the preset-2 target.
     float native_core_gain_ = 1.1885021924972534f;
-    // Native Core+0x4D8 / DynamicProcessing[0] is lin(PresetManager a2[0]).
+    // Native Core+0x4D8 DynamicProcessing[0] is lin(PresetManager a2[0]).
     // Stereo/surround tables write 5.5 dB on preset 2 and 6.0 dB on preset 3;
-    // DynamicProcessing_from_tuning (0x54F5F0) smooths that dB then powf to
+    // DynamicProcessing_from_tuning smooths that dB then powf to
     // the LowEnd scale. Preset-2 identity is the captured word 0x3ff11b6a.
     float native_low_end_scale_ = 1.8836491107940674f;
     // Native Renderer_process_float_32_ applies the verified default
@@ -131,8 +131,8 @@ private:
     // the caller-facing output gain and is currently fixed to the captured
     // AM4HP profile until dynamic renderer updates are wired through.
     float renderer_gain_ = 2.6607251167297363f;
-    // Native PresetManager Smoothing coeff is 32 / (rate * 0.05). Process
-    // applies it every 32-sample quantum via sub_54A0F0; force_dynamic snaps
+    // Native PresetManager Smoothing coeff is 32 (rate * 0.05). Process
+    // applies it every 32-sample quantum via; force_dynamic snaps
     // with coeff 1, then restores 0.05.
     float hp_smoothing_coeff_ = 32.0f / (48000.0f * 0.05f);
     float smoothed_renderer_gain_db_ = 8.5f;

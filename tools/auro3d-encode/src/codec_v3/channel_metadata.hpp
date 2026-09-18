@@ -35,7 +35,7 @@ bool combine_channel_metadata(
     ChannelMetadataCombined& combined);
 
 /// Converts the decoder's derived codebook base index back to the compact
-/// selector byte used in metadata word zero.  Only the three native ranges
+/// selector byte used in metadata word zero. Only the three native ranges
 /// accepted by channel_metadata_combine_info are representable.
 bool channel_metadata_selector_from_base(
     std::uint32_t base_index,
@@ -49,4 +49,4 @@ bool channel_metadata_selector_from_count(
     std::uint32_t& selector,
     std::uint32_t& base_index);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

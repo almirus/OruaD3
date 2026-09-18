@@ -23,7 +23,7 @@ struct InterpolationState {
 };
 
 // Decode one LFE stream residual block from the PDU payload bitstream.
-// Matches lfe::Processor::parse_ signed residual read (~0x463AC0).
+// Matches lfe:Processor:parse_ signed residual read (~).
 bool decode_stream_residuals(
     cx::Bits& bits,
     std::size_t sample_count,

@@ -52,4 +52,4 @@ bool make_layout_metadata_block(
     PcmMetadataBlock& metadata,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

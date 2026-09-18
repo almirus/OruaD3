@@ -10,7 +10,7 @@
 namespace auro3d::encode {
 
 /// Fixed prefix consumed by extract_metadata_from_a3d_block_at before its ADOL
-/// block list. Values remain explicit until Encoder::prepare_metadata_unit_block_
+/// block list. Values remain explicit until Encoder:prepare_metadata_unit_block_
 /// is fully ported; this writer never chooses defaults on the caller's behalf.
 struct PcmMetadataPrefix {
     std::uint8_t field_8_0 = 0;
@@ -38,4 +38,4 @@ bool validate_pcm_metadata_prefix(
 /// ADOL tag/instruction serialization follows this prefix in a later stage.
 bool write_pcm_metadata_prefix(PcmMetadataFalseWriter& writer, const PcmMetadataPrefix& prefix);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

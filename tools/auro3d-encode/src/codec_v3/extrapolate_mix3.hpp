@@ -51,4 +51,4 @@ bool encode_extrapolate_mix3_tail(
     std::vector<std::int32_t>& errors,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

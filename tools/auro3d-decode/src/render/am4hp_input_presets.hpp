@@ -8,7 +8,7 @@
 namespace auro3d {
 
 // Pointer-free AM4HP XinN input presets extracted from the matching native
-// image.  The records are kept as bytes because CoreProcessor's native
+// image. The records are kept as bytes because CoreProcessor's native
 // construction path consumes the original packed layout, not a C++ model.
 class Am4hpInputPresets {
 public:

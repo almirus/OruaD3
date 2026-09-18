@@ -15,7 +15,7 @@ struct EncodeGroupPlan {
 };
 
 /// Walks every carrier channel of `original_layout` through
-/// get_original_channels @ 0x50F8E0. Fails if any present carrier channel is
+/// get_original_channels. Fails if any present carrier channel is
 /// rejected by the native table.
 bool build_encode_group_plan(
     std::uint32_t original_layout,
@@ -23,7 +23,7 @@ bool build_encode_group_plan(
     std::string& error);
 
 /// Instantiates EncodeGroup objects for one unit at the first configured bit
-/// line. Callers that mirror Encoder::add_ candidate retries should use
+/// line. Callers that mirror Encoder:add_ candidate retries should use
 /// materialize_encode_group instead.
 bool materialize_encode_groups(
     const std::vector<EncodeGroupPlan>& plan,
@@ -34,8 +34,8 @@ bool materialize_encode_groups(
     std::vector<EncodeGroup>& groups,
     std::string& error);
 
-/// Materializes one planned group for a single candidate bit line.  Native
-/// Encoder::add_ retries this operation independently for every group while
+/// Materializes one planned group for a single candidate bit line. Native
+/// Encoder:add_ retries this operation independently for every group while
 /// walking its configured low..high bit-line interval.
 bool materialize_encode_group(
     const EncodeGroupPlan& plan,
@@ -45,4 +45,4 @@ bool materialize_encode_group(
     EncodeGroup& group,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

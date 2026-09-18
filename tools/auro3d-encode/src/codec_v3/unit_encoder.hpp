@@ -41,7 +41,7 @@ struct EncoderRuntimeState {
     bool dynamic_loudness_initialized = false;
     bool dynamic_params_were_present = false;
     std::vector<LoudnessMeasurement> dynamic_loudness_measurements{};
-    /// Native encode::Filter is keyed by carrier channel and survives unit
+    /// Native encode:Filter is keyed by carrier channel and survives unit
     /// boundaries. Each entry learns bit-line versus negated PCM error.
     std::array<NativeQualityFilter, 31> quality_filters{};
     /// Rescaler owns its per-shift dither pools for the encoder lifetime.
@@ -88,4 +88,4 @@ bool encode_v3_scheduled_unit(
     std::string& error,
     EncoderThreadPool* thread_pool = nullptr);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

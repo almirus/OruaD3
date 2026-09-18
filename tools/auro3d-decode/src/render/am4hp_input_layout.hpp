@@ -7,7 +7,7 @@
 namespace auro3d {
 
 // Native AM4HP Processor_process expands the active 31-bit layout mask into
-// an ascending physical-slot list before invoking CoreProcessor.  Keeping
+// an ascending physical-slot list before invoking CoreProcessor. Keeping
 // this as a value object prevents downstream stages from using incidental
 // PCM order as a channel identity.
 class Am4hpInputLayout {

@@ -26,7 +26,7 @@ void store_clustering_pair(
 } // namespace
 
 std::uint32_t encoder_config_init_defaults(EncoderConfig& config) {
-    // Direct port of Config::init_defaults @ 0x4F8900.
+    // Direct port of Config:init_defaults.
     std::uint64_t bit_hi = 0xC00000000ull;
     std::uint64_t bit_lo = 3u;
     switch (config.profile) {
@@ -142,8 +142,8 @@ std::uint32_t encoder_config_init_defaults(EncoderConfig& config) {
 
     // Native treats +124 as a regular present/value pair, but +132 is read as
     // the downmix-enable value itself (and +136 is its optional marker).
-    // Config::init_defaults writes qword 1 at both locations: +124 becomes
-    // present=1,value=0, while +132 becomes value=1,present=0.  The latter
+    // Config:init_defaults writes qword 1 at both locations: +124 becomes
+    // present=1,value=0, while +132 becomes value=1,present=0. The latter
     // must remain one because downmix_ gates the complete encode pipeline on
     // this exact dword.
     if (config.field_124.present == 0u)
@@ -170,7 +170,7 @@ std::uint32_t encoder_config_init_defaults(EncoderConfig& config) {
 }
 
 std::uint32_t encoder_config_validate(const EncoderConfig& config) {
-    // Direct port of Config::validate @ 0x4F8AE0.
+    // Direct port of Config:validate.
     if (config.profile < 1u || config.profile > 5u)
         return 1u;
     if (!codec_v3_unit_block_size_supported(config.unit_block_size))
@@ -272,4 +272,4 @@ bool encoder_config_with_unit_block_size(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

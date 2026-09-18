@@ -48,7 +48,7 @@ bool HeadphoneLateReverbPath::process(
         itd_delay_samples_ < 0 ? input : delayed;
     const std::array<float, 32>& second_ear_input =
         itd_delay_samples_ < 0 ? delayed : input;
-    // The selected x86_64 oracle rounds the multiply before the add here, as
+    // The selected oracle rounds the multiply before the add here, as
     // it does in source_Explicit and source_EarlyReflection accumulation.
     for (std::size_t score = 0u; score < score_count_; ++score) {
         HeadphonePcaAccumulator::add(first_ear_input, first_ear_gains[score],

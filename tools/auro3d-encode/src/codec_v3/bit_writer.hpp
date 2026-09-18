@@ -6,7 +6,7 @@
 
 namespace auro3d::encode {
 
-/// Native bitstream::Writer<VectorStorage>::write_ stores the least-significant
+/// Native bitstream:Writer<VectorStorage>:write_ stores the least-significant
 /// requested bits first, starting at bit 0 of each output byte. This class is
 /// a direct storage-level counterpart; it deliberately contains no codec field
 /// syntax or automatic byte alignment.
@@ -28,4 +28,4 @@ private:
     std::uint64_t bit_count_ = 0;
 };
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

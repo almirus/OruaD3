@@ -21,7 +21,7 @@ bool HeadphoneWallMaterialFilter::construct_from_wall_material(
     if (!(high_pass_hz > 0.0f) || !(low_pass_hz > high_pass_hz) || sample_rate == 0u)
         return false;
 
-    // Native float operations from WallMaterial_t_construct (0x502300).
+    // Native float operations from WallMaterial_t_construct.
     const float log_ratio = std::log(low_pass_hz / high_pass_hz);
     const float octaves = log_ratio / 0.69315f;
     const float ratio = std::exp2(octaves);

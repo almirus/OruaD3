@@ -66,4 +66,4 @@ std::uint16_t Crc16::stored_word() const {
     return static_cast<std::uint16_t>((inverted << 8u) | (inverted >> 8u));
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

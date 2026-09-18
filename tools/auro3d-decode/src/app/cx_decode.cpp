@@ -1039,11 +1039,11 @@ bool decode_auro_cx_mp4(
                     error = "SASC plan index out of range at AU " + std::to_string(au);
                     return false;
                 }
-                // Processor::run_ (0x492AA0) always calls SCG::decode after
+                // Processor:run_ always calls SCG:decode after
                 // the SCG context has been created. Header+60 is consumed by
-                // calculate_mode (0x492630); it does not gate frame decoding.
+                // calculate_mode; it does not gate frame decoding.
                 // Full discrete bed+height WAV uses playback layer 2, so
-                // details::decode (0x495460) cancels every cross-step below 2.
+                // details:decode cancels every cross-step below 2.
                 constexpr std::uint32_t kFullDiscreteScgLayer = 2u;
                 const std::optional<std::uint32_t> layer_filter =
                     pdu.sasc_channel_bed_decoded

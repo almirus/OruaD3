@@ -27,7 +27,7 @@ bool configure_centergen(std::uint8_t* storage,
         storage, fixed.data());
 
     std::array<std::uint8_t, 56> dynamic{};
-    // Native Surround calls the same 0x54DB00 Centergen constructor as the
+    // Native Surround calls the same Centergen constructor as the
     // front wrapper. Keep its complete 56-byte dynamic payload; the previous
     // abbreviated payload changed the in-place SL/SR mutation before XinN.
     const float words0[4]{0.0f, 0.8f, 0.2f, -15.0f};

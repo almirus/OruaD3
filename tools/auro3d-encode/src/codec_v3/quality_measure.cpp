@@ -97,4 +97,4 @@ double NativeQualityAccumulator::error_level_db() const {
         : -3000.0;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

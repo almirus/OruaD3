@@ -233,7 +233,7 @@ bool FlacPcm24Writer::write(
         error = "invalid FLAC PCM24 write size";
         return false;
     }
-    // CarrierOutput supplies one complete unit per call.  `sample_offset_`
+    // CarrierOutput supplies one complete unit per call. `sample_offset_`
     // tracks the file position only; each supplied plane is unit-local.
     for (const std::uint32_t id : channel_order_) {
         if (id >= codec_planes.size() || codec_planes[id].size() < frame_count) {
@@ -358,4 +358,4 @@ bool FlacPcm24Writer::close(std::string& error) {
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

@@ -711,7 +711,7 @@ void auro_centergen_v3_default_dynamic_params(std::uint8_t* a1) {
         return;
     std::memset(a1, 0, kAsc4heCenterGenDynamicDefaultsBytes);
     *reinterpret_cast<std::uint32_t*>(a1 + 0u) = 0u;
-    // libauro xmmword_1DC9F0 / 1DD660 / 1DCF70 @ 0x58C8F0
+    // libauro 1DD660 1DCF70
     *reinterpret_cast<std::uint64_t*>(a1 + 4u) = 0x3F59999A40C00000ull;
     *reinterpret_cast<std::uint64_t*>(a1 + 12u) = 0xC17000003D4CCCCDull;
     *reinterpret_cast<std::uint64_t*>(a1 + 20u) = 0x00000000C1200000ull;
@@ -946,7 +946,7 @@ float cg_clamp01_positive(float v) {
     return std::min(1.0f, v);
 }
 
-std::int32_t /* Decompiled name: auro_centergen_v3_Processor_float32_t_process */
+std::int32_t
 auro_centergen_v3_Processor_float32_t_process(
     std::uint8_t* proc,
     float* a2,
@@ -1118,7 +1118,7 @@ std::int64_t auro_centergen_v3_Processor_process(
     if (mode == 2)
         return 0;
     if (mode == 1) {
-        const std::int32_t r = /* Decompiled name: auro_centergen_v3_Processor_float32_t_process */
+        const std::int32_t r =
 auro_centergen_v3_Processor_float32_t_process(
             proc,
             reinterpret_cast<float*>(static_cast<std::uintptr_t>(io_pair_q0)),

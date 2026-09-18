@@ -10,7 +10,7 @@ constexpr char kName[] = "orua3d-decode";
 
 /// Author handle without a contiguous plaintext literal in the binary.
 inline std::string make_author() {
-    // "@almirus" = bytes[i] XOR (0x37 + 3*i)
+    // " almirus" = bytes[i] XOR (0x37 + 3*i)
     static constexpr unsigned char kEnc[] = {
         0x77, 0x5B, 0x51, 0x2D, 0x2A, 0x34, 0x3C, 0x3F,
     };

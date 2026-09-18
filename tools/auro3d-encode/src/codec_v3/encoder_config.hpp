@@ -23,7 +23,7 @@ struct OptionalBitLine {
     std::uint32_t high = 0;
 };
 
-/// Fields used by Config::init_defaults @ 0x4F8900 and Config::validate @ 0x4F8AE0.
+/// Fields used by Config:init_defaults and Config:validate.
 struct EncoderConfig {
     std::uint32_t sample_rate = 0;       // +0
     std::uint32_t original_layout = 0;   // +4
@@ -33,12 +33,12 @@ struct EncoderConfig {
     OptionalU32 field_28{};              // +28/+32
     OptionalU32 thread_workers{};        // +36 present, +40 byte value
     OptionalU32 field_44{};              // +44/+48
-    OptionalU32 field_52{};              // +52/+56  (dwords 13/14)
+    OptionalU32 field_52{};              // +52/+56 (dwords 13/14)
     OptionalU32 field_60{};              // +60/+64
     OptionalU32 field_68{};              // +68/+72
     OptionalU32 field_76{};              // +76/+80
     OptionalU32 field_84{};              // +84/+88
-    OptionalU32 field_92{};              // +92/+96  (dwords 23/24)
+    OptionalU32 field_92{};              // +92/+96 (dwords 23/24)
     OptionalU32 field_100{};             // +100/+104
     OptionalU32 field_108{};             // +108/+112
     OptionalU32 field_116{};             // +116/+120
@@ -50,14 +50,14 @@ struct EncoderConfig {
     /// The native constructor uses time(nullptr) when this is absent.
     bool dither_seed_present = false;
     std::uint64_t dither_seed = 0u;
-    /// Encoder+6352, written by Encoder::reserve_extra_bits @ 0x4E37E0 and
+    /// Encoder+6352, written by Encoder:reserve_extra_bits and
     /// copied into Group+208 for quantizer budget accounting.
     std::uint32_t reserve_extra_bits = 0u;
     NativeClusterDeltasBackend cluster_backend =
         NativeClusterDeltasBackend::gvm;
     NativeGvmConfiguration gvm{};
     /// Optional explicit input scaler table for the confirmed scalar portion
-    /// of downmix_ @ 0x4E4520. It is absent by default; no gain policy is
+    /// of downmix_. It is absent by default; no gain policy is
     /// inferred from a layout or filename.
     bool input_scalers_present = false;
     std::array<std::uint8_t, 31> input_scaler_indices{};
@@ -79,17 +79,17 @@ struct EncoderConfig {
     /// Channel-compose ADOL 0x41; not a UnitBlock cycler.
     bool limit_simple_present = false;
     std::uint8_t limit_simple_scaler_index = 0;
-    /// UnitBlock+16 cycler / ADOL 0x47.
+    /// UnitBlock+16 cycler ADOL 0x47.
     bool auromatic_present = false;
     std::uint8_t auromatic_profile = 0;
     std::uint8_t auromatic_mode = 0;
-    /// UnitBlock+500 cycler / ADOL 0x50.
+    /// UnitBlock+500 cycler ADOL 0x50.
     bool opcode_50_present = false;
     std::uint8_t opcode_50_value = 0;
-    /// UnitBlock+528 cycler / ADOL 0x64.
+    /// UnitBlock+528 cycler ADOL 0x64.
     bool encoder_version_present = false;
     std::uint32_t encoder_version = 0;
-    /// UnitBlock+536 cycler / ADOL 0x6E.
+    /// UnitBlock+536 cycler ADOL 0x6E.
     bool opcode_6e_present = false;
     std::uint32_t opcode_6e_value = 0;
 };
@@ -113,4 +113,4 @@ bool encoder_config_with_unit_block_size(
     EncoderConfig& config,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

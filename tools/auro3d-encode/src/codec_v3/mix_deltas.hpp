@@ -28,7 +28,7 @@ inline std::int32_t codec_v3_arithmetic_shift_right(
     return static_cast<std::int32_t>((raw >> shift) | fill);
 }
 
-/// Direct port of auro::mix::deltas mix2 overload @ 0x4ED0E0.
+/// Direct port of auro:mix:deltas mix2 overload.
 /// Writes one delta sample per input sample into `deltas` (same length).
 bool compute_mix2_deltas(
     const std::vector<std::int32_t>& primary,
@@ -36,8 +36,8 @@ bool compute_mix2_deltas(
     std::vector<std::int32_t>& deltas,
     std::string& error);
 
-/// Direct port of the three `mix3::deltas` specializations used by
-/// ComputeDeltas @ 0x4ED380. The native output is a 2*N interleaved residual
+/// Direct port of the three `mix3:deltas` specializations used by
+/// ComputeDeltas. The native output is a 2*N interleaved residual
 /// vector; all four fixed zero slots are retained.
 bool compute_mix3_deltas(
     const std::vector<std::int32_t>& primary,
@@ -46,4 +46,4 @@ bool compute_mix3_deltas(
     std::vector<std::int32_t>& deltas,
     std::string& error);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

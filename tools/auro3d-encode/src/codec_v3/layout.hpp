@@ -22,8 +22,8 @@ bool codec_v3_output_layout(
     std::uint32_t carrier_layout,
     std::uint32_t& output_layout);
 
-/// Encoder::set_carrier_ metadata/optional-ADOL channel selection at
-/// 0x4E8620: LFE, RB, C, RS, then FR in descending native priority.
+/// Encoder:set_carrier_ metadata/optional-ADOL channel selection at
+/// LFE, RB, C, RS, then FR in descending native priority.
 bool codec_v3_metadata_carrier_channel(
     std::uint32_t carrier_layout,
     std::uint32_t& channel_id);
@@ -63,4 +63,4 @@ bool derive_layout_from_wav_channel_mask(
     std::string& error);
 std::string format_channel_order(const std::vector<std::uint32_t>& channel_ids);
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

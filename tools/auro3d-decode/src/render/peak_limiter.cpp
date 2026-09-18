@@ -10,7 +10,7 @@ namespace {
 
 // PeakFollower_float32_t_construct passes 0x3EBC6A7F as the envelope target.
 // Follower_update evaluates log/exp in float64, with an explicit float32
-// rounding after log and before exp (libauro 0x599EED..0x599F34).
+// rounding after log and before exp (libauro ).
 constexpr float kReleaseSeconds = 0.15f;
 constexpr float kRatio = 50.0f;
 constexpr float kThresholdDb = -0.5f;
@@ -118,7 +118,7 @@ void NativePeakLimiter::compute_gains(const float* envelope, float* gains, std::
         const float tail = (end_gain - target) / static_cast<float>(count - 1u - peak_i);
         // Native continues from the cumulatively rounded gain at peak_i;
         // it does not reload the ideal `target` before the tail ramp
-        // (libauro 0x598600 reads gains[index - 1]).
+        // (libauro reads gains[index - 1]).
         for (std::size_t i = peak_i + 1u; i < count; ++i) {
             g += tail;
             gains[i] = g;

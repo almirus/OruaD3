@@ -83,7 +83,7 @@ bool codec_v3_layout_channel_order(std::uint32_t mask, std::vector<std::uint32_t
 }
 
 bool codec_v3_carrier_layout(std::uint32_t original_layout, std::uint32_t& carrier_layout) {
-    // auro_codec_v3_get_carrier_layout (native import 0x638ED0), reproduced
+    // auro_codec_v3_get_carrier_layout (native import), reproduced
     // from the codec-v3 decoder port's direct native switch.
     switch (original_layout) {
     case 3u: case 4u: case 2052u: case 6148u:
@@ -131,7 +131,7 @@ bool codec_v3_output_layout(
 bool codec_v3_metadata_carrier_channel(
     std::uint32_t carrier_layout,
     std::uint32_t& channel_id) {
-    // Encoder::set_carrier_ @ 0x4E8620 initializes the candidate to LFE and
+    // Encoder:set_carrier_ initializes the candidate to LFE and
     // then tests this exact priority chain. Every native carrier layout has
     // one of these channels; FL is deliberately never the fallback.
     constexpr std::uint32_t kPriority[] = {
@@ -152,13 +152,13 @@ bool codec_v3_metadata_carrier_channel(
 }
 
 bool codec_v3_sample_rate_supported(std::uint32_t sample_rate) {
-    // auro_codec_v3_is_sample_rate_supported (native import 0x639390).
+    // auro_codec_v3_is_sample_rate_supported (native import).
     return sample_rate == 44100u || sample_rate == 48000u
         || sample_rate == 88200u || sample_rate == 96000u;
 }
 
 bool codec_v3_unit_block_size_supported(std::uint32_t block_size) {
-    // auro_codec_v3_is_unit_block_size_supported (native import 0x63AFB0).
+    // auro_codec_v3_is_unit_block_size_supported (native import).
     if (block_size == 1000u)
         return true;
     if (block_size == 992u)
@@ -183,7 +183,7 @@ bool plan_codec_v3_unit_blocks(
         return false;
     }
 
-    // Native codec-v3 UnitBlocks are all multiples of eight samples.  The
+    // Native codec-v3 UnitBlocks are all multiples of eight samples. The
     // final carrier block may therefore require zero padding; the container
     // writer trims those carrier samples back to the source length.
     const std::uint64_t padding = (8u - (frame_count & 7u)) & 7u;
@@ -269,7 +269,7 @@ bool plan_codec_v3_unit_blocks(
         // `parent` is walked from the end of the stream towards its start.
         // Keep that order: the DP visits the preferred size first, so this
         // places complete preferred UnitBlocks before the rebalanced short
-        // block.  Reversing the predecessor chain put the short block first;
+        // block. Reversing the predecessor chain put the short block first;
         // codec-v3 then retained its length for the following seven frames
         // until the next eight-frame configuration refresh.
         std::stable_partition(
@@ -515,4 +515,4 @@ std::string format_channel_order(const std::vector<std::uint32_t>& channel_ids) 
     return text;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

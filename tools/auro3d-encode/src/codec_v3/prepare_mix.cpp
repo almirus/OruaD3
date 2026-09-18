@@ -57,4 +57,4 @@ bool prepare_mix(
     return true;
 }
 
-} // namespace auro3d::encode
+} // namespace auro3d:encode

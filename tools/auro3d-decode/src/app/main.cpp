@@ -288,32 +288,32 @@ const char* native_reconstruction_note(std::uint32_t slot) {
 /// Preferred Microsoft dwChannelMask bit for an Auro/ORUA export slot.
 int preferred_wave_bit_for_auro_slot(std::uint32_t slot) {
     switch (slot) {
-    case 0: return 0;   // FL  -> FRONT_LEFT
-    case 1: return 1;   // FR  -> FRONT_RIGHT
-    case 2: return 2;   // C   -> FRONT_CENTER
+    case 0: return 0;   // FL -> FRONT_LEFT
+    case 1: return 1;   // FR -> FRONT_RIGHT
+    case 2: return 2;   // C -> FRONT_CENTER
     case 3: return 3;   // LFE -> LOW_FREQUENCY
-    case 7: return 4;   // LB  -> BACK_LEFT
-    case 21: return 4;  // BL  -> BACK_LEFT
-    case 8: return 5;   // RB  -> BACK_RIGHT
-    case 22: return 5;  // BR  -> BACK_RIGHT
-    case 18: return 6;  // LC  -> FRONT_LEFT_OF_CENTER
-    case 19: return 7;  // RC  -> FRONT_RIGHT_OF_CENTER
-    case 6: return 8;   // CS  -> BACK_CENTER
-    case 23: return 8;  // BC  -> BACK_CENTER
-    case 4: return 9;   // LS  -> SIDE_LEFT
+    case 7: return 4;   // LB -> BACK_LEFT
+    case 21: return 4;  // BL -> BACK_LEFT
+    case 8: return 5;   // RB -> BACK_RIGHT
+    case 22: return 5;  // BR -> BACK_RIGHT
+    case 18: return 6;  // LC -> FRONT_LEFT_OF_CENTER
+    case 19: return 7;  // RC -> FRONT_RIGHT_OF_CENTER
+    case 6: return 8;   // CS -> BACK_CENTER
+    case 23: return 8;  // BC -> BACK_CENTER
+    case 4: return 9;   // LS -> SIDE_LEFT
     case 24: return 9;  // BLS -> SIDE_LEFT
-    case 5: return 10;  // RS  -> SIDE_RIGHT
+    case 5: return 10;  // RS -> SIDE_RIGHT
     case 25: return 10; // BRS -> SIDE_RIGHT
-    case 12: return 11; // T   -> TOP_CENTER
-    case 9: return 12;  // HL  -> TOP_FRONT_LEFT
-    case 11: return 13; // HC  -> TOP_FRONT_CENTER
-    case 10: return 14; // HR  -> TOP_FRONT_RIGHT
+    case 12: return 11; // T -> TOP_CENTER
+    case 9: return 12;  // HL -> TOP_FRONT_LEFT
+    case 11: return 13; // HC -> TOP_FRONT_CENTER
+    case 10: return 14; // HR -> TOP_FRONT_RIGHT
     case 13: return 15; // HLS -> TOP_BACK_LEFT
     case 16: return 15; // HLB -> TOP_BACK_LEFT
     case 15: return 16; // HCS -> TOP_BACK_CENTER
     case 14: return 17; // HRS -> TOP_BACK_RIGHT
     case 17: return 17; // HRB -> TOP_BACK_RIGHT
-    default: return -1; // LFE2 / OBJ / unknown
+    default: return -1; // LFE2 OBJ unknown
     }
 }
 
@@ -480,7 +480,7 @@ struct DematrixRouteMap {
 };
 
 // Default vertical folds. Native HL/HR from a 7.1 carrier use FL/FR (confirmed
-// on Amplitude16 DTS-HD @~23.6s: HL == inFL-outFL exactly while carrier SL is
+// on Amplitude16 DTS-HD ~23.6s: HL == inFL-outFL exactly while carrier SL is
 // silent). Do not assume LS/RS folds for layout 7.1_5H_1T.
 DematrixRouteMap build_dematrix_route_map(
     std::uint32_t input_mask,
@@ -493,7 +493,7 @@ DematrixRouteMap build_dematrix_route_map(
         {9u, 0u},   // HL <- FL
         {10u, 1u},  // HR <- FR
         {11u, 2u},  // HC <- C
-        {12u, 2u},  // T  <- C
+        {12u, 2u},  // T <- C
         {13u, 4u},  // HLS <- LS
         {14u, 5u},  // HRS <- RS
         {15u, 6u},  // HCS <- CS
@@ -1077,8 +1077,8 @@ void print_usage() {
         << "                       GENERIC_1/GENERIC_3 are absent from the bundled IR resource\n"
         << "  --virtualizer-mode N reserved runtime state (0/1); current PCM path ignores it\n"
         // Disabled until headphone/stereo-device state affects the PCM path.
-        // << "  --headphone N        headphone connected (0/1; default: 1)\n"
-        // << "  --stereo-device N    stereo device connected (0/1; default: 1)\n"
+        // << " --headphone N headphone connected (0/1; default: 1)\n"
+        // << " --stereo-device N stereo device connected (0/1; default: 1)\n"
         << "  -v, --verbose\n"
         << "  --version\n"
         << "  -h, --help\n\n"
@@ -1352,8 +1352,8 @@ bool parse_args(int argc, char** argv, Options& opt) {
             continue;
         }
         // Disabled until headphone/stereo-device state affects the PCM path.
-        // if (a == "--headphone") { ... }
-        // if (a == "--stereo-device") { ... }
+        // if (a == "--headphone") { }
+        // if (a == "--stereo-device") { }
 
         std::cerr << "Unknown argument: " << a << "\n";
         return false;
@@ -1809,7 +1809,7 @@ int app_main(int argc, char** argv) {
     const std::uint64_t source_sample_count = dec.source_sample_count();
     const unsigned source_sample_rate = cfg.sample_rate;
 
-    // Keep decoder/export slot order until after restore-lfe / binaural.
+    // Keep decoder/export slot order until after restore-lfe binaural.
     // Discrete output is always remapped to canonical WAVE speaker-bit order.
     WavStandardPlan wav_std_plan;
     std::vector<unsigned> wav_std_src_index;
