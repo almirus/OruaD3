@@ -2937,6 +2937,29 @@ std::int64_t auro_matic_v3_XinN_fl32_construct(
     return reinterpret_cast<std::int64_t>(xinn_v3_state);
 }
 
+std::int64_t auro_matic_v3_XinN_fl32_initialize(
+    std::uint8_t* xinn_v3_state,
+    std::uint32_t input_mask,
+    std::uint32_t output_mask,
+    std::uint32_t sample_rate,
+    std::uint64_t preset) {
+    if (!xinn_v3_state)
+        return 1;
+    *reinterpret_cast<std::uint32_t*>(xinn_v3_state + 840u) =
+        input_mask != 0u ? 1u : 0u;
+    if (input_mask == 0u)
+        return output_mask != 0u ? 1 : 0;
+    // Native x86_64 0x556260 accepts only 32/44.1/48 kHz here; higher rates
+    // are rejected because the AM4HP Upmixing graph has no differential
+    // coverage for them.
+    if (sample_rate != 32000u && sample_rate != 44100u && sample_rate != 48000u)
+        return 1;
+    return auro_matic_XinN_fl32_initialize(
+               xinn_v3_state, input_mask, output_mask, preset)
+        ? 0
+        : 1;
+}
+
 std::int64_t auro_matic_v3_XinN_fl32_configure(
     std::uint8_t* xinn_v3_state,
     std::uint32_t sample_rate,

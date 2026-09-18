@@ -12,6 +12,7 @@
 #include "app_version.hpp"
 #include "../io/wav_writer.hpp"
 #include "../render/binaural_renderer.hpp"
+#include "../render/ahp_binaural_renderer.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -560,7 +561,8 @@ bool decode_auro_cx_mp4(
     unsigned hrtf_preset,
     const std::string& output_format,
     const ProgressFn& progress,
-    std::vector<std::string>* warnings) {
+    std::vector<std::string>* warnings,
+    bool binaural_hpv2) {
     if (warnings)
         warnings->clear();
     if (!std::isfinite(headroom_db) || headroom_db < 0.0f) {
@@ -658,11 +660,14 @@ bool decode_auro_cx_mp4(
     std::vector<std::uint32_t> awc_stream_parameters;
     wav::PcmStreamWriter wav_writer;
     BinauralStreamRenderer binaural_renderer;
+    AhpBinauralRenderer ahp_renderer;
     std::vector<std::uint8_t> au_pcm;
     std::vector<std::uint8_t> binaural_pcm;
     std::vector<std::uint8_t> export_pcm;
     std::vector<std::uint8_t> deferred_multichannel_pcm;
-    const bool binaural_needs_resample = binaural && track.rate != 48000u;
+    const bool binaural_stateful = binaural && binaural_hpv2;
+    const bool binaural_needs_resample =
+        binaural && !binaural_stateful && track.rate != 48000u;
     bool saw_lossless_awc = false;
     bool saw_transparent_awc = false;
     std::vector<bool> output_channel_active;
@@ -928,17 +933,29 @@ bool decode_auro_cx_mp4(
                 stream_buffers[s].assign(samples_per_au, 0);
             const std::uint64_t frame_count =
                 static_cast<std::uint64_t>(track.offsets.size() - 1u) * samples_per_au;
-            if (binaural && !binaural_needs_resample
-                && !binaural_renderer.initialize(
-                    24u,
-                    track.rate,
-                    mapping.channels,
-                    mapping.channel_id_for_output_channel,
-                    room_preset,
-                    hrtf_preset,
-                    samples_per_au,
-                    error))
-                return false;
+            if (binaural && !binaural_needs_resample) {
+                const bool initialized = binaural_stateful
+                    ? ahp_renderer.initialize(
+                          24u,
+                          track.rate,
+                          mapping.channels,
+                          mapping.channel_id_for_output_channel,
+                          room_preset,
+                          hrtf_preset,
+                          samples_per_au,
+                          error)
+                    : binaural_renderer.initialize(
+                          24u,
+                          track.rate,
+                          mapping.channels,
+                          mapping.channel_id_for_output_channel,
+                          room_preset,
+                          hrtf_preset,
+                          samples_per_au,
+                          error);
+                if (!initialized)
+                    return false;
+            }
             std::size_t configured_awc_pdus = 0;
             output_meta.comment = auro3d_decode::make_decode_comment(
                 auro_cx_awc_coding(schema.pdus, configured_awc_pdus));
@@ -1321,7 +1338,10 @@ bool decode_auro_cx_mp4(
         }
         const std::vector<std::uint8_t>* output_pcm24 = &au_pcm;
         if (binaural) {
-            if (!binaural_renderer.process(au_pcm, binaural_pcm, error))
+            const bool rendered = binaural_stateful
+                ? ahp_renderer.process(au_pcm, binaural_pcm, error)
+                : binaural_renderer.process(au_pcm, binaural_pcm, error);
+            if (!rendered)
                 return false;
             output_pcm24 = &binaural_pcm;
         }

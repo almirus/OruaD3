@@ -96,9 +96,12 @@ bool Am4hpXinnRuntime::construct(
 bool Am4hpXinnRuntime::process(void** channel_span_31) noexcept {
     if (!initialized_ || !channel_span_31)
         return false;
+    // Current engine (0x556440) forwards to the base XinN process, which
+    // returns the nonzero Routing state on success; only a null state or an
+    // unconfigured mode returns 0.
     return auro3deng::auro_matic_v3_XinN_fl32_process(
                reinterpret_cast<std::uint64_t>(xinn_state_.data()),
-               channel_span_31) == 0;
+               channel_span_31) != 0;
 }
 
 void Am4hpXinnRuntime::reset_audio_state() noexcept {

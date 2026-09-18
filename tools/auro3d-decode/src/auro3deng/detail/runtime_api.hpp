@@ -312,6 +312,15 @@ std::int64_t /* Decompiled name: auro_matic_v3_XinN_fl32_construct */
 auro_matic_v3_XinN_fl32_construct(
     std::uint8_t* xinn_v3_state,
     const std::uint64_t* memory_args_5);
+// Native x86_64 0x556260 / iOS 0xF2A3B4. Wraps the base XinN initializer with
+// the AM4HP Upmixing rate gate (32/44.1/48 kHz only) and the +840 mode flag.
+std::int64_t /* Decompiled name: auro_matic_v3_XinN_fl32_initialize */
+auro_matic_v3_XinN_fl32_initialize(
+    std::uint8_t* xinn_v3_state,
+    std::uint32_t input_mask,
+    std::uint32_t output_mask,
+    std::uint32_t sample_rate,
+    std::uint64_t preset);
 std::int64_t /* Decompiled name: auro_matic_v3_XinN_fl32_configure */
 auro_matic_v3_XinN_fl32_configure(
     std::uint8_t* xinn_v3_state,

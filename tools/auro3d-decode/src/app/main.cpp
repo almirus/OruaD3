@@ -8,6 +8,7 @@
 #include "restore_lfe.hpp"
 #include "../io/wav_writer.hpp"
 #include "../render/binaural_renderer.hpp"
+#include "../render/ahp_binaural_renderer.hpp"
 #include "../util/auro3deng_strength.hpp"
 #include "../auro3deng/detail/runtime_api.hpp"
 
@@ -44,6 +45,9 @@ struct Options {
     bool channel_diagram = false;
     bool binaural = false;
     bool binaural_reference_ir = false;
+    bool binaural_hpv2 = false;
+    unsigned binaural_am4hp_preset = 2u;
+    bool binaural_am4hp_preset_specified = false;
     bool restore_lfe = false;
     /// 0 = off; 1..8 = clear that many low PCM bits on export (toward zero).
     unsigned clear_output_lsb = 0;
@@ -1061,6 +1065,10 @@ void print_usage() {
         << "  --channel-diagram    print structural input-to-output channel diagram (no decode; -o not required)\n"
         << "  --probe              print format diagnostics without decoding to a file; -o is not required\n"
         << "  --binaural           render decoded channels to HRTF stereo (force 48 kHz)\n"
+        << "  --binaural-hpv2      render through the native stateful AHP/AM4HP HPV2 graph\n"
+        << "                       (HPV2 room-0; native rate bank)\n"
+        << "  --binaural-am4hp-preset N  AM4HP Core listening preset 0..3 (default 2);\n"
+        << "                       valid for direct stereo 2.0 / dimensional 5.0.2H at 48 kHz\n"
         << "  --restore-lfe        codec-v3 only, experimental: if LFE is silent/absent,\n"
         << "                       synthesize LFE from bed channels (mono sum + 120 Hz LPF, −10 dB);\n"
         << "  --dsp-headroom-db X  headroom in dB (0..24; default: 0)\n"
@@ -1159,6 +1167,25 @@ bool parse_args(int argc, char** argv, Options& opt) {
         if (a == "--binaural-reference-ir") {
             opt.binaural = true;
             opt.binaural_reference_ir = true;
+            continue;
+        }
+        if (a == "--binaural-hpv2") {
+            opt.binaural = true;
+            opt.binaural_hpv2 = true;
+            continue;
+        }
+        if (a == "--binaural-am4hp-preset") {
+            const char* v = need("--binaural-am4hp-preset");
+            if (!v || !parse_unsigned_arg(v, &opt.binaural_am4hp_preset,
+                                          "--binaural-am4hp-preset"))
+                return false;
+            if (opt.binaural_am4hp_preset > 3u) {
+                std::cerr << "--binaural-am4hp-preset: expected range 0..3\n";
+                return false;
+            }
+            opt.binaural = true;
+            opt.binaural_hpv2 = true;
+            opt.binaural_am4hp_preset_specified = true;
             continue;
         }
         if (a == "--clear-output-lsb") {
@@ -1342,6 +1369,11 @@ bool parse_args(int argc, char** argv, Options& opt) {
         std::cerr << "--raw requires --rate and --channels\n";
         return false;
     }
+    if (opt.binaural_hpv2 && opt.binaural_reference_ir) {
+        std::cerr << "Binaural: --binaural-hpv2 and --binaural-reference-ir are "
+                     "mutually exclusive\n";
+        return false;
+    }
     if (opt.binaural && !opt.binaural_reference_ir
         && (opt.room_preset != 0u || opt.hrtf_preset != 0u)) {
         std::cerr << "Binaural: stateful AHP/AM4HP supports only the captured "
@@ -1458,7 +1490,8 @@ int app_main(int argc, char** argv) {
                       << " room_preset=" << opt.room_preset
                       << " hrtf_preset=" << opt.hrtf_preset << "\n";
             if (opt.binaural) {
-                std::cerr << "binaural_renderer=original_auro_ahp_ir"
+                std::cerr << "binaural_renderer="
+                          << (opt.binaural_hpv2 ? "stateful_ahp" : "original_auro_ahp_ir")
                           << " room_preset=" << opt.room_preset
                           << " hrtf_bank=" << (opt.hrtf_preset == 0 ? "HPv2" : "Generic2")
                           << "\n";
@@ -1494,7 +1527,8 @@ int app_main(int argc, char** argv) {
             opt.hrtf_preset,
             output_format,
             progress.callback(),
-            &decode_warnings);
+            &decode_warnings,
+            opt.binaural_hpv2);
         progress.finish();
         if (!ok) {
             print_error("OruaCX decode: " + err);
@@ -2020,7 +2054,91 @@ int app_main(int argc, char** argv) {
         }
     }
 
-    if (opt.binaural) {
+    if (opt.binaural && opt.binaural_hpv2) {
+        // Native stateful AHP/AM4HP graph. The AHP banks cover
+        // 32/44.1/48/88.2/96 kHz, so multichannel runs at the source rate.
+        // The direct-stereo AM4HP Core is 48 kHz only, so stereo is resampled
+        // to 48 kHz first and restored afterwards, like the finite-IR path.
+        const std::uint32_t binaural_input_rate = cfg.sample_rate;
+        const bool am4hp_resample =
+            cfg.channels <= 2u && cfg.sample_rate != 48000u;
+        if (am4hp_resample) {
+            std::vector<std::uint8_t> resampled;
+            if (!auro3d::resample_interleaved_pcm_to_rate(
+                    pcm_all,
+                    cfg.bits_per_sample,
+                    cfg.channels,
+                    cfg.sample_rate,
+                    48000u,
+                    resampled,
+                    err,
+                    progress.callback())) {
+                progress.finish();
+                print_error("Binaural AHP: " + err);
+                return 4;
+            }
+            if (opt.verbose) {
+                std::cerr << "binaural_resample=" << cfg.sample_rate
+                          << "->" << 48000 << " Hz\n";
+            }
+            pcm_all.swap(resampled);
+            cfg.sample_rate = 48000u;
+        }
+        std::vector<std::uint8_t> stereo;
+        if (!auro3d::render_binaural_ahp(
+                pcm_all, cfg.bits_per_sample, cfg.sample_rate, cfg.channels,
+                output_slots, opt.room_preset, opt.hrtf_preset, stereo, err,
+                opt.binaural_am4hp_preset, progress.callback())) {
+            progress.finish();
+            print_error("Binaural AHP: " + err);
+            return 4;
+        }
+        pcm_all.swap(stereo);
+        cfg.channels = 2;
+        cfg.channel_mask = 3;
+        output_slots = {0u, 1u};
+        if (am4hp_resample) {
+            std::vector<std::uint8_t> restored;
+            if (!auro3d::resample_interleaved_pcm_to_rate(
+                    pcm_all,
+                    cfg.bits_per_sample,
+                    cfg.channels,
+                    cfg.sample_rate,
+                    binaural_input_rate,
+                    restored,
+                    err,
+                    progress.callback())) {
+                progress.finish();
+                print_error("Binaural AHP: " + err);
+                return 4;
+            }
+            pcm_all.swap(restored);
+            cfg.sample_rate = binaural_input_rate;
+        }
+        if (opt.output_bits == 16u && cfg.bits_per_sample == 24u) {
+            std::vector<std::uint8_t> pcm16;
+            if (!wav::convert_pcm24_to_pcm16(pcm_all, pcm16, err)) {
+                progress.finish();
+                print_error("Binaural AHP: " + err);
+                return 4;
+            }
+            pcm_all.swap(pcm16);
+            cfg.bits_per_sample = 16u;
+        }
+        if (opt.clear_output_lsb != 0u) {
+            clear_interleaved_pcm_lsbs(
+                pcm_all,
+                cfg.channels,
+                cfg.bits_per_sample / 8u,
+                opt.clear_output_lsb);
+        }
+        if (opt.verbose) {
+            std::cerr << "binaural_renderer=stateful_ahp room_preset=0 "
+                         "hrtf_bank=HPv2\n";
+        }
+    }
+
+    if (opt.binaural && !opt.binaural_hpv2) {
         // The bundled renderer runs at 48 kHz; the stateful AHP/AM4HP path then
         // restores the input rate on its stereo output.
         const std::uint32_t binaural_input_rate = cfg.sample_rate;
@@ -2132,7 +2250,8 @@ int app_main(int argc, char** argv) {
     }
 
     const bool ok = write_audio_file(
-        opt.output, output_format, cfg.bits_per_sample, cfg.sample_rate, cfg.channels,
+        std::filesystem::u8path(opt.output), output_format, cfg.bits_per_sample,
+        cfg.sample_rate, cfg.channels,
         output_wav_channel_mask, pcm_all, err, progress.callback(),
         make_output_metadata());
     if (!ok) {
@@ -2206,7 +2325,14 @@ int app_main(int argc, char** argv) {
 }
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 int wmain(int argc, wchar_t** argv) {
+    // Emit UTF-8 diagnostics/status so Cyrillic paths print correctly in
+    // consoles whose active code page is not UTF-8 (cmd/CP1251, CP866).
+    SetConsoleOutputCP(CP_UTF8);
     std::vector<std::string> utf8_args;
     utf8_args.reserve(static_cast<std::size_t>(argc));
     for (int i = 0; i < argc; ++i)

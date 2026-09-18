@@ -2412,7 +2412,9 @@ bool find_supported_audio_stream(
         }
     }
 
-    err = "no 24-bit FLAC, PCM, or DTS-HD MA audio stream found";
+    err = allow_pcm16
+        ? "no FLAC, PCM (16/24-bit), or DTS-HD MA audio stream found"
+        : "no 24-bit FLAC, PCM, or DTS-HD MA audio stream found";
     return false;
 }
 
@@ -4359,6 +4361,10 @@ DecodeError Decoder::open(const std::string& path) {
     uint32_t wav_channel_mask = 0;
     const bool upmix_layout_requested =
         dsp_output_layout_mask_specified_ || dsp_output_channels_req_ != 0u;
+    // Binaural rendering (and explicit upmix) consume arbitrary PCM, so accept
+    // 16-bit FLAC/PCM sources as well: ffmpeg converts the selected stream to
+    // PCM24 WAV before the AuroDSP stage sees it.
+    const bool allow_16bit_source = upmix_layout_requested || binaural_requested_;
 
     const auto adopt_wave = [&](const std::string& wave_path) -> bool {
         if (!probe_wav_pcm_s24le(wave_path, pcm_b, pcm_len, wav_rate, wav_ch, wav_err))
@@ -4405,7 +4411,7 @@ DecodeError Decoder::open(const std::string& path) {
     if (!raw_forced_ && is_wave_container_prefix(prefix)) {
         // Always stream WAV/RF64/BW64 from disk so >4 GiB inputs work.
         if (!adopt_wave(path)) {
-            if (!upmix_layout_requested) {
+            if (!allow_16bit_source) {
                 last_error_detail_ = wav_err.empty()
                     ? "invalid or unsupported WAV input"
                     : wav_err;
@@ -4431,7 +4437,7 @@ DecodeError Decoder::open(const std::string& path) {
     } else if (!raw_forced_ && is_ffmpeg_audio_input(prefix, path)) {
         std::string tmp_wav;
         if (!demux_supported_audio_to_temp_wav(
-                path, tmp_wav, input_err, 0u, progress_, upmix_layout_requested)) {
+                path, tmp_wav, input_err, 0u, progress_, allow_16bit_source)) {
             last_error_detail_ = input_err.empty()
                 ? "invalid or unsupported input"
                 : input_err;
@@ -4559,7 +4565,8 @@ DecodeError Decoder::open(const std::string& path) {
             const std::uint32_t source_rate_hz = sample_rate_;
             std::string resampled_wav;
             if (!demux_supported_audio_to_temp_wav(
-                    path, resampled_wav, input_err, 48000u, progress_)) {
+                    path, resampled_wav, input_err, 48000u, progress_,
+                    allow_16bit_source)) {
                 opened_ = false;
                 return DecodeError::BadInput;
             }
