@@ -12,7 +12,7 @@ namespace auro3d::encode {
 /// Converts the explicitly declared interleaved WAV order into codec-v3 channel
 /// ID planes. It does not pad the final host block: native a3deng buffering
 /// holds a short remainder until a full UnitBlock is ready, and source-length
-/// coverage is owned by `plan_codec_v3_unit_blocks` rather than host padding.
+/// coverage is owned by plan_codec_v3_unit_blocks rather than host padding.
 class Pcm24InputStream {
 public:
     bool open(

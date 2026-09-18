@@ -14,8 +14,8 @@ namespace auro3d::encode {
 
 constexpr std::uint16_t kCodecV3SerializedChannelHeader = 0x010Au;
 
-/// One fully serialized codec-v3 channel payload. `words` are the PCM24
-/// carrier samples consumed by ChannelParser; `crc_word` is stored in the
+/// One fully serialized codec-v3 channel payload. words are the PCM24
+/// carrier samples consumed by ChannelParser; crc_word is stored in the
 /// channel slot beside that sample span.
 struct EncodedChannelFrame {
     std::uint32_t channel_id = 0;
@@ -40,7 +40,7 @@ struct PrimaryDownmixGain {
 };
 
 /// Collects non-zero Encoder+6368 original-map entries for the group's
-/// analysis source ids. Empty when `input_scaler_indices` is null.
+/// analysis source ids. Empty when input_scaler_indices is null.
 bool collect_primary_downmix_gains(
     const std::vector<std::uint32_t>& source_ids,
     const std::array<std::uint8_t, 31>* input_scaler_indices,
@@ -135,7 +135,7 @@ bool encode_codebook_channel_frame_sequence(
     std::string& error);
 
 /// Codebook-channel path using the native Golomb-Rice index stream. The
-/// metadata static flags carry `golomb_parameter` (0..15) and the stream
+/// metadata static flags carry golomb_parameter (0..15) and the stream
 /// contains one index per decoded sample.
 bool encode_codebook_channel_frame_golomb(
     std::uint32_t channel_id,
@@ -187,7 +187,7 @@ bool prepare_channel_mux_words(
 
 /// Complete scalar counterpart of compose:Channel:mux: apply
 /// the native 24-bit shift/mask transform and serialize the projector records
-/// into the resulting PCM words. `shift_left` is the native boolean branch.
+/// into the resulting PCM words. shift_left is the native boolean branch.
 bool mux_channel_words(
     const std::vector<std::int32_t>& source_samples,
     std::uint32_t quantization_shift,

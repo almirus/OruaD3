@@ -27,7 +27,7 @@ bool append_primary_downmix_gain_adol(
     std::string& error);
 
 /// Packs the explicit per-carrier-channel gains used by ADOL opcode 0x46.
-/// Native `from_secondary_downmix_gains` quantizes each non-positive gain to
+/// Native from_secondary_downmix_gains quantizes each non-positive gain to
 /// a four-bit 1.5 dB step with a -0.75 dB decision offset. Only channels
 /// present in the supplied carrier layout are inspected.
 bool pack_secondary_downmix_gains(
@@ -44,7 +44,7 @@ bool append_secondary_downmix_gains_adol(
     const std::array<float, 31>& gains_db,
     std::string& error);
 
-/// Explicit input to `auro:loudness:codec:encode`. Type is the
+/// Explicit input to auro:loudness:codec:encode. Type is the
 /// native semantic type 0..5; the corresponding ADOL opcode is selected by
 /// the codec table rather than supplied by the caller.
 struct LoudnessMetadata {
@@ -85,7 +85,7 @@ bool append_auromatic_adol(
     std::string& error);
 
 /// ADOL opcode 0x64 from metadata:from_encoder_version.
-/// `version` is the native 24-bit value (bytes packed big-endian).
+/// version is the native 24-bit value (bytes packed big-endian).
 bool append_encoder_version_adol(
     std::vector<AdolInstruction>& instructions,
     std::uint32_t version,

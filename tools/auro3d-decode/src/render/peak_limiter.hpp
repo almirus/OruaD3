@@ -6,19 +6,19 @@
 namespace auro3d {
 
 // Native A3DENG PeakLimiter: auro_compressor_v1 Processor, linked, float32.
-// PeakLimiter:prepare libauro installs
+// PeakLimiter:prepare installs
 // {attack=0, release=0.15, ratio=50, knee=0 dB, threshold=-0.5 dB}.
 // Linked max is taken first, PeakFollower updates the envelope
-// , then the 32-sample look-ahead gain computer (with
+// then the 32-sample look-ahead gain computer (with
 // a3[3]==1) writes one gain lane that is applied to every channel.
 class NativePeakLimiter {
 public:
     void reset();
     void set_sample_rate(std::uint32_t sample_rate);
 
-    // Planar float, `channel_count` pointers of `frames` samples each.
+    // Planar float, channel_count pointers of frames samples each.
     // Channels with a null pointer are skipped for both detect and apply.
-    // `apply_pcm24_ceiling` is an export-path aid; the Float32 Manager pipeline
+    // apply_pcm24_ceiling is an export-path aid; the Float32 Manager pipeline
     // leaves it false to match native HDMI processing.
     void process_planar(
         float* const* channels,

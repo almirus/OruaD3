@@ -44,9 +44,9 @@ bool apply_loudness_measurement(
     const LoudnessMeasurement& measurement,
     std::string& error);
 
-/// Encoder:select_loudness_. `unit_start_sample` is Encoder+6336
-/// (sample cursor before this unit). On success, `present` mirrors +12712 and
-/// `out` holds the selected LoudnessMetadata when present.
+/// Encoder:select_loudness_. unit_start_sample is Encoder+6336
+/// (sample cursor before this unit). On success, present mirrors +12712 and
+/// out holds the selected LoudnessMetadata when present.
 bool select_loudness(
     std::vector<LoudnessScheduleEntry>& schedule,
     std::uint64_t unit_start_sample,

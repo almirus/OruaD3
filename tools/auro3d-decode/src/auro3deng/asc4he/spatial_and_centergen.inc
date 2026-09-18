@@ -711,7 +711,7 @@ void auro_centergen_v3_default_dynamic_params(std::uint8_t* a1) {
         return;
     std::memset(a1, 0, kAsc4heCenterGenDynamicDefaultsBytes);
     *reinterpret_cast<std::uint32_t*>(a1 + 0u) = 0u;
-    // libauro 1DD660 1DCF70
+    // 1DD660 1DCF70
     *reinterpret_cast<std::uint64_t*>(a1 + 4u) = 0x3F59999A40C00000ull;
     *reinterpret_cast<std::uint64_t*>(a1 + 12u) = 0xC17000003D4CCCCDull;
     *reinterpret_cast<std::uint64_t*>(a1 + 20u) = 0x00000000C1200000ull;

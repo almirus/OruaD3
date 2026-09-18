@@ -39,7 +39,7 @@ constexpr std::uintptr_t kProcessorPerf_best_ratio_input_float = 0x25E970; // in
 // глобальная инициализация CRC-таблицы (512 байт, флаг).
 void decoder_crc_t_init_106f00();
 
-// глобальная инициализация таблиц для Extrapolate (float expf LUT в ).
+// глобальная инициализация таблиц для Extrapolate (float expf LUT в).
 void decoder_channel_extrapolate_t_init_1042a1();
 
 // Literal перенос auro_codec_v3_decoder_Config_initialize.
@@ -602,7 +602,7 @@ auro_decoder_impl_decode(
         const ProcessorIOBufferDesc* in_desc,
         const ProcessorIOBufferDesc* out_desc));
 
-// Частичный перенос codec-v3 dispatch слоя вокруг /.
+// Частичный перенос codec-v3 dispatch слоя вокруг.
 // Codec-v3 dispatch decoder_process перенесён в codec_v3_decoder_process_101800 auro_codec_v3_Decoder_process.
 struct CodecV3StateChangeSink {
     void* user = nullptr;
@@ -630,7 +630,7 @@ struct CodecV3IoBufferDescEb5a0 {
     std::uint32_t reserved = 0;
     std::uint64_t channel_ptr[31]{};
 };
-static_assert(sizeof(CodecV3IoBufferDescEb5a0) == 264, "codec-v3 IO descriptor must match current IDA layout.");
+static_assert(sizeof(CodecV3IoBufferDescEb5a0) == 264, "codec-v3 IO descriptor must match the native layout.");
 
 struct FormatDetectorTail1056c0;
 struct SyncDetectorState105ee0;
@@ -752,7 +752,7 @@ struct DelayLineBufferSlot106b40 {
     std::uint32_t reserved = 0;
     std::uint64_t channel_ptr[31]{};
 };
-static_assert(sizeof(DelayLineBufferSlot106b40) == 256, "DelayLine slot size must match current IDA 0x100 stride.");
+static_assert(sizeof(DelayLineBufferSlot106b40) == 256, "DelayLine slot size must match the native 256-byte stride.");
 
 struct DelayLineState106b40 {
     std::uint32_t samples_per_block = 0;
@@ -763,9 +763,9 @@ struct DelayLineState106b40 {
     std::uint32_t write_slot_index = 0;
     std::uint64_t absolute_cursor = 0;
 };
-static_assert(offsetof(DelayLineState106b40, ring_storage_base) == 16, "DelayLine storage base offset must match IDA.");
-static_assert(offsetof(DelayLineState106b40, ring_slot_count) == 24, "DelayLine ring slot count offset must match IDA.");
-static_assert(offsetof(DelayLineState106b40, absolute_cursor) == 32, "DelayLine cursor offset must match IDA.");
+static_assert(offsetof(DelayLineState106b40, ring_storage_base) == 16, "DelayLine storage base offset must match the native layout.");
+static_assert(offsetof(DelayLineState106b40, ring_slot_count) == 24, "DelayLine ring slot count offset must match the native layout.");
+static_assert(offsetof(DelayLineState106b40, absolute_cursor) == 32, "DelayLine cursor offset must match the native layout.");
 
 std::uint64_t delay_line_get_buffer_106b40(
     DelayLineState106b40* state,
@@ -790,7 +790,7 @@ std::uint64_t delay_line_write_buffer_106ab0(
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask);
 
-/// Tail of integrated FormatDetector blob decoder+288..+343 (libauro `FormatDetector_t_construct`).
+/// Tail of integrated FormatDetector blob decoder+288..+343 (FormatDetector_t_construct).
 struct FormatDetectorTail1056c0 {
     void (*sink_notify)(void* user, std::int64_t kind) = nullptr; // +288
     void* sink_user = nullptr;                                    // +296
@@ -814,7 +814,7 @@ struct SyncDetectorChannelState105ee0 {
     std::uint32_t history_bit1 = 0;     // +16
     std::uint32_t history_bit2 = 0;     // +20
 };
-static_assert(sizeof(SyncDetectorChannelState105ee0) == 24, "SyncDetector slot size must match IDA stride.");
+static_assert(sizeof(SyncDetectorChannelState105ee0) == 24, "SyncDetector slot size must match the native stride.");
 
 struct SyncDetectorState105ee0 {
     std::uint32_t state = 0;             // +0
@@ -930,7 +930,7 @@ memory_delay_line_payload_sum(
     std::uint64_t a2_qword16,
     std::uint32_t a2_dword44);
 
-/// BitReader channel_Parser_process: база `parser_u32 + 6` (см.). Таблица масок:.
+/// BitReader channel_Parser_process: база parser_u32 + 6 (см.). Таблица масок:.
 void
 channel_bit_reader_set_data(std::uint64_t br, std::uint64_t words_ptr, std::int32_t word_count);
 void
@@ -1018,7 +1018,7 @@ frame_mark_as_unused_106cd0_default(std::uint64_t frame_ptr);
 std::int64_t
 parser_frame_mark_as_unused_cb(std::uint64_t frame_ptr);
 
-// FrameDeque (/ ) minimal runtime layout.
+// FrameDeque (/) minimal runtime layout.
 struct FrameDequeState13d570 {
     std::uint64_t slot_ptrs[2]{};
     std::uint64_t frame_ptrs[2]{};
@@ -1216,7 +1216,7 @@ struct OutputGeneratorSegment {
     bool frame_has_started = false;
     bool prefer_started_decode_path = false; // v131: started flag для выбора decode-подветки.
 };
-static_assert(sizeof(OutputGeneratorSegment) >= 24, "OutputGeneratorSegment must hold IDA 24-byte range payload.");
+static_assert(sizeof(OutputGeneratorSegment) >= 24, "OutputGeneratorSegment must hold the native 24-byte range payload.");
 
 struct OutputGeneratorSegmentPlan {
     std::vector<OutputGeneratorSegment> segments;
@@ -1458,7 +1458,7 @@ auro_a3deng_v4_android_A3DENG_AuroSetDebugPath(
     const char* path_utf8,
     const char* tag_utf8);
 
-/// Поля в порядке JNI AuroUpdate2 (Artist Connection libauro.so).
+/// Поля в порядке JNI AuroUpdate2.
 struct A3DENGSettingsFields318d60 {
     bool is_stereo_device = false;
     bool headset_connected = false;
@@ -1620,7 +1620,7 @@ auro_a3deng_v4_android_channel_layout(
     std::uint32_t channel_mask,
     std::uint32_t hdmi_channel_mapping);
 
-/// три QWORD как `std:vector` begin/end/cap конца.
+/// три QWORD как std:vector begin/end/cap конца.
 void
 a3deng_u32_vector_assign_sub(
     std::uint8_t* vector_base24,
@@ -1724,7 +1724,7 @@ auro_asc4he_v1_CenterGen_get_default_fixed_parameters(std::uint8_t* out20);
 void
 auro_asc4he_v1_CenterGen_get_default_dynamic_parameters(std::uint8_t* out56);
 
-/// auro_centergen_v3_Processor_t libauro (memset 0x428 в construct).
+/// auro_centergen_v3_Processor_t (memset 0x428 в construct).
 constexpr std::size_t kCentergenV3ProcessorBytes = 0x428u;
 void
 auro_centergen_v3_default_fixed_params(std::uint8_t* out20);

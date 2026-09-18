@@ -1,5 +1,5 @@
 // Portable Auro-Matic v3 Engine leaf stages, ported from the native
-// libauro.so (Artist Connection 1.21.31). This file is added incrementally and
+// This file is added incrementally and
 // is NOT wired into Decoder:decode_next yet. Only the stages that have no
 // dependency on still-unported siblings (FrontManager, p3D3D, Engine) live here.
 
@@ -320,8 +320,8 @@ std::int64_t auro_matic_v3_OutputGate_reset_audio_state(std::uint8_t* base) {
         base + kOutputGateDetectSilenceOff);
 }
 
-// Native. Writes the 32-sample gain ramp into `gains` (scratch),
-// `out_active` = 1 while the gate is fully closed, `out_reset` = 1 on the
+// Native. Writes the 32-sample gain ramp into gains (scratch),
+// out_active = 1 while the gate is fully closed, out_reset = 1 on the
 // active->closed transition that triggers the Engine-wide state reset.
 bool auro_matic_v3_OutputGate_process(
     std::uint8_t* base,
@@ -355,7 +355,7 @@ bool auro_matic_v3_OutputGate_process(
     switch (state) {
         case 0u:
             // Native OutputGate state 0 opens into state 1; while running the
-            // current gain latches to the target immediately (Frida probe of
+
             // auro_matic_v3_OutputGate_process, 2026-09-15).
             if (running)
                 *reinterpret_cast<float*>(base + kOutputGateCurrentOff) = target_gain;

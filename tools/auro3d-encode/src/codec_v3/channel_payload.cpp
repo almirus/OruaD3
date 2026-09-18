@@ -199,9 +199,9 @@ bool pack_channel_context_values(
 bool codec_v3_channel_bitlines_from_quant_shift(
     std::uint32_t quant_shift,
     std::uint32_t& bitlines) {
-    // `quant_shift` here is the group bit_line retained on EncodedGroupPcm
-    // EncodedChannelFrame. Decoder BitReader width is `24 - headroom` with
-    // headroom `24 - bit_line`, i.e. bitlines == bit_line.
+    // quant_shift here is the group bit_line retained on EncodedGroupPcm
+    // EncodedChannelFrame. Decoder BitReader width is 24 - headroom with
+    // headroom 24 - bit_line, i.e. bitlines == bit_line.
     bitlines = quant_shift;
     return bitlines >= 3u && bitlines <= 16u;
 }

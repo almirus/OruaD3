@@ -7,7 +7,7 @@
 
 namespace auro3d {
 
-// Artist Connection 1.21.31 A3DENG v3 SampleConvertor callback:
+// A3DENG v3 SampleConvertor callback:
 // clamp Float32 to [-255, 255], scale by 2^23, truncate toward zero, then
 // saturate to signed PCM24. The converter is stateless and applies no dither.
 inline std::int32_t native_float_to_pcm24(float sample) noexcept {

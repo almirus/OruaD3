@@ -56,7 +56,7 @@ bool validate_dynamic_params(
     std::string& error);
 
 /// gain_to_scaler + scaler_to_ix for every present original gain. Requires
-/// Config+132 value == 1 (native rejects otherwise). When `write_cts_gains`
+/// Config+132 value == 1 (native rejects otherwise). When write_cts_gains
 /// is true (Config+136), fills Encoder+6384-equivalent entries from the
 /// quantized table scaler.
 bool apply_dynamic_original_gains(
@@ -72,7 +72,7 @@ bool apply_dynamic_original_gains(
 /// Maps present carrier gains into secondary-downmix float gains (ADOL 0x46
 /// path via from_secondary_downmix_gains). Absent layout channels
 /// stay 0 dB, matching the zeroed optional slots native packs into v59.
-/// Sets `secondary_present` only when at least one carrier gain is present.
+/// Sets secondary_present only when at least one carrier gain is present.
 bool apply_dynamic_carrier_gains(
     const DynamicParams& params,
     std::uint32_t original_layout,

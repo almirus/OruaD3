@@ -139,8 +139,8 @@ constexpr std::uintptr_t kBss_CRC_inited_byte_41ACE0 = 0x41ACE0;
 constexpr std::uintptr_t kDecoder_off_Memory = 64;
 constexpr std::uintptr_t kDecoder_off_FormatDetector = 232;
 
-/// `` `` (libauro.so,): FormatDetector sync callback — FrameDeque push on `a2==0`,
-/// pop_back on `a2==2`, optional notify `this+288` with `this+296` ctx (`0`/`1`).
+/// FormatDetector sync callback — FrameDeque push on a2==0,
+/// pop_back on a2==2, optional notify this+288 with this+296 ctx (0 1).
 constexpr std::uintptr_t kFormatDetector_sub_52CED0 = 0x52CED0;
 constexpr std::uintptr_t kFormatDetector52ced0_off_notify_fn = 288;
 constexpr std::uintptr_t kFormatDetector52ced0_off_notify_ctx = 296;
@@ -199,8 +199,8 @@ constexpr std::uint32_t kDecoderConfigInitErrInputMaskNotSubset = 404;
 
 namespace auro_engine_v4_ida {
 
-// Artist Connection 1.21.31, libauro.so, package auroenginev4.
-// These are image offsets for the current libauro.so analysis target.
+// package auroenginev4.
+// These are image offsets for the current analysis target.
 constexpr std::uintptr_t kJniA3DENG_AuroInitialize = 0x318C90;
 constexpr std::uintptr_t kJniA3DENG_AuroUpdate2 = 0x318D60;
 constexpr std::uintptr_t kJniA3DENG_AuroPush = 0x318FE0;
@@ -211,11 +211,11 @@ constexpr std::uintptr_t kA3DENG_push = 0x31AF50;
 constexpr std::uintptr_t kA3DENG_pop = 0x31B7A0;
 constexpr std::uintptr_t kA3DENG_pop_internal = 0x31B7F0;
 constexpr std::uintptr_t kA3DENG_get_output_info = 0x31B4E0;
-/// `` ``: stack prep + branch to `` ([rbx+10]==0) or ``; tail is unwind/abort.
+/// stack prep + branch to ([rbx+10]==0) or; tail is unwind/abort.
 constexpr std::uintptr_t kA3DENG_sub_6319F0 = 0x6319F0;
 constexpr std::uintptr_t kA3DENG_sub_6318E0 = 0x6318E0;
 constexpr std::uintptr_t kA3DENG_sub_631A70 = 0x631A70;
-/// `A3DENG:pop_` internal (``) calls `` ``.
+/// A3DENG:pop_ internal calls.
 constexpr std::uintptr_t kA3DENG_pop_internal_call_sub_6319F0 = 0x31BBC7;
 constexpr std::uintptr_t kA3DENG_sub_631C00 = 0x631C00;
 constexpr std::uintptr_t kA3DENG_sub_631C60 = 0x631C60;
@@ -226,9 +226,9 @@ constexpr std::uintptr_t kA3DENG_audio_block_vtbl_op10 = 0x10;
 constexpr std::uintptr_t kA3DENG_audio_block_vtbl_op18 = 0x18;
 constexpr std::uintptr_t kA3DENG_audio_block_vtbl_op40 = 0x40;
 constexpr std::uintptr_t kA3DENG_audio_block_vtbl_op48 = 0x48;
-constexpr std::int32_t kA3DENG_sub_631D50_err_nonempty_queue = -6101; // `0xFFFFE66B`
-constexpr std::int32_t kA3DENG_sub_631C60_err = -6094;                // `0xFFFFE672`
-/// Same (`libauro.so`): embedded `auro_codec_v3_decoder_OutputGenerator_*` (distinct from `libauro3d.so` `` slot).
+constexpr std::int32_t kA3DENG_sub_631D50_err_nonempty_queue = -6101; // 0xFFFFE66B
+constexpr std::int32_t kA3DENG_sub_631C60_err = -6094;                // 0xFFFFE672
+/// Same: embedded auro_codec_v3_decoder_OutputGenerator_* (distinct from slot).
 constexpr std::uintptr_t kLibauro_codec_OutputGenerator_process = 0x52B590;
 constexpr std::uintptr_t kLibauro_codec_OutputGenerator_cross_fade_ = 0x52AFE0;
 constexpr std::uintptr_t kLibauro_codec_OutputGenerator_cross_fade_inner = 0x52B0B0;
@@ -303,13 +303,13 @@ constexpr std::uint32_t kA3DENG_api_vtable_off_push_input = 0xC0u;
 constexpr std::uint32_t kA3DENG_api_vtable_off_render_audio = 0xC8u;
 constexpr std::uint32_t kA3DENG_api_vtable_off_reset_audio_state = 0xD0u;
 
-/// Live Frida/Kahlo trace, Artist Connection 1.21.31, AURO-3D Demo Compilation.
+
 /// The app's default playback route is stereo, so the observed Pop size is
 /// only a runtime sample of that route, not a decoder export-channel limit.
 /// JNI AuroPush gets 0x3A80 bytes for the active 6ch s24le track:
 /// 832 frames * 6 channels * 3 bytes. JNI AuroPop on the default route returns
 /// 0x1A00 bytes: 832 frames * 2 channels * 4-byte float output.
-/// JNI `AuroInitialize` native `A3DENG:A3DENG(this, a2, a3)` constructor arg this+52.
+/// JNI AuroInitialize native A3DENG:A3DENG(this, a2, a3) constructor arg this+52.
 constexpr std::uint32_t kA3DENG_constructor_pipeline_block_size = 0x40u;
 constexpr std::uint32_t kA3DENG_live_observed_block_frames = 832u;
 constexpr std::uint32_t kA3DENG_live_observed_push_bytes_6ch_s24 = 0x3A80u;
@@ -371,4 +371,4 @@ constexpr std::uintptr_t kManager_off_step_chain = 848u;
 constexpr std::uintptr_t kManager_off_configure_cb = 880u;
 constexpr std::size_t kManager_params_bytes = 124u;
 
-} // namespace auro_engine_v4_ida
+} // namespace

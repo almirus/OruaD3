@@ -6,7 +6,7 @@
 
 namespace auro3d {
 
-// Captured from the 48-kHz Artist Connection 1.21.31 AM4HP core
+// Captured from the 48-kHz AM4HP core
 // snapshot (CenterFront offsets +1072 and +1100). Values are raw native
 // float32 coefficients, not coefficients reconstructed from decimal values.
 std::pair<Am4hpCenterFront::Coefficients,

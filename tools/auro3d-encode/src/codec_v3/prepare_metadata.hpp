@@ -31,14 +31,14 @@ struct MetadataSourceRef {
     std::uint8_t original_map = 0;
 };
 
-/// One group record at UnitBlock+552, stride 128 (`index<<7`), filled by
+/// One group record at UnitBlock+552, stride 128 (index<<7), filled by
 /// prepare_metadata_unit_block_.
 struct MetadataGroupRecord {
     /// Native record offsets: +0 carrier id, +4 headroom, +8 arity.
     std::uint32_t carrier_channel_id = 0;
-    /// `24 - Group+24` (bit_line); must be <= 0x17.
+    /// 24 - Group+24 (bit_line); must be <= 0x17.
     std::uint8_t headroom_bits = 0;
-    /// Analysis frame count (`(end-begin)>>5`); cases 1 and 2 only.
+    /// Analysis frame count ((end-begin)>>5); cases 1 and 2 only.
     std::uint32_t analysis_arity = 0;
 
     /// Source slots are native +16/+20/+24, +28/+32/+36, +40/+44/+48.
@@ -57,7 +57,7 @@ struct MetadataGroupRecord {
     std::uint8_t vq_shift = 0;
     /// Group+67 from Quantization:run_ (residual bit width).
     std::uint8_t residual_bit_width = 0;
-    /// Residuals trimmed to `max(index)+1` (native residual table copy).
+    /// Residuals trimmed to max(index)+1 (native residual table copy).
     std::vector<std::int32_t> residuals;
     /// Low dwords of Group+448 per-sample indices.
     std::vector<std::uint32_t> indices;
@@ -118,7 +118,7 @@ bool prepare_metadata_unit_header(
 
 /// Builds per-group records for silent/arity-1 (case 1), mix2 (case 2), and
 /// a fully populated mix3 record (case 3) from AnalyzedEncodeGroup.
-/// When `input_scaler_indices` is non-null it mirrors the Encoder+6368 scaler
+/// When input_scaler_indices is non-null it mirrors the Encoder+6368 scaler
 /// tree written by downmix_/cts_dmx_coeff_limit_: a non-zero index becomes
 /// MetadataSourceRef.original_map for that source channel.
 bool prepare_metadata_group_records(

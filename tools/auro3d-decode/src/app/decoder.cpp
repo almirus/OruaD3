@@ -100,7 +100,7 @@ constexpr std::uint32_t kCodecV3FrameDequeCopiedSlotCapacity =
     ? static_cast<std::uint32_t>(
         (kCodecV3FrameDequeSlotCopyBytes - kCodecV3FrameOffSlotBase) / kCodecV3FrameSlotStride)
     : 0u;
-static_assert(kCodecV3FrameDequeCopiedSlotCapacity == 9u, "IDA 0x13d5d0 memcpy(0x150) must cover 9 slots.");
+static_assert(kCodecV3FrameDequeCopiedSlotCapacity == 9u, "FrameDeque memcpy must cover 9 slots.");
 static_assert(kCodecV3FrameDequeCopiedSlotCapacity == kCodecV3FrameSlotCapacity, "Copied slot capacity must fit frame slot count.");
 constexpr std::size_t kCodecV3FakeFrameChannelBytes = 4096u;
 constexpr std::size_t kNativeXinnStepStateBytes = 484064u;
@@ -412,7 +412,7 @@ void sync_detector_process_block_32_bridge(
 }
 
 void codec_v3_frame_deque_pop_front_keep_frame_13d670_bridge(std::uint64_t frame_deque_ptr) {
-    // Path where mark_as_unused is done by caller (e.g. ).
+    // Path where mark_as_unused is done by caller (e.g.).
     (void)auro3deng::frame_deque_pop_front_keep_frame(frame_deque_ptr);
 }
 
@@ -524,12 +524,12 @@ void sync_detector_notify_frame_builder_105530_bridge(
             ctx->format_detector->processed_samples + static_cast<std::uint64_t>(static_cast<std::int64_t>(rel_start));
         const std::uint32_t span = static_cast<std::uint32_t>(b != 0u ? b : kCodecV3FrameDequeSlotCopyBytes);
         const std::uint32_t layout_word = ctx->format_detector->layout & kCodecV3ChannelMask;
-        const std::uint32_t sub_52ced0_and =
+        const std::uint32_t frame_mask_and =
             (ctx->format_detector->allow_low_9bits != 0u)
                 ? static_cast<std::uint32_t>(auro_codec_v3_ida::kFormatDetector52ced0_frame_mask_and_when_allow_nonzero)
                 : static_cast<std::uint32_t>(static_cast<std::int32_t>(
                     auro_codec_v3_ida::kFormatDetector52ced0_frame_mask_and_when_allow_zero));
-        const std::uint32_t active_mask = layout_word & sub_52ced0_and;
+        const std::uint32_t active_mask = layout_word & frame_mask_and;
 
         auro3deng::frame_construct(
             reinterpret_cast<std::uint64_t>(frame.data()),
@@ -2014,7 +2014,7 @@ bool try_parse_wav_s24le(
         pos += 8;
 
         // RF64/BW64: data (and sometimes other) chunk sizes may be 0xFFFFFFFF;
-        // real sizes live in ds64. Do not require the full payload in `p`.
+        // real sizes live in ds64. Do not require the full payload in p.
         // Some writers (ffmpeg Lavf) also emit classic RIFF + 0xFFFFFFFF data
         // size for >4 GiB files without a ds64 chunk — fall back to EOF.
         const bool is_data_chunk = std::memcmp(id, "data", 4) == 0;

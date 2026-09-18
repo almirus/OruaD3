@@ -28,7 +28,7 @@ bool make_pcm_mux_mask_plan(
 /// Applies the native static projector-iterator selector layout to the first
 /// sixteen samples. Entries 16, 20, 24 and 28 are signed native dwords; values
 /// >=31 select the native all-ones fallback. Dynamic records are serialized by
-/// `serialize_pcm_mux_projector_record` with an explicit cursor.
+/// serialize_pcm_mux_projector_record with an explicit cursor.
 bool serialize_pcm_mux_projector_selectors(
     std::uint32_t source_count,
     std::uint32_t bitline_count,
@@ -37,7 +37,7 @@ bool serialize_pcm_mux_projector_selectors(
     std::string& error);
 
 /// Serializes one native dynamic projector iterator record from
-/// `a3d:serialize<projector:Iterator<unsigned int>>` at. The
+/// a3d:serialize<projector:Iterator<unsigned int>> at. The
 /// selector byte is followed by the scalar payload width selected by the
 /// native switch; selectors 64 and 100 carry two and three 8-bit values.
 bool serialize_pcm_mux_projector_record(
@@ -60,8 +60,8 @@ bool serialize_pcm_mux_projector_records(
     std::vector<std::uint32_t>& masks,
     std::string& error);
 
-/// Applies Projector:project to a pre-serialized PCM range. `words` contains
-/// one word per source sample; `masks` is the larger projector-iterator result
+/// Applies Projector:project to a pre-serialized PCM range. words contains
+/// one word per source sample; masks is the larger projector-iterator result
 /// consumed by the native cursor.
 bool apply_pcm_mux_projection(
     std::uint32_t bitline_count,
@@ -85,7 +85,7 @@ bool compute_pcm_mux_crc16(
 
 /// Complete dynamic mux path used by compose:Channel:mux: serialize the
 /// projector iterator, project data bits, compute the native pre-closure CRC,
-/// then project the CRC prefix. `crc` is the checksum used to derive that
+/// then project the CRC prefix. crc is the checksum used to derive that
 /// prefix; it is intentionally captured before the prefix bits are applied.
 bool apply_pcm_mux_records(
     std::uint32_t bitline_count,

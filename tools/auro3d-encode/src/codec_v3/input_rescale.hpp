@@ -9,7 +9,7 @@
 
 namespace auro3d::encode {
 
-/// `downmix_` copies original-layout PCM to its internal frame manager and,
+/// downmix_ copies original-layout PCM to its internal frame manager and,
 /// when a configured channel scaler differs from 1, divides every sample by
 /// that float scaler with truncation toward zero. The mapping from metadata
 /// gain index to this float is intentionally outside this primitive.

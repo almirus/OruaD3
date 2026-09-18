@@ -21,7 +21,7 @@ bool measure_native_frame_quality(
     NativeFrameQuality& out,
     std::string& error);
 
-/// Accumulator stored in ComputeQuality's local `{sum,count,max}` record.
+/// Accumulator stored in ComputeQuality's local {sum,count,max} record.
 struct NativeQualityAccumulator {
     double squared_rms_sum = 0.0;
     std::uint32_t frame_count = 0;

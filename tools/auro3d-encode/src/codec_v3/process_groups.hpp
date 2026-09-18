@@ -16,11 +16,11 @@ namespace auro3d::encode {
 
 /// Per-group analysis result through DetectSilence Rescaler ComputeDeltas
 /// mix2 Quantization+Mixer. Individually silent sources are removed before
-/// dispatch, so `carrier_ready` is true for silent groups, arity-1 Mixer
+/// dispatch, so carrier_ready is true for silent groups, arity-1 Mixer
 /// copies, and mix2 groups that quantized under the native bit budget.
 
-/// `carrier.quantization_shift` is Group+24 (`bit_line`) for prepare_mix_
-/// (`<< bit_line`). The VQ codebook shift is `vq_shift`, not that field.
+/// carrier.quantization_shift is Group+24 (bit_line) for prepare_mix_
+/// (<< bit_line). The VQ codebook shift is vq_shift, not that field.
 struct AnalyzedEncodeGroup {
     EncodedGroupPcm carrier;
     std::vector<std::int32_t> deltas;
@@ -37,7 +37,7 @@ struct AnalyzedEncodeGroup {
     std::array<std::int32_t, 5> mix3_seeds{};
     /// Channel ids of analysis frames after DetectSilence (Group+336).
     std::vector<std::uint32_t> analysis_source_ids;
-    /// `(analysis_end - analysis_begin) >> 5` used by prepare_metadata switch.
+    /// (analysis_end - analysis_begin) >> 5 used by prepare_metadata switch.
     std::uint32_t analysis_arity = 0;
     std::uint32_t vq_shift = 0;
     /// Group+67 from Quantization:run_ (mix2).
@@ -76,7 +76,7 @@ struct AnalyzedEncodeGroup {
     std::uint32_t scaler_attempts = 0;
     bool carrier_overflow = false;
     /// ComputeQuality output for this exact reconstructed
-    /// candidate. The filter stores its negation against `bit_line`.
+    /// candidate. The filter stores its negation against bit_line.
     bool quality_present = false;
     double quality_error_db = -3000.0;
     std::vector<NativeFrameQuality> frame_quality;

@@ -22,7 +22,7 @@ struct ExtrapolateMix2Seeds {
 };
 
 /// Inverse of Extrapolate mode 2 through the residual state update, before
-/// scale_shift_clamp_pcm24. `carrier` is already right-shifted by the frame
+/// scale_shift_clamp_pcm24. carrier is already right-shifted by the frame
 /// quantization shift. Both components must add to every carrier sample and
 /// satisfy native predictor slots exactly.
 bool encode_extrapolate_mix2_errors(

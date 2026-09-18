@@ -22,7 +22,7 @@ bool locate_pcm_metadata_bit_true(
 bool locate_pcm_metadata_bit_false(
     std::uint64_t bit_position,
     std::uint32_t mux_m,
-    /// Native Projector mask-cycle length, `16 * mux_m - 1`.
+    /// Native Projector mask-cycle length, 16 * mux_m - 1.
     std::uint32_t mux_param,
     std::size_t block_samples,
     PcmMetadataBitLocation& out);

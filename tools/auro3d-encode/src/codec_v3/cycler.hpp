@@ -53,7 +53,7 @@ struct EncoderCyclers {
 };
 
 /// Construct path: all five period dwords receive
-/// `trunc(0.9583 * sample_rate)`.
+/// trunc(0.9583 * sample_rate).
 std::uint32_t default_metadata_cycler_period(std::uint32_t sample_rate);
 
 /// Native set_cyclers_ seeds Encoder+6208 with LE bytes 03,03,06,01

@@ -80,7 +80,7 @@ std::uint32_t residual_bit_width_from_max_abs(std::uint32_t max_abs) {
 
 std::uint64_t bitshift100_bin(std::int32_t sample, std::uint32_t shift) {
     // BitShift<int,100u>:process_ stores both scale and bias in
-    // qword fields (`100LL << shift`) and performs the sample addition after
+    // qword fields (100LL << shift) and performs the sample addition after
     // the signed int has undergone the native unsigned-64 conversion. Keep
     // that modulo-2^64 behaviour; using a wrapped dword changes bins once
     // the trial shift is large enough for 100<<shift to cross bit 31.
@@ -814,7 +814,7 @@ static bool learn_native_gvm_online(
 
     // Learner:order_ sorts the live cluster-index vector by the first qword
     // of each 24/32-byte cluster record, which is population. The comparator
-    // is descending (`population[first] < population[second]` triggers a
+    // is descending (population[first] < population[second] triggers a
     // swap). get_sizes, get_centers, and cluster_membership all consume this
     // same order, so remap the three outputs together before finalization.
     std::vector<std::size_t> order = active_order;

@@ -56,8 +56,8 @@ struct EncoderRuntimeState {
 
 /// Encodes one complete native codec-v3 UnitBlock through every currently
 /// ported stage. The caller supplies the configuration carrier channel
-/// selected by `codec_v3_metadata_carrier_channel`; an
-/// optional explicit scaler table in `EncoderConfig` is applied to a private
+/// selected by codec_v3_metadata_carrier_channel; an
+/// optional explicit scaler table in EncoderConfig is applied to a private
 /// working copy before group analysis. No tail padding or stream scheduling
 /// is performed here.
 bool encode_v3_complete_unit(
@@ -71,7 +71,7 @@ bool encode_v3_complete_unit(
     EncodedCarrierUnit& out,
     std::string& error);
 
-/// Stateful stream wrapper around `encode_v3_complete_unit`. It selects
+/// Stateful stream wrapper around encode_v3_complete_unit. It selects
 /// optional metadata at the new cumulative sample position, advances all
 /// configured native cyclers, and commits runtime state only after successful
 /// encoding. Explicit metadata without a configured cycler remains present.

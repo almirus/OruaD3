@@ -25,7 +25,7 @@ constexpr std::uintptr_t kManagerOffConfigureResult = 488u;
 constexpr std::uintptr_t kManagerOffLayoutReady = 480u;
 constexpr std::uintptr_t kManagerOffLayoutEqual = 484u;
 
-// libauro(1).so.c:386043. The native helper returns 0/1/2 for the
+// (1).so.c:386043. The native helper returns 0/1/2 for the
 // soundbar generation selected from the configured layout.
 std::uint32_t soundbar_category_from_layout_portable(std::uint32_t layout) {
     if ((layout & 0x1B0u) == 0u)
@@ -319,7 +319,7 @@ bool frames_meta_equal_plan_output(
 }
 
 // auro_a3deng_v3_FramesMeta_t_equal — five consecutive u32 fields (20 bytes).
-// Confirmed by libauro(1).so.c; current libauro.so.c decompile is mangled.
+// Confirmed by (1).so.c; current decompile is mangled.
 bool frames_meta_t_equal(
     const std::uint32_t* a,
     const std::uint32_t* b) {

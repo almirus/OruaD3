@@ -420,7 +420,7 @@ std::vector<std::uint8_t> remap_interleaved_pcm(
     return dst;
 }
 
-/// Zero the low `clear_bits` of each PCM sample (toward zero). Export-only:
+/// Zero the low clear_bits of each PCM sample (toward zero). Export-only:
 /// strips residual Auro sync/ADOL from carrier_passthrough channels.
 void clear_interleaved_pcm_lsbs(
     std::vector<std::uint8_t>& pcm,

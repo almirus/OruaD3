@@ -177,7 +177,7 @@ bool HeadphoneLateReverbCore::set_feedback_rt60(float rt60_seconds) noexcept {
             static_cast<int>(bands_[band].feedback_delay_samples()));
         const float exponent =
             (delay * -3.0f) / (rate * rt60_seconds);
-        // Native `LateReverb_set_dynamic_parameters` uses libm `pow` (double)
+        // Native LateReverb_set_dynamic_parameters uses libm pow (double)
         // on that float32 exponent and only stores the comb gain.
         feedback_gains_[band] =
             static_cast<float>(std::pow(10.0, static_cast<double>(exponent)));

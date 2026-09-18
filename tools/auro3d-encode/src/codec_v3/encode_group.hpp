@@ -43,7 +43,7 @@ struct EncodeGroup {
     std::vector<EncodeGroupFrame> frames;
 };
 
-/// Copies one original channel plane into `group.frames`. Native
+/// Copies one original channel plane into group.frames. Native
 /// rejects empty/invalid ranges; this port does the same and owns a deep copy.
 bool attach_group_channel_pcm(
     EncodeGroup& group,

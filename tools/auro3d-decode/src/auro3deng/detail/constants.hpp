@@ -41,7 +41,7 @@ constexpr std::uintptr_t kSegRangeOff_len = 8;
 constexpr std::uintptr_t kSegRangeOff_mask = 16;
 constexpr std::uintptr_t kSegRangeOff_flags = 20;
 constexpr std::size_t kMaxSegmentBuildGuard = 4096;
-static_assert(kSegmentStrideBytes == 24, "IDA 0x102240 uses 24-byte segment range entries.");
+static_assert(kSegmentStrideBytes == 24, "Segment range entries must be 24 bytes.");
 
 // frame/channel layout offsets.
 constexpr std::uintptr_t kFrameOff_channel_count_dword = 44;     // v23[11]
@@ -110,7 +110,7 @@ constexpr std::uintptr_t kOgOff_channel_gain_table = 0x384;
 constexpr std::uintptr_t kOgOff_metadata_gain_table = 0x47C;
 constexpr std::uintptr_t kOgOff_output_status_flag = 1236;
 
-// libauro3d ``/``; libauro `kLibauro_codec_channel_GolombRice_*` ``/`` (`auro_engine_v4_ida`).
+// /; _codec_channel_GolombRice_*.
 constexpr std::uintptr_t kGrStateOff_words_ptr_qword = 0;
 constexpr std::uintptr_t kGrStateOff_ctx_ptr_qword = 8;
 constexpr std::uintptr_t kGrStateOff_bit_index_dword = 16;
@@ -120,7 +120,7 @@ constexpr std::uintptr_t kGrStateOff_base_index_dword = 28;
 constexpr std::uintptr_t kGrStateOff_k_dword = 32;
 constexpr std::uintptr_t kGrStateOff_counter_dword = 36;
 
-// libauro3d `` state; libauro `kLibauro_codec_channel_Extrapolate_t_init`/`_initialize`/`_process` ``/``/``.
+// state; _codec_channel_Extrapolate_t_init _initialize _process.
 constexpr std::uintptr_t kExStateOff_head_qword = 0;
 constexpr std::uintptr_t kExStateOff_mode1_count_dword = 0;
 constexpr std::uintptr_t kExStateOff_mode2_count_dword = 4;

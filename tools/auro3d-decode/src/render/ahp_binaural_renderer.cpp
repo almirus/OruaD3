@@ -278,7 +278,7 @@ bool AhpBinauralRenderer::initialize(
     stateful->lfe_processing.construct(lfe_scale, true);
     stateful->lfe_processing.set_dynamic_gain(5.0f);
     stateful->peak_limiter.set_sample_rate(rate);
-    // Artist Connection 1.21.31, room-0/HPV2 AHP Renderer+3680. Native
+    // room-0/HPV2 AHP Renderer+3680. Native
     // Renderer_process_float_32_ multiplies both output planes by this exact
     // float32 value after LFE and SourceManager accumulation.
     std::uint32_t output_gain_bits = 0x400001abu;

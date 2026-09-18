@@ -9,7 +9,7 @@ namespace sasc {
 namespace {
 
 // sample_rate:filter:s s_tilde, stored as sign-extended 64-bit values in
-// libauro and selected by Synthesizer<int>:initialize.
+// and selected by Synthesizer<int>:initialize.
 constexpr std::array<std::int32_t, 16> kS = {{
     -54, 928, -7678, 40666, -156853, 483108, -1341966, 5176153,
     5176153, -1341966, 483108, -156853, 40666, -7678, 928, -54

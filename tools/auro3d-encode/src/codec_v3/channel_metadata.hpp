@@ -27,7 +27,7 @@ bool make_channel_metadata_words(
     std::array<std::uint32_t, 3>& metadata_words);
 
 /// Exact inverse-side validation of channel_metadata_combine_info in the
-/// decoder. `metadata_words` are the three 32-bit fields consumed after the
+/// decoder. metadata_words are the three 32-bit fields consumed after the
 /// 16-bit channel header.
 bool combine_channel_metadata(
     std::uint16_t channel_header,

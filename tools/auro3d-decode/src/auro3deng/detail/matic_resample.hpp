@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <vector>
 
-// Native auro_a3deng_matic_resample_* factor-2 FIR (tap26), from libauro.so
+// Native auro_a3deng_matic_resample_* factor-2 FIR (tap26), from
 // auro_fir_coefficients_Bank_get_resample_factor2_tap26.
 
 namespace auro3deng {
@@ -16,7 +16,7 @@ inline constexpr std::uint32_t kPhaseTaps = 13u; // kTapCount 2
 inline constexpr std::uint32_t kMaxChannels = 15u;
 inline constexpr std::uint32_t kQuantum = 32u;
 
-// Exact float32 table from libauro.so VA (symmetric halfband).
+// Exact float32 table from VA (symmetric halfband).
 inline constexpr float kFactor2Tap26[kTapCount] = {
     -0.00914958026f, -0.0107425014f, 0.0199617296f, 0.00911884569f,
     -0.0160536394f, -0.0267183613f, 0.0154981352f, 0.0478715375f,

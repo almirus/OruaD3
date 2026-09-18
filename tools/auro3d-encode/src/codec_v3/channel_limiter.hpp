@@ -35,7 +35,7 @@ bool channel_limiter_set_distribution_factor(
     ChannelLimiter& limiter,
     float factor);
 
-/// set_release. `seconds` must be >= 0.
+/// set_release. seconds must be >= 0.
 bool channel_limiter_set_release(
     ChannelLimiter& limiter,
     float seconds);

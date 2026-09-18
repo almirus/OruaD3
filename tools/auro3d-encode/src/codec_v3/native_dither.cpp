@@ -30,7 +30,7 @@ bool initialize_pool(
     }
 
     // Rescaler:goc_dither_pool_ seeds a temporary MT19937 with
-    // `shift + Rescaler+64`; its first output is the explicit Pool seed.
+    // shift + Rescaler+64; its first output is the explicit Pool seed.
     std::mt19937 seed_generator(rescaler_seed + shift);
     pool.random.seed(seed_generator());
     pool.samples.resize(kNativeDitherPoolSamples);

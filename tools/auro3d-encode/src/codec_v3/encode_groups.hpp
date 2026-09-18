@@ -14,7 +14,7 @@ struct EncodeGroupPlan {
     OriginalChannelGroup sources{};
 };
 
-/// Walks every carrier channel of `original_layout` through
+/// Walks every carrier channel of original_layout through
 /// get_original_channels. Fails if any present carrier channel is
 /// rejected by the native table.
 bool build_encode_group_plan(

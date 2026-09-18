@@ -1268,8 +1268,8 @@ bool icc_mix(
             shift >= 64u ? -1 : ~(-std::int64_t{1} << shift);
         gain = (gain + (mask & (gain >> 63))) >> shift;
     }
-    // Native: count-1 < 11 (or buffer overlap) → scalar truncating `/`;
-    // else SIMD rounded Q23 (`bias ` then `>> 23`). Corpus
+    // Native: count-1 < 11 (or buffer overlap) → scalar truncating;
+    // else SIMD rounded Q23 (bias then >> 23). Corpus
     // subblocks are long, so the SIMD path is the exercised one.
     const bool use_rounded = count >= 12u;
     for (std::size_t i = 0; i < count; ++i) {

@@ -35,15 +35,15 @@ std::uint32_t legacy_dsp_channel_count_to_mask(unsigned channel_count);
 /// Codec-v3: mask must fit within kCodecV3MaxAllowedOutputLayout.
 bool codec_v3_output_layout_mask_allowed(std::uint32_t mask);
 
-/// True when `requested` is a known Auro layout that is a strict superset of
-/// the codec dematrix `stream_layout`, and the added slots are fillable by
+/// True when requested is a known Auro layout that is a strict superset of
+/// the codec dematrix stream_layout, and the added slots are fillable by
 /// post-dematrix XinN and/or simple bed synthesis (C from FL/FR, silent LFE).
 bool is_compatible_post_dematrix_upmix(
     std::uint32_t stream_layout,
     std::uint32_t requested);
 
 /// AuroCX ObjectRenderer:get_api_supported_layout_cicp.
-/// Returns the canonical API layout contained in `requested`, or 0 if none.
+/// Returns the canonical API layout contained in requested, or 0 if none.
 std::uint32_t auro_cx_api_supported_layout_mask(std::uint32_t requested);
 
 bool auro_cx_output_layout_mask_allowed(std::uint32_t mask);

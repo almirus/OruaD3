@@ -34,7 +34,7 @@ bool cts_dmx_limiter_init(
     std::int32_t sample_rate,
     std::string& error);
 
-/// Limiter:limit_new. `float_planes[ch]` must be non-null for
+/// Limiter:limit_new. float_planes[ch] must be non-null for
 /// every original-layout channel that participates in an arity-2/3 group.
 bool cts_dmx_limit_new(
     CtsDmxLimiter& limiter,

@@ -265,7 +265,7 @@ bool is_compatible_post_dematrix_upmix(
 
 std::uint32_t auro_cx_api_supported_layout_mask(std::uint32_t requested) {
     // Port of auro:cx:object_renderer:speaker_layout:get_api_supported_layout_cicp
-    // Returns the largest API layout whose bits are all set in `requested`.
+    // Returns the largest API layout whose bits are all set in requested.
     const std::uint32_t m = requested;
     const std::uint8_t lo = static_cast<std::uint8_t>(m);
     const std::uint8_t nlo = static_cast<std::uint8_t>(~lo);

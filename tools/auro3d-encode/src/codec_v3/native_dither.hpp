@@ -34,7 +34,7 @@ void initialize_native_dither(
     std::uint64_t seed);
 
 /// Adds the same saturating TPDF window selected by native dither:Pool.
-/// `shift` is Rescaler Group+24 + 8 and must be in 1..32.
+/// shift is Rescaler Group+24 + 8 and must be in 1..32.
 bool apply_native_dither(
     std::vector<std::int32_t>& samples,
     std::uint32_t shift,

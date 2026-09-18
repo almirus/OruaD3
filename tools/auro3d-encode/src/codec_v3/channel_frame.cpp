@@ -653,8 +653,8 @@ bool prepare_channel_mux_words(
     std::string& error) {
     error.clear();
     mux_words.clear();
-    // `quantization_shift` is the group bit_line. Channel:mux shifts/masks by
-    // `24 - Group+4` with Group+4 = headroom = 24 - bit_line, so the effective
+    // quantization_shift is the group bit_line. Channel:mux shifts/masks by
+    // 24 - Group+4 with Group+4 = headroom = 24 - bit_line, so the effective
     // shift equals bit_line.
     if (quantization_shift < 3u || quantization_shift > 16u) {
         error = "channel mux bit_line is outside the native Projector range";

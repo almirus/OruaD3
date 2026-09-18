@@ -147,7 +147,7 @@ void zero_unproduced_output_channels_1024a9(
     const OutputGeneratorApplyCallbacks& acb,
     std::uint32_t produced_mask,
     std::uint32_t channel_universe_mask) {
-    // runs for started and non-started (after ).
+    // runs for started and non-started (after).
     // For j in 0..30: if bit j not in produced (v40), zero output channel j when ptr != 0.
     if (seg.len == 0u)
         return;
@@ -163,7 +163,7 @@ void zero_unproduced_output_channels_1024a9(
     }
 }
 
-// `auro_codec_v3_decoder_OutputGenerator_cross_fade_` `auro_engine_v4_ida:kLibauro_codec_OutputGenerator_cross_fade_inner`.
+// auro_codec_v3_decoder_OutputGenerator_cross_fade_ _codec_OutputGenerator_cross_fade_inner.
 std::int64_t output_generator_cross_fade(
     std::uint8_t* output_generator_base,
     std::uint64_t output_channels_table_base,
@@ -315,7 +315,7 @@ std::int64_t golombrice_initialize_104e10(
     std::uint64_t gr_state_ptr,
     std::uint32_t* words_ptr,
     std::uint64_t ctx_ptr) {
-    // libauro3d `` libauro `kLibauro_codec_channel_GolombRice_initialize`: zero flags -> ctx -> bit_count=31 -> first word.
+    // _codec_channel_GolombRice_initialize: zero flags -> ctx -> bit_count=31 -> first word.
     if (!gr_state_ptr || !words_ptr || !ctx_ptr)
         return 0;
     *reinterpret_cast<std::uint32_t*>(gr_state_ptr + kGrStateOff_counter_dword) = 0;
@@ -330,7 +330,7 @@ std::int64_t golombrice_initialize_104e10(
 }
 
 std::int64_t extrapolate_initialize_104440(std::uint64_t ex_state_ptr, std::uint64_t frame_channel_ptr) {
-    // libauro3d `` libauro `auro_codec_v3_ida:kLibauro_codec_channel_Extrapolate_initialize`.
+    // auro_codec_v3_ida:_codec_channel_Extrapolate_initialize.
     if (!ex_state_ptr || !frame_channel_ptr)
         return 0;
     *reinterpret_cast<std::uint64_t*>(ex_state_ptr + kExStateOff_head_qword) = 0;
@@ -395,7 +395,7 @@ std::int32_t div4_mix3_52e5c0(std::int32_t v39, std::int32_t v46) {
     return v47 >> 2;
 }
 
-// libauro3d `` libauro `auro_codec_v3_ida:kLibauro_codec_channel_Extrapolate_process`.
+// auro_codec_v3_ida:_codec_channel_Extrapolate_process.
 std::int64_t
 extrapolate_process(
     std::uint64_t ex_state_ptr,
@@ -751,7 +751,7 @@ std::int32_t gr_sign_extend_104e40(std::uint32_t raw_value, std::uint32_t bit_wi
     return -static_cast<std::int32_t>(raw_value & magnitude_mask);
 }
 
-// libauro.so: `auro_codec_v3_decoder_channel_GolombRice_get_errors` `auro_engine_v4_ida:kLibauro_codec_channel_GolombRice_get_errors`.
+// auro_codec_v3_decoder_channel_GolombRice_get_errors _codec_channel_GolombRice_get_errors.
 std::int64_t golombrice_get_errors_104e40(
     std::uint64_t gr_state_ptr,
     std::uint64_t frame_channel_ptr,
@@ -944,7 +944,7 @@ bool should_prepare_frame_init_1024a9(std::uint64_t frame_ptr, std::uint64_t tim
         return false;
     const std::uint32_t channel_count =
         *reinterpret_cast<const std::uint32_t*>(frame_ptr + kFrameOff_channel_count_dword);
-    // : GR/Extrapolate init only when channel_count != 0.
+    // GR/Extrapolate init only when channel_count != 0.
     return channel_count != 0;
 }
 

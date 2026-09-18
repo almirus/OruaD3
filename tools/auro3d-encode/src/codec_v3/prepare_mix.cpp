@@ -35,7 +35,7 @@ bool prepare_mix(
             for (std::uint32_t sample = 0; sample < carrier.frame_count; ++sample)
                 destination[sample] = group.samples[sample];
         } else {
-            // Native scalar code is `*dst = *src << shift`; SSE uses PSLLD.
+            // Native scalar code is *dst = *src << shift; SSE uses PSLLD.
             // Cast through uint32_t to define the same 32-bit bit operation.
             for (std::uint32_t sample = 0; sample < carrier.frame_count; ++sample) {
                 destination[sample] = static_cast<std::int32_t>(

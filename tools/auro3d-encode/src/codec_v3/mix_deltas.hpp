@@ -29,14 +29,14 @@ inline std::int32_t codec_v3_arithmetic_shift_right(
 }
 
 /// Direct port of auro:mix:deltas mix2 overload.
-/// Writes one delta sample per input sample into `deltas` (same length).
+/// Writes one delta sample per input sample into deltas (same length).
 bool compute_mix2_deltas(
     const std::vector<std::int32_t>& primary,
     const std::vector<std::int32_t>& secondary,
     std::vector<std::int32_t>& deltas,
     std::string& error);
 
-/// Direct port of the three `mix3:deltas` specializations used by
+/// Direct port of the three mix3:deltas specializations used by
 /// ComputeDeltas. The native output is a 2*N interleaved residual
 /// vector; all four fixed zero slots are retained.
 bool compute_mix3_deltas(

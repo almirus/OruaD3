@@ -22,7 +22,7 @@ void NativeQualityFilter::prune() {
     if (points_.size() < 2u)
         return;
 
-    // Native keeps the first maximum on ties (`next <= current`).
+    // Native keeps the first maximum on ties (next <= current).
     std::size_t maximum = 0u;
     for (std::size_t index = 1u; index < points_.size(); ++index) {
         if (points_[index].quality > points_[maximum].quality)

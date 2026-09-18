@@ -10,7 +10,7 @@
 
 namespace auro3d::encode {
 
-/// Scalar port of `auro:mix:unmix<...,array<int,1>>`.
+/// Scalar port of auro:mix:unmix<...,array<int,1>>.
 bool mix2_unmix_reconstruct(
     const std::vector<std::int32_t>& carrier,
     const std::vector<std::uint64_t>& indices,
@@ -20,8 +20,8 @@ bool mix2_unmix_reconstruct(
     std::vector<std::int32_t>& secondary,
     std::string& error);
 
-/// Scalar port of `auro:mix:unmix<...,array<int,2>>` and the
-/// three `mix3:Train:proceed<N>` specializations.
+/// Scalar port of auro:mix:unmix<...,array<int,2>> and the
+/// three mix3:Train:proceed<N> specializations.
 bool mix3_unmix_reconstruct(
     const std::vector<std::int32_t>& carrier,
     const std::vector<std::uint64_t>& indices,

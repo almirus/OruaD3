@@ -212,7 +212,7 @@ std::atomic<std::uint8_t> g_crc_table_ready{0};
 
 #if AURO3DENG_CRC_SSE41
 
-// Константы.rodata из (get_bytes ).
+// Константы.rodata из (get_bytes).
 alignas(16) static const std::uint8_t kCrcXmm_1c2f60[16] = {
     0x08, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00};
 alignas(16) static const std::uint8_t kCrcXmm_1c2c30[16] = {
@@ -476,14 +476,14 @@ std::int64_t channel_parser_construct(
 }
 
 std::uint32_t ida_signed_shift_u32_103840(std::uint32_t value, std::int32_t shift) {
-    // channel_Parser_process: `v << (*(_BYTE *)a1 - *((_BYTE *)a1 + 4))` `v << -(char)rb`.
+    // channel_Parser_process: v << (*(_BYTE *)a1 - *((_BYTE *)a1 + 4)) v << -(char)rb.
     // Native is x86 SHL with count = (int8_t)shift; 32-bit SHL uses count & 31.
     // Example: rb=5 → count=-5 → 0xFB & 31 = 27 → left-align 5 bits into MSB.
     const auto count = static_cast<std::uint8_t>(static_cast<std::int8_t>(shift));
     return value << (static_cast<std::uint32_t>(count) & 31u);
 }
 
-// libauro3d `` libauro `auro_codec_v3_ida:kLibauro_codec_channel_Parser_process`.
+// auro_codec_v3_ida:_codec_channel_Parser_process.
 std::int64_t channel_parser_process_103840(
     std::uint64_t parser_base,
     std::uint64_t frame_channel_ptr,

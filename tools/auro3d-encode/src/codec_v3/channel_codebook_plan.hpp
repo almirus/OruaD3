@@ -11,7 +11,7 @@ namespace auro3d::encode {
 
 /// Creates the channel metadata/context prefix for a caller-supplied signed
 /// residual codebook. The selector is derived only when the native base-index
-/// table represents `values.size` exactly; no layout or entropy policy is
+/// table represents values.size exactly; no layout or entropy policy is
 /// inferred here.
 bool make_channel_codebook_prefix(
     std::uint32_t mode,

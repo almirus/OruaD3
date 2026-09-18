@@ -1678,7 +1678,7 @@ auro_downmix_v1_engine_calculate(
     const std::uint32_t tgt_lo = tgt_layout & 3u;
     // Height entry: v200 || tgt&0x40000000 || tgt_lo==3.
     // v200 = (tgt_lo!=3) & ((uint8_t)tgt >> 2). Non-matching layouts return
-    // false — Hex-Rays `(result=0, cond)` has no separate successful branch.
+    // false — Hex-Rays (result=0, cond) has no separate successful branch.
     const std::uint8_t tgt_class_hint =
         tgt_lo != 3u
             ? static_cast<std::uint8_t>(static_cast<std::uint8_t>(tgt_layout) >> 2)
@@ -2278,7 +2278,7 @@ std::int64_t auro_codec_v3_Decoder_process(
         nullptr);
 }
 
-// libauro3d `` libauro `auro_codec_v3_ida:kLibauro_codec_Parser_process`.
+// auro_codec_v3_ida:_codec_Parser_process.
 std::int64_t codec_v3_parser_process_1034e0(
     std::uint8_t* parser_base,
     const CodecV3ParserRuntimeFns1034e0* runtime_fns) {
@@ -2581,7 +2581,7 @@ std::uint64_t delay_line_write_buffer_106ab0(
     return reinterpret_cast<std::uint64_t>(slot);
 }
 
-// Mirrors `auro_codec_v3_decoder_FormatDetector_process` (libauro.so).
+// Mirrors auro_codec_v3_decoder_FormatDetector_process.
 void sync_detector_t_construct(SyncDetectorState105ee0* state) {
     if (!state)
         return;
@@ -2802,7 +2802,7 @@ void format_detector_process(
     }
 }
 
-// Mirrors `auro_codec_v3_decoder_SyncDetector_set_layout` (libauro.so).
+// Mirrors auro_codec_v3_decoder_SyncDetector_set_layout.
 void sync_detector_set_layout(SyncDetectorState105ee0* state, std::uint32_t layout_mask) {
     if (!state || state->layout == layout_mask)
         return;
@@ -2842,7 +2842,7 @@ void sync_detector_set_layout(SyncDetectorState105ee0* state, std::uint32_t layo
     state->active_channel_count = count;
 }
 
-// Mirrors `auro_codec_v3_decoder_SyncDetector_process_block` (libauro.so).
+// Mirrors auro_codec_v3_decoder_SyncDetector_process_block.
 void sync_detector_process_block(
     SyncDetectorState105ee0* state,
     const std::uint64_t* channel_ptrs_27,
@@ -3120,7 +3120,7 @@ std::int64_t output_generator_prepare_frame_channels_1024a9(
         std::uint32_t* words_ptr = cb.get_channel_words_ptr(cb.user, frame_ch);
         const std::uint64_t ctx_ptr = cb.get_channel_ctx_ptr(cb.user, frame_ch);
 
-        // : both init calls are fire-and-forget, return values are ignored.
+        // both init calls are fire-and-forget, return values are ignored.
         (void)cb.golombrice_initialize(cb.user, gr_state, words_ptr, ctx_ptr);
         (void)cb.extrapolate_initialize(cb.user, ex_state, frame_ch);
     }
@@ -3291,7 +3291,7 @@ std::int64_t output_generator_process_segments_raw_1024a9(
             segment_used_copy_input ? 0u : 1u;
 
         const bool started_decode = seg.frame_ptr != 0 && use_started_decode_path_1024a9(seg);
-        // Old libauro3d: started decode jumps directly to;
+        // Old: started decode jumps directly to;
         // zero-missing only runs on the delay-line/copy path.
         if (!started_decode) {
             zero_unproduced_output_channels_1024a9(

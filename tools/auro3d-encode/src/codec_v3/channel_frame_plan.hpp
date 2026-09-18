@@ -39,9 +39,9 @@ bool build_analyzed_channel_frames(
     std::vector<EncodedChannelFrame>& out,
     std::string& error);
 
-/// Same as `build_analyzed_channel_frames`, and when `input_scaler_indices` is
+/// Same as build_analyzed_channel_frames, and when input_scaler_indices is
 /// non-null emits channel-parser opcode 64 for each source with a non-zero
-/// original-map entry (compose:Channel /).
+/// original-map entry (compose:Channel ).
 bool build_analyzed_channel_frames(
     const std::vector<AnalyzedEncodeGroup>& groups,
     std::uint32_t frame_count,

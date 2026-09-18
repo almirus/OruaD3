@@ -6,8 +6,8 @@
 namespace auro3d::encode {
 
 /// Result of auro:codec:v3:get_original_channels.
-/// `arity` is 1 (passthrough), 2 (mix2) or 3 (mix3). Channel IDs are the
-/// codec-v3 speaker indices that form one encode group for `carrier_channel`.
+/// arity is 1 (passthrough), 2 (mix2) or 3 (mix3). Channel IDs are the
+/// codec-v3 speaker indices that form one encode group for carrier_channel.
 struct OriginalChannelGroup {
     std::uint32_t arity = 0;
     std::array<std::uint32_t, 3> channels{};

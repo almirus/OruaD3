@@ -64,13 +64,13 @@ const std::array<std::int64_t, 111>& default_downmix_gains() {
     return gains;
 }
 
-// compensate_channel_gains: truncating Q23 multiply via `/ `.
+// compensate_channel_gains: truncating Q23 multiply via.
 std::int64_t multiply_q23(std::int64_t left, std::int64_t right) {
     return left * right / kUnityGain;
 }
 
 // calculate_gains_ +3576/+3577 post-scale and same-stream
-// coefficient update in: bias negative products then `>> 23`.
+// coefficient update in: bias negative products then >> 23.
 std::int64_t multiply_q23_rounded(std::int64_t left, std::int64_t right) {
     const std::int64_t product = left * right;
     const std::int64_t biased = product < 0 ? product + 0x7FFFFF : product;
@@ -790,7 +790,7 @@ bool build_channel_bed_plan(
                 return false;
             }
             // Native order: calculate_gains_ applies +920/+1416 with rounded
-            // Q23, then compensate_channel_gains multiplies relative with `/`.
+            // Q23, then compensate_channel_gains multiplies relative with.
             std::int64_t gain = layer_gains[rule.gain_index];
             if (from_3d &&
                 rule.destination_channel < dest_post_scale_3d2d.size())

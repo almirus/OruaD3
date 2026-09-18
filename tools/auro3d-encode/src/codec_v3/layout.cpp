@@ -266,7 +266,7 @@ bool plan_codec_v3_unit_blocks(
             tail.push_back(size);
             cursor -= size;
         }
-        // `parent` is walked from the end of the stream towards its start.
+        // parent is walked from the end of the stream towards its start.
         // Keep that order: the DP visits the preferred size first, so this
         // places complete preferred UnitBlocks before the rebalanced short
         // block. Reversing the predecessor chain put the short block first;

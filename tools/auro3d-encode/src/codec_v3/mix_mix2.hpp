@@ -13,8 +13,8 @@ struct Mix2MixerSeeds {
 };
 
 /// Direct scalar port of auro:mix:mix mix2 overload plus the
-/// trailing seed/carrier fixups in that function. `indices` selects entries in
-/// `residuals` (native vector<array<int,1>> vector<unsigned long>).
+/// trailing seed/carrier fixups in that function. indices selects entries in
+/// residuals (native vector<array<int,1>> vector<unsigned long>).
 /// Does not invent residuals: the caller must supply Quantization/GVM output.
 bool mix2_mixer_reconstruct(
     const std::vector<std::int32_t>& primary,
