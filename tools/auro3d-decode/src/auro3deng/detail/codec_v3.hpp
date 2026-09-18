@@ -4,7 +4,7 @@
 #include <cstdint>
 
 
-namespace auro_codec_v3_ida {
+namespace auro_codec_v3 {
 
 constexpr std::uintptr_t kAuroCodecV3Decoder_CRC_t_init = 0x106F00;
 constexpr std::uintptr_t kAuroCodecV3Decoder_t_construct = 0x101760;
@@ -195,9 +195,9 @@ constexpr std::uint32_t kDecoderConfigInitErrInputMaskNotSubset = 404;
 /// Порядок в auro_codec_v3_Decoder_t_construct: CRC_t_init → channel_Extrapolate_t_init →
 /// Config_initialize → Memory_t_construct → FormatDetector_t_construct → Parser_t_construct → OutputGenerator_t_construct.
 
-} // namespace auro_codec_v3_ida
+} // namespace auro_codec_v3
 
-namespace auro_engine_v4_ida {
+namespace auro_engine_v4 {
 
 // package auroenginev4.
 // These are image offsets for the current analysis target.

@@ -859,7 +859,7 @@ std::int64_t auro_a3deng_v3_pipeline_Manager_activate_plan(
     if (!manager || !plan)
         return 1;
     auto* step_chain = reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(
-        *reinterpret_cast<std::uint64_t*>(manager + ::auro_engine_v4_ida::kManager_off_step_chain)));
+        *reinterpret_cast<std::uint64_t*>(manager + ::auro_engine_v4::kManager_off_step_chain)));
     if (!step_chain)
         return 1;
     *reinterpret_cast<std::uint64_t*>(manager + 0u) =
@@ -1574,7 +1574,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
     const auto* sample_convertor = runtime.step_chain_storage() + 61784u;
     if (*reinterpret_cast<const std::uint64_t*>(sample_convertor + 32u) == 0u
         || *reinterpret_cast<const std::uint64_t*>(sample_convertor + 16u)
-            != ::auro_engine_v4_ida::kStepSampleConvertor_process_float_clamp) {
+            != ::auro_engine_v4::kStepSampleConvertor_process_float_clamp) {
         detail = "SampleConvertor configure did not install float±1 clamp";
         return false;
     }
@@ -1627,7 +1627,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
                 step.data(), plan_entry, true, nullptr)
             != 0
             || *reinterpret_cast<const std::uint64_t*>(step.data() + 16u)
-                != ::auro_engine_v4_ida::kStepSampleConvertor_process_float_clamp) {
+                != ::auro_engine_v4::kStepSampleConvertor_process_float_clamp) {
             detail = "isolated SampleConvertor configure failed";
             return false;
         }
@@ -1666,7 +1666,7 @@ bool auromatic_plan_creator_self_test(std::string& detail) {
                 step.data(), plan_entry, true, nullptr)
             != 0
             || *reinterpret_cast<const std::uint64_t*>(step.data() + 16u)
-                != ::auro_engine_v4_ida::kStepSampleConvertor_process_pcm24_sat) {
+                != ::auro_engine_v4::kStepSampleConvertor_process_pcm24_sat) {
             detail = "isolated PCM24 SampleConvertor configure failed";
             return false;
         }

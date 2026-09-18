@@ -501,7 +501,7 @@ void auro_codec_v3_Decoder_set_metadata_callback(std::uint64_t decoder_base, voi
 
 // auro_codec_v3_Decoder_t_construct:
 // CRC_t_init → channel_Extrapolate_t_init → Config_initialize → Memory/FormatDetector/Parser/OutputGenerator construct.
-// a1 — база codec v3 decoder, a2 — ptr на args для Config_initialize (см. auro_codec_v3_ida:kDecoderConfigInitArg_*),
+// a1 — база codec v3 decoder, a2 — ptr на args для Config_initialize (см. auro_codec_v3:kDecoderConfigInitArg_*),
 // a3 — пользовательский контекст (Decoder*, передаётся дальше в Memory_t_construct/OutputGenerator_t_construct).
 std::uint32_t decoder_t_construct_101760(std::uint8_t* decoder_base, const void* config_init_args, void* user_ctx);
 

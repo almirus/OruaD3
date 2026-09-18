@@ -3,7 +3,7 @@
 #include "runtime_api.hpp"
 #include "processor_io.hpp"
 #include "processor_offsets.hpp"
-#include "codec_v3_ida.hpp"
+#include "codec_v3.hpp"
 #include "constants.hpp"
 
 #ifdef round

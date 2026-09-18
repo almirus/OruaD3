@@ -483,7 +483,7 @@ std::uint32_t ida_signed_shift_u32_103840(std::uint32_t value, std::int32_t shif
     return value << (static_cast<std::uint32_t>(count) & 31u);
 }
 
-// auro_codec_v3_ida:_codec_channel_Parser_process.
+// auro_codec_v3:_codec_channel_Parser_process.
 std::int64_t channel_parser_process_103840(
     std::uint64_t parser_base,
     std::uint64_t frame_channel_ptr,

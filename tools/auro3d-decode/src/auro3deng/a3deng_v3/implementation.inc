@@ -3,11 +3,11 @@ load_expect_da9ae0_from_impl(const std::uint8_t* impl_base) {
     ProcessorIoExpectDa9ae0 ex{};
     if (!impl_base)
         return ex;
-    using auro_codec_v3_ida::kAuroDecoderImpl_expect_bytes_unit;
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_InputDesc;
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_OutputDesc;
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_RuntimeInputMask;
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_RuntimeOutputMask;
+    using auro_codec_v3::kAuroDecoderImpl_expect_bytes_unit;
+    using auro_codec_v3::kAuroDecoderImpl_off_InputDesc;
+    using auro_codec_v3::kAuroDecoderImpl_off_OutputDesc;
+    using auro_codec_v3::kAuroDecoderImpl_off_RuntimeInputMask;
+    using auro_codec_v3::kAuroDecoderImpl_off_RuntimeOutputMask;
     const auto* in = reinterpret_cast<const ProcessorIOBufferDesc*>(impl_base + kAuroDecoderImpl_off_InputDesc);
     const auto* out = reinterpret_cast<const ProcessorIOBufferDesc*>(impl_base + kAuroDecoderImpl_off_OutputDesc);
     // bytes_unit is processor config (sample-count stride), NOT desc.total_size_bytes.
@@ -57,7 +57,7 @@ void decoder_channel_extrapolate_t_init_1042a1() {
 // Literal перенос auro_codec_v3_decoder_Config_initialize.
 std::int64_t auro_codec_v3_decoder_Config_initialize(std::int64_t a1, std::int64_t a2) {
     const auto v2 = *reinterpret_cast<std::uint64_t*>(a2 + 8);
-    std::int64_t result = auro_codec_v3_ida::kDecoderConfigInitErrBlockBits;
+    std::int64_t result = auro_codec_v3::kDecoderConfigInitErrBlockBits;
     if (v2 >= 0x20 && (v2 & 0x1Fu) == 0) {
         *reinterpret_cast<std::uint64_t*>(a1) = v2;
         *reinterpret_cast<std::uint32_t*>(a1 + 8) = static_cast<std::uint32_t>(v2 >> 5);
@@ -75,12 +75,12 @@ std::int64_t auro_codec_v3_decoder_Config_initialize(std::int64_t a1, std::int64
             auro_channel_Mask_count(*reinterpret_cast<std::uint32_t*>(a1 + 40), a2, 0);
         *reinterpret_cast<std::uint32_t*>(a1 + 52) = *reinterpret_cast<std::uint32_t*>(a2 + 24);
         const auto in_mask = *reinterpret_cast<std::uint32_t*>(a1 + 36);
-        result = auro_codec_v3_ida::kDecoderConfigInitErrInputMaskRange;
+        result = auro_codec_v3::kDecoderConfigInitErrInputMaskRange;
         if (static_cast<std::int32_t>(in_mask) >= 0) {
             const auto out_mask = *reinterpret_cast<std::uint32_t*>(a1 + 40);
-            result = auro_codec_v3_ida::kDecoderConfigInitErrOutputMaskRange;
+            result = auro_codec_v3::kDecoderConfigInitErrOutputMaskRange;
             if (static_cast<std::int32_t>(out_mask) >= 0) {
-                result = auro_codec_v3_ida::kDecoderConfigInitErrInputMaskNotSubset;
+                result = auro_codec_v3::kDecoderConfigInitErrInputMaskNotSubset;
                 if ( (in_mask & out_mask) == in_mask ) {
                     *reinterpret_cast<std::uint32_t*>(a1 + 56) =
                         *reinterpret_cast<std::uint32_t*>(a2 + 28);
@@ -338,7 +338,7 @@ std::int64_t auro_a3deng_v3_Decoder_latency(std::uint32_t* decoder_base) {
     if (*reinterpret_cast<const std::uint32_t*>(decoder_ptr + 2468u) == 0u)
         return 0;
     return static_cast<std::int64_t>(
-        *reinterpret_cast<const std::uint64_t*>(decoder_ptr + auro_codec_v3_ida::kDecoder_off_qword_2472));
+        *reinterpret_cast<const std::uint64_t*>(decoder_ptr + auro_codec_v3::kDecoder_off_qword_2472));
 }
 
 std::int64_t auro_a3deng_v3_Decoder_t_construct(
@@ -769,13 +769,13 @@ std::int64_t auro_a3deng_v3_pipeline_Manager_set_initial_latency(std::uint32_t* 
 
 namespace {
 
-constexpr std::uintptr_t kManagerOffParams478078 = ::auro_engine_v4_ida::kManager_off_params;
-constexpr std::uintptr_t kManagerOffBypass478078 = ::auro_engine_v4_ida::kManager_off_bypass;
-constexpr std::uintptr_t kManagerOffHeadroomDirty478078 = ::auro_engine_v4_ida::kManager_off_headroom_dirty;
+constexpr std::uintptr_t kManagerOffParams478078 = ::auro_engine_v4::kManager_off_params;
+constexpr std::uintptr_t kManagerOffBypass478078 = ::auro_engine_v4::kManager_off_bypass;
+constexpr std::uintptr_t kManagerOffHeadroomDirty478078 = ::auro_engine_v4::kManager_off_headroom_dirty;
 constexpr std::uintptr_t kManagerOffHeadroomRecalcDirty478078 = 484u;
-constexpr std::uintptr_t kManagerOffStepChain478078 = ::auro_engine_v4_ida::kManager_off_step_chain;
-constexpr std::uintptr_t kManagerOffConfigureCb478078 = ::auro_engine_v4_ida::kManager_off_configure_cb;
-constexpr std::uintptr_t kManagerParamsBytes478078 = ::auro_engine_v4_ida::kManager_params_bytes;
+constexpr std::uintptr_t kManagerOffStepChain478078 = ::auro_engine_v4::kManager_off_step_chain;
+constexpr std::uintptr_t kManagerOffConfigureCb478078 = ::auro_engine_v4::kManager_off_configure_cb;
+constexpr std::uintptr_t kManagerParamsBytes478078 = ::auro_engine_v4::kManager_params_bytes;
 constexpr std::size_t kManagerIoSilenceBytes478078 = 512u;
 
 struct ManagerStepOffsets478078 {
@@ -863,7 +863,7 @@ manager_process_step_chain(
         const std::uint64_t fn_u64 = *reinterpret_cast<const std::uint64_t*>(step_chain + step.process_fn);
         if (fn_u64 == 0u)
             continue;
-        if (fn_u64 == ::auro_engine_v4_ida::kStepUpmixXinN_process) {
+        if (fn_u64 == ::auro_engine_v4::kStepUpmixXinN_process) {
             const std::uint64_t step_base = reinterpret_cast<std::uint64_t>(step_chain + step.base);
             auto* step_bytes = reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(step_base));
             std::uint32_t subblock_count = 0u;
@@ -1007,9 +1007,9 @@ std::int64_t auro_matic_XinN_fl32_process(std::uint64_t xinn_state, void** chann
         return 0;
     using CallbackFn = std::int64_t (*)(std::uint64_t, void**);
     const std::uint64_t fn_u64 = *reinterpret_cast<const std::uint64_t*>(xinn_state + 24u);
-    if (fn_u64 == ::auro_engine_v4_ida::kAuroMaticXinN_fl32_process_inplace)
+    if (fn_u64 == ::auro_engine_v4::kAuroMaticXinN_fl32_process_inplace)
         return auro_matic_XinN_fl32_process_inplace(xinn_state, channel_span_31);
-    if (fn_u64 == ::auro_engine_v4_ida::kAuroMaticXinN_fl32_process_scratch)
+    if (fn_u64 == ::auro_engine_v4::kAuroMaticXinN_fl32_process_scratch)
         return auro_matic_XinN_fl32_process_scratch(xinn_state, channel_span_31);
     const auto fn = reinterpret_cast<CallbackFn>(static_cast<std::uintptr_t>(fn_u64));
     if (fn)
@@ -3711,8 +3711,8 @@ void xinn_route_mix_pair(
     const float* src_c_192,
     std::uint32_t src_c_base,
     float gain_c) {
-    if (!channel_span_31 || left_idx >= ::auro_engine_v4_ida::kChannelCount
-        || right_idx >= ::auro_engine_v4_ida::kChannelCount)
+    if (!channel_span_31 || left_idx >= ::auro_engine_v4::kChannelCount
+        || right_idx >= ::auro_engine_v4::kChannelCount)
         return;
     auto* left = static_cast<float*>(channel_span_31[left_idx]);
     auto* right = static_cast<float*>(channel_span_31[right_idx]);
@@ -3743,7 +3743,7 @@ void xinn_route_mix_mono(
     std::uint32_t src_c_base,
     float gain_c,
     bool sum_c_stereo) {
-    if (!channel_span_31 || idx >= ::auro_engine_v4_ida::kChannelCount)
+    if (!channel_span_31 || idx >= ::auro_engine_v4::kChannelCount)
         return;
     auto* dst = static_cast<float*>(channel_span_31[idx]);
     if (!dst)
@@ -4118,7 +4118,7 @@ std::int64_t auro_a3deng_v4_pipeline_step_upmix_XinN_process_impl(
         subblock_count = sample_rate_words[1];
     }
 
-    std::array<void*, ::auro_engine_v4_ida::kChannelCount> span{};
+    std::array<void*, ::auro_engine_v4::kChannelCount> span{};
     for (std::uint32_t block = 0; block < subblock_count; ++block) {
         const std::uint8_t* record = block_records_516
             ? block_records_516 + static_cast<std::size_t>(block) * 516u
@@ -4215,11 +4215,11 @@ void auro_codec_v3_Decoder_t_required_additional_memory(std::uint64_t* acc, std:
     const auto* cfg_u64 = reinterpret_cast<const std::uint64_t*>(cfg_raw);
 
     const std::uint32_t block_samples =
-        cfg_u32[auro_codec_v3_ida::kDecoderConfig_off_block_bits / 4u];
+        cfg_u32[auro_codec_v3::kDecoderConfig_off_block_bits / 4u];
     const std::uint32_t stage1_count =
-        cfg_u32[auro_codec_v3_ida::kDecoderConfig_off_stage1_count / 4u];
+        cfg_u32[auro_codec_v3::kDecoderConfig_off_stage1_count / 4u];
     const std::uint32_t input_mask_count =
-        cfg_u32[auro_codec_v3_ida::kDecoderConfig_off_input_mask_count / 4u];
+        cfg_u32[auro_codec_v3::kDecoderConfig_off_input_mask_count / 4u];
     const std::uint64_t cfg_qword0 = cfg_u64[0];
     const std::uint64_t cfg_qword16 = cfg_u64[2];
 
@@ -4510,7 +4510,7 @@ void parser_t_construct(
     auto* parser_q = reinterpret_cast<std::uint64_t*>(parser_base);
     const auto* delay_line = reinterpret_cast<const DelayLineState106b40*>(memory_base);
     const std::uint32_t stage0_count = *reinterpret_cast<const std::uint32_t*>(
-        decoder_base + auro_codec_v3_ida::kDecoderConfig_off_stage0_count);
+        decoder_base + auro_codec_v3::kDecoderConfig_off_stage0_count);
     *reinterpret_cast<std::uint32_t*>(parser_base) = stage0_count;
     parser_q[1] = delay_line_stream_index(delay_line, stage0_count);
     parser_q[2] = reinterpret_cast<std::uint64_t>(memory_base);
@@ -4539,7 +4539,7 @@ void auro_codec_v3_Decoder_set_sync_callback(std::uint64_t* decoder_base, void* 
         return;
     auto* d = reinterpret_cast<std::uint8_t*>(decoder_base);
     auto* region = reinterpret_cast<FormatDetectorRegion1056c0*>(
-        d + auro_codec_v3_ida::kDecoder_off_FormatDetector);
+        d + auro_codec_v3::kDecoder_off_FormatDetector);
     region->tail.sink_notify = reinterpret_cast<void (*)(void*, std::int64_t)>(fn);
     region->tail.sink_user = user;
 }
@@ -4558,10 +4558,10 @@ void auro_codec_v3_Decoder_set_decide_decode_callback(std::uint64_t decoder_base
         return;
     auto* d = reinterpret_cast<std::uint8_t*>(decoder_base);
     *reinterpret_cast<std::uint64_t*>(
-        d + auro_codec_v3_ida::kDecoder_off_OutputGenerator + kOgOff_pre_segments_cb) =
+        d + auro_codec_v3::kDecoder_off_OutputGenerator + kOgOff_pre_segments_cb) =
         reinterpret_cast<std::uint64_t>(fn);
     *reinterpret_cast<std::uint64_t*>(
-        d + auro_codec_v3_ida::kDecoder_off_OutputGenerator + kOgOff_pre_segments_ctx) =
+        d + auro_codec_v3::kDecoder_off_OutputGenerator + kOgOff_pre_segments_ctx) =
         reinterpret_cast<std::uint64_t>(user);
 }
 
@@ -4570,10 +4570,10 @@ void auro_codec_v3_Decoder_set_metadata_callback(std::uint64_t decoder_base, voi
         return;
     auto* d = reinterpret_cast<std::uint8_t*>(decoder_base);
     *reinterpret_cast<std::uint64_t*>(
-        d + auro_codec_v3_ida::kDecoder_off_OutputGenerator + kOgOff_metadata_cb) =
+        d + auro_codec_v3::kDecoder_off_OutputGenerator + kOgOff_metadata_cb) =
         reinterpret_cast<std::uint64_t>(fn);
     *reinterpret_cast<std::uint64_t*>(
-        d + auro_codec_v3_ida::kDecoder_off_OutputGenerator + kOgOff_metadata_ctx) =
+        d + auro_codec_v3::kDecoder_off_OutputGenerator + kOgOff_metadata_ctx) =
         reinterpret_cast<std::uint64_t>(user);
 }
 
@@ -4596,32 +4596,32 @@ std::uint32_t decoder_t_construct_101760(std::uint8_t* decoder_base, const void*
         return 0;
 
     if (!codec_v3_memory_construct_local_5300d0(
-            decoder_base + auro_codec_v3_ida::kDecoder_off_Memory,
+            decoder_base + auro_codec_v3::kDecoder_off_Memory,
             decoder_base)) {
         return 0;
     }
 
     auto* fmt_region = reinterpret_cast<FormatDetectorRegion1056c0*>(
-        decoder_base + auro_codec_v3_ida::kDecoder_off_FormatDetector);
+        decoder_base + auro_codec_v3::kDecoder_off_FormatDetector);
     format_detector_t_construct(
         fmt_region,
         decoder_base,
-        decoder_base + auro_codec_v3_ida::kDecoder_off_Memory);
+        decoder_base + auro_codec_v3::kDecoder_off_Memory);
 
     parser_t_construct(
-        decoder_base + auro_codec_v3_ida::kDecoder_off_Parser,
+        decoder_base + auro_codec_v3::kDecoder_off_Parser,
         decoder_base,
-        decoder_base + auro_codec_v3_ida::kDecoder_off_Memory);
+        decoder_base + auro_codec_v3::kDecoder_off_Memory);
 
     output_generator_construct(
-        decoder_base + auro_codec_v3_ida::kDecoder_off_OutputGenerator,
+        decoder_base + auro_codec_v3::kDecoder_off_OutputGenerator,
         decoder_base,
-        reinterpret_cast<std::uint64_t>(decoder_base + auro_codec_v3_ida::kDecoder_off_Memory));
+        reinterpret_cast<std::uint64_t>(decoder_base + auro_codec_v3::kDecoder_off_Memory));
 
     const std::uint64_t qword0 = *reinterpret_cast<const std::uint64_t*>(decoder_base);
     const std::uint32_t dword28 =
-        *reinterpret_cast<const std::uint32_t*>(decoder_base + auro_codec_v3_ida::kDecoder_off_dword_28);
-    *reinterpret_cast<std::uint64_t*>(decoder_base + auro_codec_v3_ida::kDecoder_off_qword_2472) =
+        *reinterpret_cast<const std::uint32_t*>(decoder_base + auro_codec_v3::kDecoder_off_dword_28);
+    *reinterpret_cast<std::uint64_t*>(decoder_base + auro_codec_v3::kDecoder_off_qword_2472) =
         static_cast<std::uint64_t>(static_cast<std::uint32_t>(qword0)) * static_cast<std::uint64_t>(dword28);
 
     (void)user_ctx;
@@ -4819,12 +4819,12 @@ bool auro_decoder_impl_initialize(
     if (!impl_base || !params || params->block_size_samples == 0u)
         return false;
 
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_InputDesc;
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_OutputDesc;
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_ChannelCount;
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_BlockSize;
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_RuntimeInputMask;
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_RuntimeOutputMask;
+    using auro_codec_v3::kAuroDecoderImpl_off_InputDesc;
+    using auro_codec_v3::kAuroDecoderImpl_off_OutputDesc;
+    using auro_codec_v3::kAuroDecoderImpl_off_ChannelCount;
+    using auro_codec_v3::kAuroDecoderImpl_off_BlockSize;
+    using auro_codec_v3::kAuroDecoderImpl_off_RuntimeInputMask;
+    using auro_codec_v3::kAuroDecoderImpl_off_RuntimeOutputMask;
 
     auto* in = reinterpret_cast<ProcessorIOBufferDesc*>(impl_base + kAuroDecoderImpl_off_InputDesc);
     auto* out = reinterpret_cast<ProcessorIOBufferDesc*>(impl_base + kAuroDecoderImpl_off_OutputDesc);
@@ -4867,9 +4867,9 @@ std::int32_t auro_decoder_impl_decode(
     if (!impl_base)
         return -1;
 
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_InputDesc;
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_OutputDesc;
-    using auro_codec_v3_ida::kAuroDecoderImpl_off_ProcessorInstance;
+    using auro_codec_v3::kAuroDecoderImpl_off_InputDesc;
+    using auro_codec_v3::kAuroDecoderImpl_off_OutputDesc;
+    using auro_codec_v3::kAuroDecoderImpl_off_ProcessorInstance;
 
     auto* in = reinterpret_cast<const ProcessorIOBufferDesc*>(impl_base + kAuroDecoderImpl_off_InputDesc);
     auto* out = reinterpret_cast<const ProcessorIOBufferDesc*>(impl_base + kAuroDecoderImpl_off_OutputDesc);

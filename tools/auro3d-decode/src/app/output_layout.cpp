@@ -1,7 +1,7 @@
 #include "output_layout.hpp"
 
 #include "decoder.hpp"
-#include "../auro3deng/detail/codec_v3_ida.hpp"
+#include "../auro3deng/detail/codec_v3.hpp"
 #include "../auro3deng/detail/runtime_api.hpp"
 
 #include <algorithm>
@@ -257,8 +257,8 @@ bool is_compatible_post_dematrix_upmix(
         : (mode == 2u ? 0x7E00u : 0u);
     // Same simple bed holes as legacy Auro-Matic path (C average, silent LFE).
     constexpr std::uint32_t kBedSynth =
-        (1u << auro_codec_v3_ida::kAuroChMapSlotFrontCenter)
-        | (1u << auro_codec_v3_ida::kAuroChMapSlotLfe);
+        (1u << auro_codec_v3::kAuroChMapSlotFrontCenter)
+        | (1u << auro_codec_v3::kAuroChMapSlotLfe);
     const std::uint32_t allowed = xinn_additions | kBedSynth;
     return (additions & ~allowed) == 0u;
 }

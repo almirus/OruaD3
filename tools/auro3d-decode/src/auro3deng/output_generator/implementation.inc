@@ -330,7 +330,7 @@ std::int64_t golombrice_initialize_104e10(
 }
 
 std::int64_t extrapolate_initialize_104440(std::uint64_t ex_state_ptr, std::uint64_t frame_channel_ptr) {
-    // auro_codec_v3_ida:_codec_channel_Extrapolate_initialize.
+    // auro_codec_v3:_codec_channel_Extrapolate_initialize.
     if (!ex_state_ptr || !frame_channel_ptr)
         return 0;
     *reinterpret_cast<std::uint64_t*>(ex_state_ptr + kExStateOff_head_qword) = 0;
@@ -395,7 +395,7 @@ std::int32_t div4_mix3_52e5c0(std::int32_t v39, std::int32_t v46) {
     return v47 >> 2;
 }
 
-// auro_codec_v3_ida:_codec_channel_Extrapolate_process.
+// auro_codec_v3:_codec_channel_Extrapolate_process.
 std::int64_t
 extrapolate_process(
     std::uint64_t ex_state_ptr,

@@ -18,7 +18,7 @@ std::uint32_t codec_v3_block_info_segment_count_from_ctx(std::uint64_t ctx) {
     if (codec == 0u)
         return 0u;
     const auto* og = reinterpret_cast<const std::uint8_t*>(
-        static_cast<std::uintptr_t>(codec + auro_codec_v3_ida::kDecoder_off_OutputGenerator));
+        static_cast<std::uintptr_t>(codec + auro_codec_v3::kDecoder_off_OutputGenerator));
     const std::uint64_t block_info = *reinterpret_cast<const std::uint64_t*>(og + kOgOff_segment_ctx_ptr);
     if (block_info == 0u)
         return 0u;
@@ -1748,11 +1748,11 @@ void codec_v3_layout_pair_from_ctx(std::uint64_t ctx, std::uint32_t* output_layo
     // Config input_mask, shared second arg is Config output_mask.
     if (output_layout) {
         *output_layout = *reinterpret_cast<const std::uint32_t*>(
-            cfg + auro_codec_v3_ida::kDecoderConfig_off_input_mask);
+            cfg + auro_codec_v3::kDecoderConfig_off_input_mask);
     }
     if (target_layout) {
         *target_layout = *reinterpret_cast<const std::uint32_t*>(
-            cfg + auro_codec_v3_ida::kDecoderConfig_off_output_mask);
+            cfg + auro_codec_v3::kDecoderConfig_off_output_mask);
     }
 }
 
@@ -1794,7 +1794,7 @@ void codec_v3_write_decide_decode_aggregate(std::uint64_t ctx, std::uint32_t agg
 std::uint32_t codec_v3_block_info_segment_count_from_decoder(const std::uint8_t* decoder_base) {
     if (!decoder_base)
         return 0u;
-    const auto* og = decoder_base + auro_codec_v3_ida::kDecoder_off_OutputGenerator;
+    const auto* og = decoder_base + auro_codec_v3::kDecoder_off_OutputGenerator;
     const std::uint64_t seg_ctx = *reinterpret_cast<const std::uint64_t*>(og + kOgOff_segment_ctx_ptr);
     if (seg_ctx == 0u)
         return 0u;
@@ -1814,11 +1814,11 @@ void codec_v3_layout_pair_from_decoder(
     // Same pairing as codec_v3_layout_pair_from_ctx ACV3Decoder:decide_decode_.
     if (output_layout) {
         *output_layout = *reinterpret_cast<const std::uint32_t*>(
-            decoder_base + auro_codec_v3_ida::kDecoderConfig_off_input_mask);
+            decoder_base + auro_codec_v3::kDecoderConfig_off_input_mask);
     }
     if (target_layout) {
         *target_layout = *reinterpret_cast<const std::uint32_t*>(
-            decoder_base + auro_codec_v3_ida::kDecoderConfig_off_output_mask);
+            decoder_base + auro_codec_v3::kDecoderConfig_off_output_mask);
     }
 }
 
@@ -2186,21 +2186,21 @@ std::int64_t codec_v3_decoder_process_101800(
     if ((input_mask & *reinterpret_cast<const std::uint32_t*>(decoder_base + 36u)) != input_mask)
         return result;
 
-    auto* delay_line_base = decoder_base + auro_codec_v3_ida::kDecoder_off_Memory;
+    auto* delay_line_base = decoder_base + auro_codec_v3::kDecoder_off_Memory;
     (void)delay_line_write_buffer_106ab0(
         reinterpret_cast<DelayLineState106b40*>(delay_line_base),
         input_desc,
         input_mask);
     format_detector_process(
         &reinterpret_cast<FormatDetectorRegion1056c0*>(
-            decoder_base + auro_codec_v3_ida::kDecoder_off_FormatDetector)->tail,
+            decoder_base + auro_codec_v3::kDecoder_off_FormatDetector)->tail,
         input_desc,
         input_mask,
         format_detector_integrated_set_layout,
         format_detector_integrated_process_block,
-        decoder_base + auro_codec_v3_ida::kDecoder_off_FormatDetector);
+        decoder_base + auro_codec_v3::kDecoder_off_FormatDetector);
     (void)(parser_process ? parser_process : codec_v3_parser_process_integrated_1034e0)(
-        decoder_base + auro_codec_v3_ida::kDecoder_off_Parser);
+        decoder_base + auro_codec_v3::kDecoder_off_Parser);
 
     std::uint64_t v15 = 0u;
     while (true) {
@@ -2221,7 +2221,7 @@ std::int64_t codec_v3_decoder_process_101800(
 
     OutputGeneratorRuntimeFns1024a9 fns = codec_v3_default_output_runtime_1024a9();
     const std::uint64_t og_pre_cb = *reinterpret_cast<const std::uint64_t*>(
-        decoder_base + auro_codec_v3_ida::kDecoder_off_OutputGenerator + kOgOff_pre_segments_cb);
+        decoder_base + auro_codec_v3::kDecoder_off_OutputGenerator + kOgOff_pre_segments_cb);
     if (og_pre_cb == 0u) {
         fns.pre_segments_callback = codec_v3_pre_segments_decide_decode_decoder;
         fns.pre_segments_ctx = reinterpret_cast<std::uint64_t>(decoder_base);
@@ -2252,7 +2252,7 @@ std::int64_t codec_v3_decoder_process_101800(
     std::uint32_t local_status = 0u;
     std::uint32_t* status_ptr = io_status ? io_status : &local_status;
     (void)output_generator_process(
-        decoder_base + auro_codec_v3_ida::kDecoder_off_OutputGenerator,
+        decoder_base + auro_codec_v3::kDecoder_off_OutputGenerator,
         reinterpret_cast<std::uint64_t>(output_desc),
         fns,
         status_ptr,
@@ -2278,7 +2278,7 @@ std::int64_t auro_codec_v3_Decoder_process(
         nullptr);
 }
 
-// auro_codec_v3_ida:_codec_Parser_process.
+// auro_codec_v3:_codec_Parser_process.
 std::int64_t codec_v3_parser_process_1034e0(
     std::uint8_t* parser_base,
     const CodecV3ParserRuntimeFns1034e0* runtime_fns) {
@@ -2629,9 +2629,9 @@ void format_detector_t_construct(
     region->tail.frame_deque_ptr =
         reinterpret_cast<std::uint64_t>(memory_base + 40u);
     region->tail.blocks_per_call = *reinterpret_cast<const std::uint32_t*>(
-        decoder_base + auro_codec_v3_ida::kDecoderConfig_off_block_words);
+        decoder_base + auro_codec_v3::kDecoderConfig_off_block_words);
     region->tail.allow_low_9bits = *reinterpret_cast<const std::uint32_t*>(
-        decoder_base + auro_codec_v3_ida::kDecoderConfig_off_extra_flags);
+        decoder_base + auro_codec_v3::kDecoderConfig_off_extra_flags);
     const auto* delay_line = reinterpret_cast<const DelayLineState106b40*>(memory_base);
     region->tail.processed_samples =
         delay_line_stream_index(delay_line, 0u);
@@ -2676,9 +2676,9 @@ void format_detector_sync_callback(
     const std::uint32_t layout_word = tail.layout;
     const std::uint32_t sub_52ced0_and =
         (tail.allow_low_9bits != 0u)
-            ? static_cast<std::uint32_t>(auro_codec_v3_ida::kFormatDetector52ced0_frame_mask_and_when_allow_nonzero)
+            ? static_cast<std::uint32_t>(auro_codec_v3::kFormatDetector52ced0_frame_mask_and_when_allow_nonzero)
             : static_cast<std::uint32_t>(static_cast<std::int32_t>(
-                auro_codec_v3_ida::kFormatDetector52ced0_frame_mask_and_when_allow_zero));
+                auro_codec_v3::kFormatDetector52ced0_frame_mask_and_when_allow_zero));
     const std::uint32_t active_mask = layout_word & sub_52ced0_and;
 
     // Frame_t_construct always, then push only when common_header is valid.
@@ -2749,9 +2749,9 @@ void format_detector_process(
         }
         state->layout = input_mask;
         const std::uint32_t v6 = (state->allow_low_9bits != 0u)
-            ? static_cast<std::uint32_t>(auro_codec_v3_ida::kFormatDetector52ced0_frame_mask_and_when_allow_nonzero)
+            ? static_cast<std::uint32_t>(auro_codec_v3::kFormatDetector52ced0_frame_mask_and_when_allow_nonzero)
             : static_cast<std::uint32_t>(static_cast<std::int32_t>(
-                auro_codec_v3_ida::kFormatDetector52ced0_frame_mask_and_when_allow_zero));
+                auro_codec_v3::kFormatDetector52ced0_frame_mask_and_when_allow_zero));
         const std::uint32_t layout_mask = (input_mask & kCodecV3ChannelMask) & v6;
         if (set_layout)
             set_layout(sync_user, layout_mask);

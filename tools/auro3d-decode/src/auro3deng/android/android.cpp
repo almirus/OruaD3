@@ -226,16 +226,16 @@ std::uint32_t a3deng_input_block_size_31b280(
     if (!a3deng_base)
         return 0u;
     const std::uint32_t input_sample_rate =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_sample_rate_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_sample_rate_runtime);
     if (input_sample_rate == 0u)
         return 0u;
     const std::uint32_t block_size =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_pipeline_audio_block_size);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_pipeline_audio_block_size);
     const std::uint32_t decoder_mode =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_decoder_mode);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_decoder_mode);
     std::uint32_t output_mode = 0u;
     if (decoder_mode != 2u)
-        output_mode = a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_mode);
+        output_mode = a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_mode);
     if (output_mode == 0u)
         return block_size;
 
@@ -281,14 +281,14 @@ std::uint32_t a3deng_input_block_size_31b280(
 
 std::uint32_t a3deng_output_block_count_31b4e0(std::uint8_t* a3deng_base) {
     const std::uint64_t api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     const std::uint64_t instance = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance);
+        a3deng_base + auro_engine_v4::kA3DENG_off_instance);
     if (api != 0u && instance != 0u && api != a3deng_global_api_319ae0()) {
         using OutputBlockCountFn = std::uint32_t (*)(std::uint64_t);
         const auto fn = reinterpret_cast<OutputBlockCountFn>(
             *reinterpret_cast<const std::uint64_t*>(
-                static_cast<std::uintptr_t>(api + auro_engine_v4_ida::kA3DENG_api_vtable_off_output_block_count)));
+                static_cast<std::uintptr_t>(api + auro_engine_v4::kA3DENG_api_vtable_off_output_block_count)));
         if (fn)
             return fn(instance);
     }
@@ -477,8 +477,8 @@ bool a3deng_resize_native_memory_31a790(
     const std::uint64_t begin = q.native_heap.empty()
         ? 0u
         : reinterpret_cast<std::uint64_t>(q.native_heap.data());
-    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_input_storage_begin) = begin;
-    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_input_storage_end) =
+    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_input_storage_begin) = begin;
+    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_input_storage_end) =
         begin + q.native_heap.size();
     return required_bytes == 0u || begin != 0u;
 }
@@ -490,9 +490,9 @@ bool a3deng_native_create_instance_31a790(
     using RequiredMemoryFn = std::uint32_t (*)(const void*);
     using CreateFn = std::uint64_t (*)(void*, const void*);
     const auto required = reinterpret_cast<RequiredMemoryFn>(
-        a3deng_native_api_fn_319e60(api, auro_engine_v4_ida::kA3DENG_api_vtable_off_required_memory));
+        a3deng_native_api_fn_319e60(api, auro_engine_v4::kA3DENG_api_vtable_off_required_memory));
     const auto create = reinterpret_cast<CreateFn>(
-        a3deng_native_api_fn_319e60(api, auro_engine_v4_ida::kA3DENG_api_vtable_off_create_instance));
+        a3deng_native_api_fn_319e60(api, auro_engine_v4::kA3DENG_api_vtable_off_create_instance));
     if (!required || !create)
         return false;
     const std::uint32_t required_bytes = required(static_params);
@@ -500,11 +500,11 @@ bool a3deng_native_create_instance_31a790(
         return false;
     auto& q = a3deng_partial_queues_319ae0()[a3deng_base];
     const std::uint64_t instance = create(q.native_heap.data(), static_params);
-    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance) = instance;
+    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_instance) = instance;
     if (instance == 0u) {
         q.native_heap.clear();
-        *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_input_storage_begin) = 0u;
-        *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_input_storage_end) = 0u;
+        *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_input_storage_begin) = 0u;
+        *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_input_storage_end) = 0u;
     }
     return instance != 0u;
 }
@@ -514,13 +514,13 @@ std::uint32_t a3deng_settings_config_target_device_3198b0(
     if (!settings_0x34)
         return 0u;
     const std::uint32_t decoder_mode =
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_decoder_mode);
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_decoder_mode);
     if (decoder_mode == 2u)
         return 0u;
-    if (settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_stereo_device] == 0u)
+    if (settings_0x34[auro_engine_v4::kA3DENG_settings_off_stereo_device] == 0u)
         return 5u;
     return 2u * static_cast<std::uint32_t>(
-        settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_headset_connected] != 0u) + 1u;
+        settings_0x34[auro_engine_v4::kA3DENG_settings_off_headset_connected] != 0u) + 1u;
 }
 
 bool a3deng_settings_config_equals_3199c0(
@@ -528,33 +528,33 @@ bool a3deng_settings_config_equals_3199c0(
     const std::uint8_t* rhs_0x34) {
     if (!lhs_0x34 || !rhs_0x34)
         return false;
-    return lhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_stereo_device]
-        == rhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_stereo_device]
-        && lhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_headset_connected]
-            == rhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_headset_connected]
-        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_output_sample_type)
-            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_output_sample_type)
-        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_output_bit_depth)
-            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_output_bit_depth)
-        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_output_channel_mask)
-            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_output_channel_mask)
-        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_decoder_mode)
-            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_decoder_mode)
-        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_input_channel_mask)
-            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_input_channel_mask)
-        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_input_sample_rate)
-            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_input_sample_rate)
-        && lhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_is_abr]
-            == rhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_is_abr];
+    return lhs_0x34[auro_engine_v4::kA3DENG_settings_off_stereo_device]
+        == rhs_0x34[auro_engine_v4::kA3DENG_settings_off_stereo_device]
+        && lhs_0x34[auro_engine_v4::kA3DENG_settings_off_headset_connected]
+            == rhs_0x34[auro_engine_v4::kA3DENG_settings_off_headset_connected]
+        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4::kA3DENG_settings_off_output_sample_type)
+            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4::kA3DENG_settings_off_output_sample_type)
+        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4::kA3DENG_settings_off_output_bit_depth)
+            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4::kA3DENG_settings_off_output_bit_depth)
+        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4::kA3DENG_settings_off_output_channel_mask)
+            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4::kA3DENG_settings_off_output_channel_mask)
+        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4::kA3DENG_settings_off_decoder_mode)
+            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4::kA3DENG_settings_off_decoder_mode)
+        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4::kA3DENG_settings_off_input_channel_mask)
+            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4::kA3DENG_settings_off_input_channel_mask)
+        && *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4::kA3DENG_settings_off_input_sample_rate)
+            == *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4::kA3DENG_settings_off_input_sample_rate)
+        && lhs_0x34[auro_engine_v4::kA3DENG_settings_off_is_abr]
+            == rhs_0x34[auro_engine_v4::kA3DENG_settings_off_is_abr];
 }
 
 std::uint32_t a3deng_settings_virtualization_mode_319980(
     const std::uint8_t* settings_0x34) {
     if (!settings_0x34)
         return 1u;
-    return (settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_stereo_device] == 0u)
+    return (settings_0x34[auro_engine_v4::kA3DENG_settings_off_stereo_device] == 0u)
         | static_cast<std::uint32_t>(
-            settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_dynamic_request_flag] == 0u);
+            settings_0x34[auro_engine_v4::kA3DENG_settings_off_dynamic_request_flag] == 0u);
 }
 
 std::uint32_t a3deng_settings_listening_mode_3199a0(
@@ -562,34 +562,34 @@ std::uint32_t a3deng_settings_listening_mode_3199a0(
     if (!settings_0x34)
         return 3u;
     return 3u * static_cast<std::uint32_t>(
-        settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_stereo_device] == 0u
-        || settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_dynamic_headphone_flag] == 0u);
+        settings_0x34[auro_engine_v4::kA3DENG_settings_off_stereo_device] == 0u
+        || settings_0x34[auro_engine_v4::kA3DENG_settings_off_dynamic_headphone_flag] == 0u);
 }
 
 bool a3deng_native_configure_319e60(
     std::uint8_t* a3deng_base,
     const std::uint8_t* settings_0x34) {
     const std::uint64_t api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     const std::uint64_t instance = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance);
+        a3deng_base + auro_engine_v4::kA3DENG_off_instance);
     using ConfigureFn = std::uint32_t (*)(std::uint64_t, const void*);
     const auto configure = reinterpret_cast<ConfigureFn>(
-        a3deng_native_api_fn_319e60(api, auro_engine_v4_ida::kA3DENG_api_vtable_off_configure));
+        a3deng_native_api_fn_319e60(api, auro_engine_v4::kA3DENG_api_vtable_off_configure));
     if (!configure)
         return true;
 
     alignas(16) std::array<std::uint8_t, kA3DENG_cfg_size> cfg{};
     const std::uint32_t decoder_mode =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_decoder_mode);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_decoder_mode);
     *reinterpret_cast<std::uint32_t*>(cfg.data() + kA3DENG_cfg_off_decoder_mode) = decoder_mode;
     if (decoder_mode != 4u) {
         *reinterpret_cast<std::uint64_t*>(cfg.data() + kA3DENG_cfg_off_input_sample_rate) =
-            a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_sample_rate_runtime);
+            a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_sample_rate_runtime);
         auro_a3deng_v4_android_channel_layout(
             cfg.data() + kA3DENG_cfg_off_input_channels,
-            a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_channel_mask_runtime),
-            a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_hdmi_channel_mapping_runtime));
+            a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_channel_mask_runtime),
+            a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_hdmi_channel_mapping_runtime));
     }
     *reinterpret_cast<std::uint64_t*>(cfg.data() + kA3DENG_cfg_off_output_sample_rate) =
         auro_a3deng_v4_android_A3DENG_get_output_sample_rate(a3deng_base);
@@ -597,13 +597,13 @@ bool a3deng_native_configure_319e60(
         auro_a3deng_v4_android_A3DENG_Settings_Config_target_device(settings_0x34);
     auro_a3deng_v4_android_channel_layout(
         cfg.data() + kA3DENG_cfg_off_output_channels,
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_channel_mask_runtime),
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_hdmi_channel_mapping_runtime));
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_channel_mask_runtime),
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_hdmi_channel_mapping_runtime));
     if (decoder_mode != 2u
-        && settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_stereo_device] == 0u) {
+        && settings_0x34[auro_engine_v4::kA3DENG_settings_off_stereo_device] == 0u) {
         *reinterpret_cast<std::uint32_t*>(cfg.data() + kA3DENG_cfg_off_output_audio_configuration) = 1u;
         *reinterpret_cast<std::uint32_t*>(cfg.data() + kA3DENG_cfg_off_is_abr) =
-            settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_is_abr];
+            settings_0x34[auro_engine_v4::kA3DENG_settings_off_is_abr];
     }
     return configure(instance, cfg.data()) == 0u;
 }
@@ -612,14 +612,14 @@ bool a3deng_native_set_dynamic_319e60(
     std::uint8_t* a3deng_base,
     const std::uint8_t* settings_0x34) {
     const std::uint64_t api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     const std::uint64_t instance = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance);
+        a3deng_base + auro_engine_v4::kA3DENG_off_instance);
     using DynamicFn = std::uint32_t (*)(std::uint64_t, void*);
     const auto get_dynamic = reinterpret_cast<DynamicFn>(
-        a3deng_native_api_fn_319e60(api, auro_engine_v4_ida::kA3DENG_api_vtable_off_get_dynamic));
+        a3deng_native_api_fn_319e60(api, auro_engine_v4::kA3DENG_api_vtable_off_get_dynamic));
     const auto set_dynamic = reinterpret_cast<DynamicFn>(
-        a3deng_native_api_fn_319e60(api, auro_engine_v4_ida::kA3DENG_api_vtable_off_set_dynamic));
+        a3deng_native_api_fn_319e60(api, auro_engine_v4::kA3DENG_api_vtable_off_set_dynamic));
     if (!set_dynamic)
         return true;
 
@@ -628,11 +628,11 @@ bool a3deng_native_set_dynamic_319e60(
         return false;
 
     const bool stereo =
-        settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_stereo_device] != 0u;
+        settings_0x34[auro_engine_v4::kA3DENG_settings_off_stereo_device] != 0u;
     const bool requested_virtual =
-        settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_dynamic_request_flag] != 0u;
+        settings_0x34[auro_engine_v4::kA3DENG_settings_off_dynamic_request_flag] != 0u;
     const bool headphone_auro =
-        settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_dynamic_headphone_flag] != 0u;
+        settings_0x34[auro_engine_v4::kA3DENG_settings_off_dynamic_headphone_flag] != 0u;
     *reinterpret_cast<std::uint32_t*>(dyn.data() + kA3DENG_dyn_off_actual_virtualization) =
         static_cast<std::uint32_t>(!stereo || !requested_virtual);
     *reinterpret_cast<std::uint32_t*>(dyn.data() + kA3DENG_dyn_off_preset) = 1u;
@@ -643,9 +643,9 @@ bool a3deng_native_set_dynamic_319e60(
     *reinterpret_cast<std::uint32_t*>(dyn.data() + kA3DENG_dyn_off_alt_3d) = 0u;
     *reinterpret_cast<float*>(dyn.data() + kA3DENG_dyn_off_hp_head_size) = 1.0f;
     *reinterpret_cast<std::uint32_t*>(dyn.data() + kA3DENG_dyn_off_hp_room) =
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_hp_room);
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_hp_room);
     *reinterpret_cast<std::uint32_t*>(dyn.data() + kA3DENG_dyn_off_hp_hrtf_preset) =
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_hp_hrtf_preset);
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_hp_hrtf_preset);
     return set_dynamic(instance, dyn.data()) == 0u;
 }
 
@@ -663,8 +663,8 @@ void a3deng_channel_layout_add_31ace0(
 }
 
 void a3deng_pruned_output_clear_31b7f0(std::uint8_t* a3deng_base) {
-    std::memset(a3deng_base + auro_engine_v4_ida::kA3DENG_off_pruned_output_info_storage, 0, 0x190u);
-    a3deng_base[auro_engine_v4_ida::kA3DENG_off_pruned_output_valid] = 1u;
+    std::memset(a3deng_base + auro_engine_v4::kA3DENG_off_pruned_output_info_storage, 0, 0x190u);
+    a3deng_base[auro_engine_v4::kA3DENG_off_pruned_output_valid] = 1u;
 }
 
 void a3deng_pruned_output_add_pair_31b7f0(
@@ -675,24 +675,24 @@ void a3deng_pruned_output_add_pair_31b7f0(
     if (!a3deng_base || count >= 24u || channel >= 31u)
         return;
     const std::uintptr_t pair_base =
-        auro_engine_v4_ida::kA3DENG_off_pruned_output_count + 8u
-        + static_cast<std::uintptr_t>(count) * auro_engine_v4_ida::kA3DENG_pruned_output_channel_entry_stride;
+        auro_engine_v4::kA3DENG_off_pruned_output_count + 8u
+        + static_cast<std::uintptr_t>(count) * auro_engine_v4::kA3DENG_pruned_output_channel_entry_stride;
     *reinterpret_cast<std::uint64_t*>(a3deng_base + pair_base) = stream_index;
     *reinterpret_cast<std::uint32_t*>(a3deng_base + pair_base + 8u) = channel;
-    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_pruned_output_count) =
+    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_pruned_output_count) =
         ++count;
     const std::uint64_t required_streams = static_cast<std::uint64_t>(stream_index) + 1u;
     auto* max_streams = reinterpret_cast<std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_pruned_output_max_sample);
+        a3deng_base + auro_engine_v4::kA3DENG_off_pruned_output_max_sample);
     if (*max_streams < required_streams)
         *max_streams = required_streams;
 }
 
 std::uint32_t a3deng_pruned_output_count_31b330(const std::uint8_t* a3deng_base) {
-    if (!a3deng_base || a3deng_base[auro_engine_v4_ida::kA3DENG_off_pruned_output_valid] == 0u)
+    if (!a3deng_base || a3deng_base[auro_engine_v4::kA3DENG_off_pruned_output_valid] == 0u)
         return 0u;
     const auto count = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_pruned_output_count);
+        a3deng_base + auro_engine_v4::kA3DENG_off_pruned_output_count);
     return static_cast<std::uint32_t>(std::min<std::uint64_t>(count, 24u));
 }
 
@@ -702,8 +702,8 @@ std::uint32_t a3deng_pruned_output_channel_at_31b330(
     if (!a3deng_base || idx >= 24u)
         return 31u;
     const std::uintptr_t entry =
-        auro_engine_v4_ida::kA3DENG_off_pruned_output_channel_entries
-        + static_cast<std::uintptr_t>(idx) * auro_engine_v4_ida::kA3DENG_pruned_output_channel_entry_stride;
+        auro_engine_v4::kA3DENG_off_pruned_output_channel_entries
+        + static_cast<std::uintptr_t>(idx) * auro_engine_v4::kA3DENG_pruned_output_channel_entry_stride;
     return *reinterpret_cast<const std::uint32_t*>(a3deng_base + entry);
 }
 
@@ -723,15 +723,15 @@ void a3deng_mirror_pruned_output_31b7f0(
             channel);
     }
     if (count == 0u && fallback_channel_count != 0u)
-        *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_pruned_output_max_sample) =
+        *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_pruned_output_max_sample) =
             fallback_channel_count;
 }
 
 std::uint32_t a3deng_pruned_output_mask_31b330(std::uint8_t* a3deng_base) {
-    if (a3deng_base[auro_engine_v4_ida::kA3DENG_off_pruned_output_valid] == 0u)
+    if (a3deng_base[auro_engine_v4::kA3DENG_off_pruned_output_valid] == 0u)
         return a3deng_read_u32_319e60(
             a3deng_base,
-            auro_engine_v4_ida::kA3DENG_off_output_channel_mask_runtime);
+            auro_engine_v4::kA3DENG_off_output_channel_mask_runtime);
     std::uint32_t mask = 0u;
     const std::uint32_t count = a3deng_pruned_output_count_31b330(a3deng_base);
     std::uint32_t idx = 0u;
@@ -756,7 +756,7 @@ std::uint32_t a3deng_pruned_output_mask_31b330(std::uint8_t* a3deng_base) {
 
 std::uint32_t a3deng_pruned_output_channel_count_for_pop_31b7f0(std::uint8_t* a3deng_base) {
     const auto streams = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_pruned_output_max_sample);
+        a3deng_base + auro_engine_v4::kA3DENG_off_pruned_output_max_sample);
     return static_cast<std::uint32_t>(std::min<std::uint64_t>(streams, 0xFFFFFFFFull));
 }
 
@@ -765,15 +765,15 @@ bool a3deng_render_audio_native_31b7f0(
     std::uint8_t*& output_bytes,
     std::int32_t& remaining_output_byte_count) {
     const std::uint64_t api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     const std::uint64_t instance = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance);
+        a3deng_base + auro_engine_v4::kA3DENG_off_instance);
     if (api == 0u || instance == 0u || api == a3deng_global_api_319ae0())
         return false;
     using RenderAudioFn = std::uint32_t (*)(std::uint64_t, void*, char*);
     const auto fn = reinterpret_cast<RenderAudioFn>(
         *reinterpret_cast<const std::uint64_t*>(
-            static_cast<std::uintptr_t>(api + auro_engine_v4_ida::kA3DENG_api_vtable_off_render_audio)));
+            static_cast<std::uintptr_t>(api + auro_engine_v4::kA3DENG_api_vtable_off_render_audio)));
     if (!fn)
         return false;
     const std::uint64_t info = auro_a3deng_v4_android_A3DENG_get_output_info(a3deng_base);
@@ -781,12 +781,12 @@ bool a3deng_render_audio_native_31b7f0(
     if (block_count == 0u)
         return false;
     const std::uint32_t decoder_mode =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_decoder_mode);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_decoder_mode);
     const std::uint32_t output_mode = decoder_mode == 2u
         ? 0u
-        : a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_mode);
+        : a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_mode);
     std::uint32_t sample_rate =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_sample_rate_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_sample_rate_runtime);
     if (sample_rate != 0u) {
         if (output_mode == 1u) {
             while (sample_rate > 48000u)
@@ -806,16 +806,16 @@ bool a3deng_render_audio_native_31b7f0(
         sample_rate = output_mode == 2u ? 96000u : 48000u;
     }
     const std::uint32_t sample_type =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_sample_type_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_sample_type_runtime);
     const std::uint32_t bit_depth =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_bit_depth_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_bit_depth_runtime);
     const std::uint32_t sample_bits = a3deng_output_sample_bits_31b7f0(sample_type);
     if (sample_bits == 0u || sample_bits != bit_depth)
         return false;
     const std::uint32_t block_size =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_pipeline_audio_block_size);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_pipeline_audio_block_size);
     const std::uint32_t channels = auro_channel_Mask_count(
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_channel_mask_runtime), 0, 0);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_channel_mask_runtime), 0, 0);
     alignas(16) std::uint8_t audio_block[0x110]{};
     if (!a3deng_make_pop_audio_block_31b7f0(
             audio_block,
@@ -828,12 +828,12 @@ bool a3deng_render_audio_native_31b7f0(
         return false;
     }
     for (std::uint32_t part = 0u; part != block_count; ++part) {
-        std::memset(a3deng_base + auro_engine_v4_ida::kA3DENG_off_pruned_output_info_storage, 0, 0x190u);
-        a3deng_base[auro_engine_v4_ida::kA3DENG_off_pruned_output_valid] = 1u;
+        std::memset(a3deng_base + auro_engine_v4::kA3DENG_off_pruned_output_info_storage, 0, 0x190u);
+        a3deng_base[auro_engine_v4::kA3DENG_off_pruned_output_valid] = 1u;
         const std::uint32_t rc = fn(
             instance,
             audio_block,
-            reinterpret_cast<char*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_pruned_output_info_storage));
+            reinterpret_cast<char*>(a3deng_base + auro_engine_v4::kA3DENG_off_pruned_output_info_storage));
         if (rc != 0u)
             return false;
         const std::uint32_t pruned_channels =
@@ -860,16 +860,16 @@ std::uint64_t a3deng_render_pcm_passthrough_31b7f0(
     if (q.input.empty())
         return 0u;
     const std::uint32_t input_sample_type =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_sample_type_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_sample_type_runtime);
     const std::uint32_t output_sample_type =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_sample_type_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_sample_type_runtime);
     const std::uint32_t input_sample_bytes = a3deng_input_sample_bytes_31af50(input_sample_type);
     const std::uint32_t output_sample_bytes = a3deng_output_sample_bytes_31b7f0(output_sample_type);
     if (input_sample_bytes == 0u || output_sample_bytes == 0u || input_sample_bytes != output_sample_bytes)
         return 0u;
 
     const std::uint32_t hdmi_mapping =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_hdmi_channel_mapping_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_hdmi_channel_mapping_runtime);
     const auto input_channels = a3deng_mask_channel_order_31ace0(input_mask, hdmi_mapping);
     const auto output_channels = a3deng_mask_channel_order_31ace0(output_mask, hdmi_mapping);
     if (input_channels.empty() || output_channels.empty())
@@ -910,26 +910,26 @@ bool a3deng_push_audio_native_31af50(
     const std::uint8_t* input_bytes,
     std::uint32_t input_byte_count) {
     const std::uint64_t api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     const std::uint64_t instance = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance);
+        a3deng_base + auro_engine_v4::kA3DENG_off_instance);
     if (api == 0u || instance == 0u || api == a3deng_global_api_319ae0())
         return false;
     using PushInputFn = std::uint32_t (*)(std::uint64_t, const void*);
     const auto fn = reinterpret_cast<PushInputFn>(
         *reinterpret_cast<const std::uint64_t*>(
-            static_cast<std::uintptr_t>(api + auro_engine_v4_ida::kA3DENG_api_vtable_off_push_input)));
+            static_cast<std::uintptr_t>(api + auro_engine_v4::kA3DENG_api_vtable_off_push_input)));
     if (!fn)
         return false;
 
     const std::uint32_t decoder_mode =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_decoder_mode);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_decoder_mode);
     const std::uint32_t input_sample_type =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_sample_type_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_sample_type_runtime);
     const std::uint32_t input_sample_rate =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_sample_rate_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_sample_rate_runtime);
     const std::uint32_t input_mask =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_channel_mask_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_channel_mask_runtime);
     const std::uint32_t input_block_frames = decoder_mode == 4u
         ? input_byte_count
         : auro_a3deng_v4_android_A3DENG_input_block_size(a3deng_base);
@@ -956,9 +956,9 @@ bool a3deng_has_api_and_instance_31b4e0(const std::uint8_t* a3deng_base) {
     if (!a3deng_base)
         return false;
     const auto api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     const auto instance = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance);
+        a3deng_base + auro_engine_v4::kA3DENG_off_instance);
     return api != 0u && instance != 0u;
 }
 
@@ -986,12 +986,12 @@ A3DENGSettingsCompare_319a00 a3deng_settings_compare_319a00(
     out.config_changed =
         !a3deng_settings_config_equals_3199c0(lhs_0x34, rhs_0x34);
 
-    const bool lhs_stereo = lhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_stereo_device] != 0u;
-    const bool rhs_stereo = rhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_stereo_device] != 0u;
-    const bool lhs_virtual = lhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_dynamic_request_flag] != 0u;
-    const bool rhs_virtual = rhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_dynamic_request_flag] != 0u;
-    const bool lhs_listen = lhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_dynamic_headphone_flag] != 0u;
-    const bool rhs_listen = rhs_0x34[auro_engine_v4_ida::kA3DENG_settings_off_dynamic_headphone_flag] != 0u;
+    const bool lhs_stereo = lhs_0x34[auro_engine_v4::kA3DENG_settings_off_stereo_device] != 0u;
+    const bool rhs_stereo = rhs_0x34[auro_engine_v4::kA3DENG_settings_off_stereo_device] != 0u;
+    const bool lhs_virtual = lhs_0x34[auro_engine_v4::kA3DENG_settings_off_dynamic_request_flag] != 0u;
+    const bool rhs_virtual = rhs_0x34[auro_engine_v4::kA3DENG_settings_off_dynamic_request_flag] != 0u;
+    const bool lhs_listen = lhs_0x34[auro_engine_v4::kA3DENG_settings_off_dynamic_headphone_flag] != 0u;
+    const bool rhs_listen = rhs_0x34[auro_engine_v4::kA3DENG_settings_off_dynamic_headphone_flag] != 0u;
 
     const bool lhs_actual_virtual = !lhs_stereo || !lhs_virtual;
     const bool rhs_actual_virtual = !rhs_stereo || !rhs_virtual;
@@ -1001,10 +1001,10 @@ A3DENGSettingsCompare_319a00 a3deng_settings_compare_319a00(
     out.dynamic_changed =
         lhs_actual_virtual != rhs_actual_virtual
         || lhs_actual_listen != rhs_actual_listen
-        || *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_hp_room)
-            != *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_hp_room)
-        || *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_hp_hrtf_preset)
-            != *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4_ida::kA3DENG_settings_off_hp_hrtf_preset);
+        || *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4::kA3DENG_settings_off_hp_room)
+            != *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4::kA3DENG_settings_off_hp_room)
+        || *reinterpret_cast<const std::uint32_t*>(lhs_0x34 + auro_engine_v4::kA3DENG_settings_off_hp_hrtf_preset)
+            != *reinterpret_cast<const std::uint32_t*>(rhs_0x34 + auro_engine_v4::kA3DENG_settings_off_hp_hrtf_preset);
 
     return out;
 }
@@ -1047,15 +1047,15 @@ std::uint8_t* auro_a3deng_v4_android_A3DENG_construct(
     a3deng_base[96u] = 1u;
     a3deng_write_u32_319e60(
         a3deng_base,
-        auro_engine_v4_ida::kA3DENG_off_pipeline_audio_block_size,
+        auro_engine_v4::kA3DENG_off_pipeline_audio_block_size,
         pipeline_audio_block_size);
     a3deng_write_u32_319e60(
         a3deng_base,
-        auro_engine_v4_ida::kA3DENG_off_output_mode,
+        auro_engine_v4::kA3DENG_off_output_mode,
         output_mode);
-    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_api) =
+    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_api) =
         a3deng_global_api_319ae0();
-    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance) = 0u;
+    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_instance) = 0u;
     a3deng_partial_queues_319ae0()[a3deng_base] = {};
     return a3deng_base;
 }
@@ -1090,7 +1090,7 @@ bool auro_a3deng_v4_android_A3DENG_get_version(
     if (!a3deng_base || !out)
         return false;
     const auto api_ptr = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     if (api_ptr == 0u)
         return false;
     const auto* api = reinterpret_cast<const A3DENGSyntheticApi31bbe0*>(api_ptr);
@@ -1107,21 +1107,21 @@ bool auro_a3deng_v4_android_A3DENG_destroy_instance(
     if (!a3deng_base)
         return false;
     const auto api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     if (api == 0u)
         return false;
     const auto instance = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance);
+        a3deng_base + auro_engine_v4::kA3DENG_off_instance);
     if (instance != 0u && api != a3deng_global_api_319ae0()) {
         using DestroyFn = void (*)(std::uint64_t);
         const auto fn = reinterpret_cast<DestroyFn>(
             a3deng_native_api_fn_319e60(
                 api,
-                auro_engine_v4_ida::kA3DENG_api_vtable_off_destroy_instance));
+                auro_engine_v4::kA3DENG_api_vtable_off_destroy_instance));
         if (fn)
             fn(instance);
     }
-    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance) = 0u;
+    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_instance) = 0u;
     auto& q = a3deng_partial_queues_319ae0()[a3deng_base];
     q.input.clear();
     q.native_heap.clear();
@@ -1131,7 +1131,7 @@ bool auro_a3deng_v4_android_A3DENG_destroy_instance(
     q.debug_pop_count = 0u;
     q.codec_v3_pop_render = nullptr;
     q.codec_v3_pop_render_user = nullptr;
-    a3deng_base[auro_engine_v4_ida::kA3DENG_off_pruned_output_valid] = 0u;
+    a3deng_base[auro_engine_v4::kA3DENG_off_pruned_output_valid] = 0u;
     return true;
 }
 
@@ -1141,7 +1141,7 @@ bool auro_a3deng_v4_android_A3DENG_create_instance(
     if (!a3deng_base)
         return false;
     const auto api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     if (api == 0u)
         return false;
 
@@ -1151,11 +1151,11 @@ bool auro_a3deng_v4_android_A3DENG_create_instance(
         const auto defaults = reinterpret_cast<DefaultStaticFn>(
             a3deng_native_api_fn_319e60(
                 api,
-                auro_engine_v4_ida::kA3DENG_api_vtable_off_default_static));
+                auro_engine_v4::kA3DENG_api_vtable_off_default_static));
         const auto validate = reinterpret_cast<ValidateStaticFn>(
             a3deng_native_api_fn_319e60(
                 api,
-                auro_engine_v4_ida::kA3DENG_api_vtable_off_validate_static));
+                auro_engine_v4::kA3DENG_api_vtable_off_validate_static));
         if (!defaults || !validate)
             return false;
 
@@ -1166,33 +1166,33 @@ bool auro_a3deng_v4_android_A3DENG_create_instance(
             static_params,
             a3deng_read_u32_319e60(
                 a3deng_base,
-                auro_engine_v4_ida::kA3DENG_off_pipeline_audio_block_size));
+                auro_engine_v4::kA3DENG_off_pipeline_audio_block_size));
         if (validate(static_params) != 0u)
             return false;
 
         const bool created = a3deng_native_create_instance_31a790(a3deng_base, api, static_params);
-        a3deng_write_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_decoder_mode, decoder_mode);
+        a3deng_write_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_decoder_mode, decoder_mode);
         return created;
     }
 
-    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_input_storage_begin) =
-        reinterpret_cast<std::uint64_t>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_pruned_output_info_storage);
-    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_input_storage_end) =
-        reinterpret_cast<std::uint64_t>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_pruned_output_info_storage);
-    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance) =
-        reinterpret_cast<std::uint64_t>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_input_storage_begin);
-    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_decoder_mode, decoder_mode);
+    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_input_storage_begin) =
+        reinterpret_cast<std::uint64_t>(a3deng_base + auro_engine_v4::kA3DENG_off_pruned_output_info_storage);
+    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_input_storage_end) =
+        reinterpret_cast<std::uint64_t>(a3deng_base + auro_engine_v4::kA3DENG_off_pruned_output_info_storage);
+    *reinterpret_cast<std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_instance) =
+        reinterpret_cast<std::uint64_t>(a3deng_base + auro_engine_v4::kA3DENG_off_input_storage_begin);
+    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_decoder_mode, decoder_mode);
     return true;
 }
 
 std::uint8_t* auro_a3deng_v4_android_A3DENG_settings(
     std::uint8_t* a3deng_base) {
-    return a3deng_base ? a3deng_base + auro_engine_v4_ida::kA3DENG_off_settings : nullptr;
+    return a3deng_base ? a3deng_base + auro_engine_v4::kA3DENG_off_settings : nullptr;
 }
 
 const std::uint8_t* auro_a3deng_v4_android_A3DENG_settings(
     const std::uint8_t* a3deng_base) {
-    return a3deng_base ? a3deng_base + auro_engine_v4_ida::kA3DENG_off_settings : nullptr;
+    return a3deng_base ? a3deng_base + auro_engine_v4::kA3DENG_off_settings : nullptr;
 }
 
 std::uint32_t auro_a3deng_v4_android_A3DENG_calculate_output_sample_rate(
@@ -1230,10 +1230,10 @@ std::uint32_t auro_a3deng_v4_android_A3DENG_get_output_sample_rate(
     if (!a3deng_base)
         return 48000u;
     const std::uint32_t input_sample_rate =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_sample_rate_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_sample_rate_runtime);
     std::uint32_t output_mode = 0u;
-    if (a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_decoder_mode) != 2u)
-        output_mode = a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_mode);
+    if (a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_decoder_mode) != 2u)
+        output_mode = a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_mode);
     return auro_a3deng_v4_android_A3DENG_calculate_output_sample_rate(input_sample_rate, output_mode);
 }
 
@@ -1383,56 +1383,56 @@ void auro_a3deng_v4_android_A3DENG_settings_pack_like_jni_318d60(
     const A3DENGSettingsFields318d60& f) {
     if (!out_0x34)
         return;
-    std::memset(out_0x34, 0, auro_engine_v4_ida::kA3DENG_settings_size);
-    out_0x34[auro_engine_v4_ida::kA3DENG_settings_off_stereo_device] =
+    std::memset(out_0x34, 0, auro_engine_v4::kA3DENG_settings_size);
+    out_0x34[auro_engine_v4::kA3DENG_settings_off_stereo_device] =
         f.is_stereo_device ? 1u : 0u;
-    out_0x34[auro_engine_v4_ida::kA3DENG_settings_off_headset_connected] =
+    out_0x34[auro_engine_v4::kA3DENG_settings_off_headset_connected] =
         f.headset_connected ? 1u : 0u;
     a3deng_write_u32_319e60(
         out_0x34,
-        auro_engine_v4_ida::kA3DENG_settings_off_decoder_mode,
+        auro_engine_v4::kA3DENG_settings_off_decoder_mode,
         f.decoder_mode);
     a3deng_write_u32_319e60(
         out_0x34,
-        auro_engine_v4_ida::kA3DENG_settings_off_output_channel_mask,
+        auro_engine_v4::kA3DENG_settings_off_output_channel_mask,
         f.output_layout_mask);
     a3deng_write_u32_319e60(
         out_0x34,
-        auro_engine_v4_ida::kA3DENG_settings_off_output_sample_type,
+        auro_engine_v4::kA3DENG_settings_off_output_sample_type,
         f.output_sample_type);
     a3deng_write_u32_319e60(
         out_0x34,
-        auro_engine_v4_ida::kA3DENG_settings_off_output_bit_depth,
+        auro_engine_v4::kA3DENG_settings_off_output_bit_depth,
         f.output_bit_depth);
     a3deng_write_u32_319e60(
         out_0x34,
-        auro_engine_v4_ida::kA3DENG_settings_off_input_channel_mask,
+        auro_engine_v4::kA3DENG_settings_off_input_channel_mask,
         f.pcm_input_layout_mask);
     a3deng_write_u32_319e60(
         out_0x34,
-        auro_engine_v4_ida::kA3DENG_settings_off_input_sample_rate,
+        auro_engine_v4::kA3DENG_settings_off_input_sample_rate,
         f.pcm_input_sample_rate);
     a3deng_write_u32_319e60(
         out_0x34,
-        auro_engine_v4_ida::kA3DENG_settings_off_input_sample_type,
+        auro_engine_v4::kA3DENG_settings_off_input_sample_type,
         f.pcm_input_sample_type);
     const std::uint32_t hdmi = f.channels_backs_before_surrounds ? 1u : 0u;
     a3deng_write_u32_319e60(
         out_0x34,
-        auro_engine_v4_ida::kA3DENG_settings_off_hdmi_channel_mapping,
+        auro_engine_v4::kA3DENG_settings_off_hdmi_channel_mapping,
         hdmi);
-    out_0x34[auro_engine_v4_ida::kA3DENG_settings_off_is_abr] = f.abr_mode_enabled ? 1u : 0u;
-    out_0x34[auro_engine_v4_ida::kA3DENG_settings_off_dynamic_request_flag] =
+    out_0x34[auro_engine_v4::kA3DENG_settings_off_is_abr] = f.abr_mode_enabled ? 1u : 0u;
+    out_0x34[auro_engine_v4::kA3DENG_settings_off_dynamic_request_flag] =
         f.virtualization_enabled ? 1u : 0u;
-    out_0x34[auro_engine_v4_ida::kA3DENG_settings_off_dynamic_headphone_flag] =
+    out_0x34[auro_engine_v4::kA3DENG_settings_off_dynamic_headphone_flag] =
         f.listening_mode_auro3d ? 1u : 0u;
     a3deng_write_u32_319e60(
         out_0x34,
-        auro_engine_v4_ida::kA3DENG_settings_off_hp_room,
+        auro_engine_v4::kA3DENG_settings_off_hp_room,
         f.hp_user_preset);
     a3deng_write_u32_319e60(
         out_0x34,
-        auro_engine_v4_ida::kA3DENG_settings_off_hp_hrtf_preset,
+        auro_engine_v4::kA3DENG_settings_off_hp_hrtf_preset,
         f.hp_hrtf_preset);
 }
 
@@ -1453,21 +1453,21 @@ bool auro_a3deng_v4_android_A3DENG_update(
         return false;
 
     const std::uint32_t decoder_mode =
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_decoder_mode);
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_decoder_mode);
     const std::uint32_t output_mask =
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_output_channel_mask);
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_output_channel_mask);
     const std::uint32_t output_sample_type =
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_output_sample_type);
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_output_sample_type);
     const std::uint32_t output_bit_depth =
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_output_bit_depth);
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_output_bit_depth);
     const std::uint32_t input_mask =
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_input_channel_mask);
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_input_channel_mask);
     const std::uint32_t input_sample_rate =
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_input_sample_rate);
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_input_sample_rate);
     const std::uint32_t input_sample_type =
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_input_sample_type);
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_input_sample_type);
     const std::uint32_t hdmi_mapping =
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_hdmi_channel_mapping);
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_hdmi_channel_mapping);
 
     if (!(decoder_mode == 0u || decoder_mode == 1u || decoder_mode == 2u || decoder_mode == 4u))
         return false;
@@ -1475,41 +1475,41 @@ bool auro_a3deng_v4_android_A3DENG_update(
     if (native_output_bits == 0u || native_output_bits != output_bit_depth)
         return false;
 
-    if (*reinterpret_cast<const std::uint64_t*>(a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance) == 0u) {
+    if (*reinterpret_cast<const std::uint64_t*>(a3deng_base + auro_engine_v4::kA3DENG_off_instance) == 0u) {
         if (!auro_a3deng_v4_android_A3DENG_create_instance(a3deng_base, decoder_mode))
             return false;
     }
 
-    const bool was_configured = a3deng_base[auro_engine_v4_ida::kA3DENG_off_configured] != 0u;
+    const bool was_configured = a3deng_base[auro_engine_v4::kA3DENG_off_configured] != 0u;
     auto cmp = a3deng_settings_compare_319a00(
         settings_0x34,
         auro_a3deng_v4_android_A3DENG_settings(a3deng_base));
     if (!was_configured)
         cmp = {true, true};
     std::memcpy(auro_a3deng_v4_android_A3DENG_settings(a3deng_base), settings_0x34, 0x34u);
-    a3deng_base[auro_engine_v4_ida::kA3DENG_off_configured] = 1u;
+    a3deng_base[auro_engine_v4::kA3DENG_off_configured] = 1u;
     if (!cmp.config_changed && !cmp.dynamic_changed)
         return true;
 
-    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_decoder_mode, decoder_mode);
-    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_channel_mask_runtime, output_mask);
-    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_sample_type_runtime, output_sample_type);
-    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_bit_depth_runtime, output_bit_depth);
-    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_channel_mask_runtime, input_mask);
+    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_decoder_mode, decoder_mode);
+    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_channel_mask_runtime, output_mask);
+    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_sample_type_runtime, output_sample_type);
+    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_bit_depth_runtime, output_bit_depth);
+    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_channel_mask_runtime, input_mask);
     a3deng_write_u32_319e60(
         a3deng_base,
-        auro_engine_v4_ida::kA3DENG_off_input_sample_rate_runtime,
+        auro_engine_v4::kA3DENG_off_input_sample_rate_runtime,
         input_sample_rate);
-    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_sample_type_runtime, input_sample_type);
-    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_hdmi_channel_mapping_runtime, hdmi_mapping);
+    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_sample_type_runtime, input_sample_type);
+    a3deng_write_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_hdmi_channel_mapping_runtime, hdmi_mapping);
     a3deng_write_u32_319e60(
         a3deng_base,
-        auro_engine_v4_ida::kA3DENG_off_hp_user_preset_runtime,
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_hp_room));
+        auro_engine_v4::kA3DENG_off_hp_user_preset_runtime,
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_hp_room));
     a3deng_write_u32_319e60(
         a3deng_base,
-        auro_engine_v4_ida::kA3DENG_off_hp_hrtf_preset_runtime,
-        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4_ida::kA3DENG_settings_off_hp_hrtf_preset));
+        auro_engine_v4::kA3DENG_off_hp_hrtf_preset_runtime,
+        a3deng_read_u32_319e60(settings_0x34, auro_engine_v4::kA3DENG_settings_off_hp_hrtf_preset));
     auto& q = a3deng_partial_queues_319ae0()[a3deng_base];
     q.target_device =
         auro_a3deng_v4_android_A3DENG_Settings_Config_target_device(settings_0x34);
@@ -1518,7 +1518,7 @@ bool auro_a3deng_v4_android_A3DENG_update(
         auro_a3deng_v4_android_A3DENG_Settings_virtualization_mode(settings_0x34);
     q.effective_listening_mode =
         auro_a3deng_v4_android_A3DENG_Settings_listening_mode(settings_0x34);
-    q.is_abr = settings_0x34[auro_engine_v4_ida::kA3DENG_settings_off_is_abr] != 0u;
+    q.is_abr = settings_0x34[auro_engine_v4::kA3DENG_settings_off_is_abr] != 0u;
     if (cmp.config_changed && !a3deng_native_configure_319e60(a3deng_base, settings_0x34))
         return false;
     if (cmp.dynamic_changed && !a3deng_native_set_dynamic_319e60(a3deng_base, settings_0x34))
@@ -1553,7 +1553,7 @@ void auro_a3deng_v4_android_channel_layout(
 }
 
 bool a3deng_output_info_valid_31b4e0(std::uint64_t output_info) {
-    return (output_info & auro_engine_v4_ida::kA3DENG_output_info_block_size_low_mask) != 0u
+    return (output_info & auro_engine_v4::kA3DENG_output_info_block_size_low_mask) != 0u
         && static_cast<std::uint32_t>(output_info >> 32u) != 0u;
 }
 
@@ -1563,9 +1563,9 @@ std::uint64_t auro_a3deng_v4_android_A3DENG_get_output_info(
         return 0u;
     // (output_block_count << 32) | (this+52 & 0xFFFFFF00) | (uint8_t)this+52.
     const std::uint32_t pipeline_field =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_pipeline_audio_block_size);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_pipeline_audio_block_size);
     return (static_cast<std::uint64_t>(a3deng_output_block_count_31b4e0(a3deng_base)) << 32u)
-        | static_cast<std::uint64_t>(pipeline_field & auro_engine_v4_ida::kA3DENG_output_info_block_size_high_mask)
+        | static_cast<std::uint64_t>(pipeline_field & auro_engine_v4::kA3DENG_output_info_block_size_high_mask)
         | static_cast<std::uint64_t>(static_cast<std::uint8_t>(pipeline_field));
 }
 
@@ -1579,13 +1579,13 @@ std::uint64_t auro_a3deng_v4_android_A3DENG_get_maximum_output_bytecount(
     if (!a3deng_output_info_valid_31b4e0(info))
         return 0u;
     const std::uint32_t output_bit_depth =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_bit_depth_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_bit_depth_runtime);
     const std::uint32_t sample_bits = a3deng_output_sample_bits_31b7f0(
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_sample_type_runtime));
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_sample_type_runtime));
     if (sample_bits == 0u || sample_bits != output_bit_depth)
         return 0u;
     const std::uint32_t output_mask =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_channel_mask_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_channel_mask_runtime);
     const std::uint32_t channel_count = auro_channel_Mask_count(output_mask, 0, 0);
     const std::uint64_t bytes =
         static_cast<std::uint64_t>(sample_bits >> 3u) * block_size * block_count * channel_count;
@@ -1595,7 +1595,7 @@ std::uint64_t auro_a3deng_v4_android_A3DENG_get_maximum_output_bytecount(
 bool auro_a3deng_v4_android_A3DENG_reset(std::uint8_t* a3deng_base) {
     if (!a3deng_has_api_and_instance_31b4e0(a3deng_base))
         return false;
-    a3deng_base[auro_engine_v4_ida::kA3DENG_off_pruned_output_valid] = 0u;
+    a3deng_base[auro_engine_v4::kA3DENG_off_pruned_output_valid] = 0u;
     return true;
 }
 
@@ -1604,12 +1604,12 @@ std::int64_t auro_a3deng_v4_android_A3DENG_get_latency_nr_samples(
     if (!a3deng_has_api_and_instance_31b4e0(a3deng_base))
         return -1;
     const std::uint64_t api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     const std::uint64_t instance = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance);
+        a3deng_base + auro_engine_v4::kA3DENG_off_instance);
     using GetLatencyFn = std::uint32_t (*)(std::uint64_t, std::uint64_t*);
     const auto get_latency = reinterpret_cast<GetLatencyFn>(
-        a3deng_native_api_fn_319e60(api, auro_engine_v4_ida::kA3DENG_api_vtable_off_get_latency));
+        a3deng_native_api_fn_319e60(api, auro_engine_v4::kA3DENG_api_vtable_off_get_latency));
     if (get_latency) {
         std::uint64_t latency = 0u;
         if (get_latency(instance, &latency) != 0u)
@@ -1646,11 +1646,11 @@ std::int64_t auro_a3deng_v4_android_A3DENG_push(
         return 1;
     }
     const std::uint32_t input_mask =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_channel_mask_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_channel_mask_runtime);
     const std::uint32_t decoder_mode =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_decoder_mode);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_decoder_mode);
     const std::uint32_t input_sample_type =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_sample_type_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_sample_type_runtime);
     if (decoder_mode == 4u) {
         auto& q = a3deng_partial_queues_319ae0()[a3deng_base];
         a3deng_debug_log_buffer_31bf70(a3deng_base, "push", input_bytes, input_byte_count);
@@ -1680,12 +1680,12 @@ bool auro_a3deng_v4_android_A3DENG_reset_audio_state(std::uint8_t* a3deng_base) 
         return false;
     bool ok = true;
     const std::uint64_t api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     const std::uint64_t instance = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_instance);
+        a3deng_base + auro_engine_v4::kA3DENG_off_instance);
     using ResetAudioStateFn = std::uint32_t (*)(std::uint64_t);
     const auto reset_audio_state = reinterpret_cast<ResetAudioStateFn>(
-        a3deng_native_api_fn_319e60(api, auro_engine_v4_ida::kA3DENG_api_vtable_off_reset_audio_state));
+        a3deng_native_api_fn_319e60(api, auro_engine_v4::kA3DENG_api_vtable_off_reset_audio_state));
     if (reset_audio_state)
         ok = reset_audio_state(instance) == 0u;
     if (!ok)
@@ -1694,9 +1694,9 @@ bool auro_a3deng_v4_android_A3DENG_reset_audio_state(std::uint8_t* a3deng_base) 
     q.input.clear();
     q.rendered_blocks = 0u;
     q.pushed_bytes = 0u;
-    a3deng_base[auro_engine_v4_ida::kA3DENG_off_pruned_output_valid] = 0u;
+    a3deng_base[auro_engine_v4::kA3DENG_off_pruned_output_valid] = 0u;
     std::memset(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_pruned_output_info_storage,
+        a3deng_base + auro_engine_v4::kA3DENG_off_pruned_output_info_storage,
         0,
         0x190u);
     return ok;
@@ -1709,7 +1709,7 @@ bool auro_a3deng_v4_android_A3DENG_set_debug_path(
     if (!a3deng_base)
         return false;
     const auto api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     if (api == 0u)
         return false;
     if (!path_utf8 || !tag_utf8)
@@ -1741,23 +1741,23 @@ bool auro_a3deng_v4_android_A3DENG_pop_internal(
         return false;
 
     const std::uint32_t pipeline_block =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_pipeline_audio_block_size);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_pipeline_audio_block_size);
     const std::uint32_t input_block =
         auro_a3deng_v4_android_A3DENG_input_block_size(a3deng_base);
     const std::uint32_t output_mask =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_channel_mask_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_channel_mask_runtime);
     const std::uint32_t input_mask =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_channel_mask_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_channel_mask_runtime);
     const std::uint32_t requested_output_channels = auro_channel_Mask_count(output_mask, 0, 0);
     const std::uint32_t output_sample_type =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_output_sample_type_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_output_sample_type_runtime);
     const std::uint32_t bytes_per_sample = a3deng_output_sample_bytes_31b7f0(output_sample_type);
     if (bytes_per_sample == 0u)
         return false;
     const std::uint32_t decoder_mode =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_decoder_mode);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_decoder_mode);
     const std::uint64_t api = *reinterpret_cast<const std::uint64_t*>(
-        a3deng_base + auro_engine_v4_ida::kA3DENG_off_api);
+        a3deng_base + auro_engine_v4::kA3DENG_off_api);
     auto& q = a3deng_partial_queues_319ae0()[a3deng_base];
     const bool synthetic_codec_pop =
         decoder_mode == 2u
@@ -1924,13 +1924,13 @@ bool auro_a3deng_v4_android_A3DENG_consume_interleaved_input_to_planar_i32(
         return false;
 
     const std::uint32_t input_sample_type =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_input_sample_type_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_input_sample_type_runtime);
     const std::uint32_t input_sample_bytes = a3deng_input_sample_bytes_31af50(input_sample_type);
     if (input_sample_bytes == 0u)
         return false;
 
     const std::uint32_t hdmi_mapping =
-        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4_ida::kA3DENG_off_hdmi_channel_mapping_runtime);
+        a3deng_read_u32_319e60(a3deng_base, auro_engine_v4::kA3DENG_off_hdmi_channel_mapping_runtime);
     const auto input_channels = a3deng_mask_channel_order_31ace0(input_mask, hdmi_mapping);
     if (input_channels.empty())
         return false;
