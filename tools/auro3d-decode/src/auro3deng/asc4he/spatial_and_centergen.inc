@@ -767,7 +767,7 @@ std::int64_t auro_centergen_v3_Processor_set_fixed_parameters(std::uint8_t* a1, 
 void auro_centergen_v3_Processor_set_dynamic_parameters(std::uint8_t* a1, const std::uint8_t* a2) {
     if (!a1 || !a2)
         return;
-    auro_centergen_v3_Processor_set_dynamic_parameters_5871d0_body(a1, a2);
+    auro_centergen_v3_Processor_set_dynamic_parameters_body(a1, a2);
 }
 
 std::uint64_t auro_centergen_v3_Processor_t_construct(std::uint8_t* a1, std::int32_t* a2) {

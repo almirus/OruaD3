@@ -9,7 +9,7 @@
 // per-block gains, thresholds, ranges and ring lengths the float32 process
 // reads. The float32 (mode 1) layout is the only one this port processes; the
 // fixed32/double (mode 0/2) stores degenerate to the same float fields.
-static void auro_centergen_v3_Processor_set_dynamic_parameters_5871d0_body(
+static void auro_centergen_v3_Processor_set_dynamic_parameters_body(
     std::uint8_t* a1, const std::uint8_t* a2) {
     if (!a1 || !a2)
         return;

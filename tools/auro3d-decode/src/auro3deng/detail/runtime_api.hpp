@@ -37,10 +37,10 @@ constexpr std::uintptr_t kProcessorPerf_best_elapsed_qword = 0x25E968;   // elap
 constexpr std::uintptr_t kProcessorPerf_best_ratio_input_float = 0x25E970; // input ratio for best ratio
 
 // глобальная инициализация CRC-таблицы (512 байт, флаг).
-void decoder_crc_t_init_106f00();
+void decoder_crc_t_init();
 
 // глобальная инициализация таблиц для Extrapolate (float expf LUT в).
-void decoder_channel_extrapolate_t_init_1042a1();
+void decoder_channel_extrapolate_t_init();
 
 // Literal перенос auro_codec_v3_decoder_Config_initialize.
 std::int64_t auro_codec_v3_decoder_Config_initialize(std::int64_t config_base, std::int64_t init_args_base);
@@ -503,7 +503,7 @@ void auro_codec_v3_Decoder_set_metadata_callback(std::uint64_t decoder_base, voi
 // CRC_t_init → channel_Extrapolate_t_init → Config_initialize → Memory/FormatDetector/Parser/OutputGenerator construct.
 // a1 — база codec v3 decoder, a2 — ptr на args для Config_initialize (см. auro_codec_v3:kDecoderConfigInitArg_*),
 // a3 — пользовательский контекст (Decoder*, передаётся дальше в Memory_t_construct/OutputGenerator_t_construct).
-std::uint32_t decoder_t_construct_101760(std::uint8_t* decoder_base, const void* config_init_args, void* user_ctx);
+std::uint32_t decoder_t_construct(std::uint8_t* decoder_base, const void* config_init_args, void* user_ctx);
 
 
 std::int64_t process_analyser_audio(std::uint8_t* processor_base);
@@ -529,7 +529,7 @@ std::int64_t controller_process_audio_zero_fill(
 
 /// Обёртка: при error_flag==0 зовёт callback [ctrl+](ctrl,a2,a3),
 /// иначе выполняет zero-fill ветку.
-std::int64_t controller_process_audio_da870(
+std::int64_t controller_process_audio(
     std::uint8_t* controller_base,
     const void* input_desc_raw,
     const void* output_desc_raw,
@@ -551,28 +551,28 @@ struct ProcessorIoExpectDa9ae0 {
     std::int32_t out_field8_when_layout1 = 0;
 };
 
-std::int32_t processor_process_validate_da9ae0(
+std::int32_t processor_process_validate(
     const ProcessorIOBufferDesc* in_desc,
     const ProcessorIOBufferDesc* out_desc,
     const ProcessorIoExpectDa9ae0& ex);
 
 /// Минимальный перенос: validate_io + вызов Analyser_process.
 /// Полный хвост с auro_chrono_Measurement_t_get_elapsed и статистикой времени пока не перенесён.
-std::int64_t processor_process_da9ae0_minimal(
+std::int64_t processor_process_minimal(
     std::uint8_t* processor_base,
     const ProcessorIOBufferDesc* in_desc,
     const ProcessorIOBufferDesc* out_desc);
 
 /// Порядок как в: validate -> analyser_process -> update_timing_stats -> return analyser rc.
 /// elapsed_ticks передаётся снаружи (в оригинале берётся из auro_chrono_Measurement_t_get_elapsed).
-std::int64_t processor_process_da9ae0_minimal_with_elapsed(
+std::int64_t processor_process_minimal_with_elapsed(
     std::uint8_t* processor_base,
     const ProcessorIOBufferDesc* in_desc,
     const ProcessorIOBufferDesc* out_desc,
     std::int64_t elapsed_ticks);
 
 /// Перенос хвоста: обновление perf-статистики после analyser_process.
-void processor_update_timing_stats_da9ae0(
+void processor_update_timing_stats(
     std::uint8_t* processor_base,
     const ProcessorIOBufferDesc* in_desc,
     std::int64_t elapsed_ticks);
@@ -593,7 +593,7 @@ auro_decoder_impl_initialize(
     const AuroDecoderImplInitParams* params);
 
 /// AuroDecoderImpl:Decode — vtable+168 → Processor_process.
-/// processor_process=nullptr → processor_process_da9ae0_minimal на блоке +552.
+/// processor_process=nullptr → processor_process_minimal на блоке +552.
 std::int32_t
 auro_decoder_impl_decode(
     std::uint8_t* impl_base,
@@ -603,7 +603,7 @@ auro_decoder_impl_decode(
         const ProcessorIOBufferDesc* out_desc));
 
 // Частичный перенос codec-v3 dispatch слоя вокруг.
-// Codec-v3 dispatch decoder_process перенесён в codec_v3_decoder_process_101800 auro_codec_v3_Decoder_process.
+// Codec-v3 dispatch decoder_process перенесён в codec_v3_decoder_process auro_codec_v3_Decoder_process.
 struct CodecV3StateChangeSink {
     void* user = nullptr;
     void (*notify)(void* user, std::int64_t kind) = nullptr; // 0=sync changed, 1=content/decide changed
@@ -650,9 +650,9 @@ codec_v3_decoder_process_validate(
     std::uint32_t input_mask,
     const CodecV3IoBufferDescEb5a0* output_desc);
 
-void codec_v3_sync_callback_eb840(CodecV3DispatchStateEb5a0* state, int value);
-void codec_v3_content_callback_eb870(CodecV3DispatchStateEb5a0* state, int value);
-void codec_v3_decide_decode_callback_eb8a0(
+void codec_v3_sync_callback(CodecV3DispatchStateEb5a0* state, int value);
+void codec_v3_content_callback(CodecV3DispatchStateEb5a0* state, int value);
+void codec_v3_decide_decode_callback(
     CodecV3DispatchStateEb5a0* state,
     std::uint32_t next_state,
     std::uint32_t* decisions,
@@ -697,7 +697,7 @@ struct CodecV3PartialRuntimeEb5a0 {
     void* sync_user = nullptr;
 };
 
-std::int64_t codec_v3_process_partial_eb5a0(
+std::int64_t codec_v3_process_partial(
     void* user,
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t format_word0,
@@ -718,20 +718,20 @@ struct CodecV3ParserRuntimeFns1034e0 {
 
 // Перенос auro_codec_v3_decoder_Parser_process.
 // parser_base соответствует "a1" (qword layout из), runtime_fns — внешний bridge к deque/pool/channel parser.
-std::int64_t codec_v3_parser_process_1034e0(
+std::int64_t codec_v3_parser_process(
     std::uint8_t* parser_base,
     const CodecV3ParserRuntimeFns1034e0* runtime_fns);
 
 // Ближайший перенос верхнего уровня auro_codec_v3_Decoder_process:
 // validate -> DelayLine_write -> FormatDetector -> Parser -> zero output planes -> OutputGenerator -> DelayLine_advance.
 // parser_process можно передать извне (например, адаптер к локальной реализации Parser_process).
-std::int32_t codec_v3_decoder_process_validate_101800(
+std::int32_t codec_v3_decoder_process_validate_impl(
     const std::uint8_t* decoder_base,
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask,
     const CodecV3IoBufferDescEb5a0* output_desc);
 
-std::int64_t codec_v3_decoder_process_101800(
+std::int64_t codec_v3_decoder_process(
     std::uint8_t* decoder_base,
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask,
@@ -767,7 +767,7 @@ static_assert(offsetof(DelayLineState106b40, ring_storage_base) == 16, "DelayLin
 static_assert(offsetof(DelayLineState106b40, ring_slot_count) == 24, "DelayLine ring slot count offset must match the native layout.");
 static_assert(offsetof(DelayLineState106b40, absolute_cursor) == 32, "DelayLine cursor offset must match the native layout.");
 
-std::uint64_t delay_line_get_buffer_106b40(
+std::uint64_t delay_line_get_buffer(
     DelayLineState106b40* state,
     std::uint64_t cursor,
     std::int64_t* io_state);
@@ -776,7 +776,7 @@ delay_line_get_buffer_u64_state(
     std::uint64_t delay_line_ptr,
     std::uint64_t cursor,
     std::uint64_t* io_state_u64);
-std::uint64_t delay_line_get_channel_from_buffer_106ab0(
+std::uint64_t delay_line_get_channel_from_buffer(
     std::uint64_t delay_line_buffer,
     std::uint32_t channel,
     std::uint64_t start);
@@ -784,8 +784,8 @@ std::uint64_t
 delay_line_stream_index(
     const DelayLineState106b40* state,
     std::uint32_t stage_count);
-std::uint64_t delay_line_advance_106b20(DelayLineState106b40* state);
-std::uint64_t delay_line_write_buffer_106ab0(
+std::uint64_t delay_line_advance(DelayLineState106b40* state);
+std::uint64_t delay_line_write_buffer(
     DelayLineState106b40* state,
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask);
@@ -890,7 +890,7 @@ parser_t_construct(
     std::uint8_t* parser_base,
     const std::uint8_t* decoder_base,
     std::uint8_t* memory_base);
-std::int64_t codec_v3_parser_process_integrated_1034e0(std::uint8_t* parser_base);
+std::int64_t codec_v3_parser_process_integrated(std::uint8_t* parser_base);
 
 // / helpers:
 // Frame_mark_as_unused iterates frame slots and calls channel ParseResult_mark_usage(..., 0).
@@ -974,7 +974,7 @@ channel_parser_construct(
     std::uint64_t frame_slot_ptr);
 
 // Перенос auro_codec_v3_decoder_channel_Parser_process.
-std::int64_t channel_parser_process_103840(
+std::int64_t channel_parser_process(
     std::uint64_t parser_base,
     std::uint64_t frame_channel_ptr,
     std::uint64_t channel_ptr,
@@ -1014,7 +1014,7 @@ frame_mark_as_unused(
     std::uint64_t frame_ptr,
     void (*mark_usage)(std::uint64_t parse_result_ptr, std::uint32_t in_use));
 void
-frame_mark_as_unused_106cd0_default(std::uint64_t frame_ptr);
+frame_mark_as_unused_default(std::uint64_t frame_ptr);
 std::int64_t
 parser_frame_mark_as_unused_cb(std::uint64_t frame_ptr);
 
@@ -1267,7 +1267,7 @@ struct OutputGeneratorFrameInitCallbacks {
         std::uint64_t frame_channel_ptr) = nullptr;
 };
 
-OutputGeneratorSegmentPlan output_generator_build_segment_plan_1024a9(
+OutputGeneratorSegmentPlan output_generator_build_segment_plan(
     std::uint8_t* output_generator_base,
     std::uint32_t timeline_cursor,
     std::uint32_t* io_channel_mask_out);
@@ -1275,21 +1275,21 @@ OutputGeneratorSegmentPlan output_generator_build_segment_plan_1024a9(
 // Частичный перенос decode/copy-ветки: проход по активным каналам сегмента.
 // Если seg.frame_ptr!=0 && seg.frame_has_started==true, вызывается decode_channel_segment;
 // иначе выполняется прямое копирование int32 сэмплов из delay-line в output.
-std::int64_t output_generator_apply_segments_1024a9(
+std::int64_t output_generator_apply_segments(
     const OutputGeneratorSegmentPlan& plan,
     const OutputGeneratorApplyCallbacks& cb,
     std::uint32_t* io_channel_mask_out);
 
 // Частичный перенос фазы frame-init (..) для одного сегмента.
 // Вызывается только если frame_start == timeline_cursor (..).
-std::int64_t output_generator_prepare_frame_channels_1024a9(
+std::int64_t output_generator_prepare_frame_channels(
     const OutputGeneratorSegment& seg,
     std::uint64_t timeline_cursor,
     const OutputGeneratorFrameInitCallbacks& cb);
 
 // Объединённый частичный pipeline сегмента в порядке:
 // optional frame-init -> decode/copy -> накопление channel mask.
-std::int64_t output_generator_process_segments_1024a9(
+std::int64_t output_generator_process_segments(
     const OutputGeneratorSegmentPlan& plan,
     std::uint64_t timeline_cursor_at_entry,
     const OutputGeneratorFrameInitCallbacks* frame_init_cb,
@@ -1345,7 +1345,7 @@ struct OutputGeneratorExtrapolateSources {
     std::uint32_t frame_slot_index = 0xFFFFFFFFu; // slot index in frame table (если известен)
 };
 
-std::int64_t output_generator_process_segments_raw_1024a9(
+std::int64_t output_generator_process_segments_raw(
     std::uint8_t* output_generator_base,
     const OutputGeneratorSegmentPlan& plan,
     std::uint64_t output_channels_table_base,
@@ -1364,7 +1364,7 @@ output_generator_cross_fade(
 
 // Entry-point по: build-plan -> pre-segments callback -> segment loop -> update cursor/pop_front.
 // external_mask_inout соответствует аргументу a3 в оригинале (*a3 |= seg_mask).
-std::int64_t output_generator_process_1024a9(
+std::int64_t output_generator_process_inner(
     std::uint8_t* output_generator_base,
     std::uint64_t output_channels_table_base,
     const OutputGeneratorRuntimeFns1024a9& fns,
@@ -1477,7 +1477,7 @@ struct A3DENGSettingsFields318d60 {
     std::uint32_t hp_hrtf_preset = 0u;
 };
 
-void auro_a3deng_v4_android_A3DENG_settings_pack_like_jni_318d60(
+void auro_a3deng_v4_android_A3DENG_settings_pack_like_jni(
     std::uint8_t* out_0x34,
     const A3DENGSettingsFields318d60& f);
 std::int64_t
@@ -1489,7 +1489,7 @@ bool
 auro_a3deng_v4_android_A3DENG_update(
     std::uint8_t* a3deng_base,
     const std::uint8_t* settings_0x34);
-bool a3deng_output_info_valid_31b4e0(std::uint64_t output_info);
+bool a3deng_output_info_valid(std::uint64_t output_info);
 std::uint64_t
 auro_a3deng_v4_android_A3DENG_get_output_info(
     std::uint8_t* a3deng_base);
@@ -2048,7 +2048,7 @@ auro_asc4he_v1_Processor_process(
     std::uint8_t* state,
     std::uint32_t* block_desc);
 
-OutputGeneratorExtrapolateSources output_generator_select_extrapolate_sources_1024a9(
+OutputGeneratorExtrapolateSources output_generator_select_extrapolate_sources(
     std::uint64_t output_channels_table_base,
     std::uint64_t frame_channel_ptr,
     std::uint64_t segment_start,

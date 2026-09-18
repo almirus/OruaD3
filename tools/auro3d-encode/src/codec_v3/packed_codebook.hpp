@@ -6,7 +6,7 @@
 
 namespace auro3d::encode {
 
-/// Inverse of gr_extract_packed_unsigned_104e40. Decoder codebooks are a
+/// Inverse of gr_extract_packed_unsigned. Decoder codebooks are a
 /// contiguous MSB-first field stream in 32-bit words, unlike the separate
 /// LSB-first entropy stream.
 bool pack_golomb_codebook(

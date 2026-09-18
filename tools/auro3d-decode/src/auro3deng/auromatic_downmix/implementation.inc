@@ -1985,7 +1985,7 @@ codec_v3_decide_decode_fill_started_flags(
     return 0;
 }
 
-void codec_v3_decide_decode_callback_eb8a0(
+void codec_v3_decide_decode_callback(
     CodecV3DispatchStateEb5a0* state,
     std::uint32_t next_state,
     std::uint32_t* decisions,
@@ -2052,7 +2052,7 @@ std::int64_t codec_v3_dispatch(
     return result;
 }
 
-std::int64_t codec_v3_process_partial_eb5a0(
+std::int64_t codec_v3_process_partial(
     void* user,
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t format_word0,
@@ -2064,7 +2064,7 @@ std::int64_t codec_v3_process_partial_eb5a0(
     runtime->dispatch->format_word0 = input_mask;
     runtime->dispatch->sample_rate = input_desc->sample_rate;
 
-    if (delay_line_write_buffer_106ab0(runtime->delay_line, input_desc, input_mask) != 0) {
+    if (delay_line_write_buffer(runtime->delay_line, input_desc, input_mask) != 0) {
         format_detector_process(
             runtime->format_detector,
             input_desc,
@@ -2081,7 +2081,7 @@ std::int64_t codec_v3_process_partial_eb5a0(
     return 0;
 }
 
-std::int32_t codec_v3_decoder_process_validate_101800(
+std::int32_t codec_v3_decoder_process_validate_impl(
     const std::uint8_t* decoder_base,
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask,
@@ -2118,9 +2118,9 @@ std::int32_t codec_v3_decoder_process_validate_101800(
         return 387;
 
     const std::uint32_t in_mask31 = input_mask & kCodecV3ChannelMask;
-    if (!codec_v3_has_required_channel_ptrs_101800(input_desc, in_mask31))
+    if (!codec_v3_has_required_channel_ptrs(input_desc, in_mask31))
         return 388;
-    if (!codec_v3_has_required_channel_ptrs_101800(output_desc, required_output_mask))
+    if (!codec_v3_has_required_channel_ptrs(output_desc, required_output_mask))
         return 389;
 
     if ((in_mask31 & allowed_input_mask) != in_mask31)
@@ -2128,7 +2128,7 @@ std::int32_t codec_v3_decoder_process_validate_101800(
     return 0;
 }
 
-std::int64_t codec_v3_decoder_process_101800(
+std::int64_t codec_v3_decoder_process(
     std::uint8_t* decoder_base,
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask,
@@ -2187,7 +2187,7 @@ std::int64_t codec_v3_decoder_process_101800(
         return result;
 
     auto* delay_line_base = decoder_base + auro_codec_v3::kDecoder_off_Memory;
-    (void)delay_line_write_buffer_106ab0(
+    (void)delay_line_write_buffer(
         reinterpret_cast<DelayLineState106b40*>(delay_line_base),
         input_desc,
         input_mask);
@@ -2199,7 +2199,7 @@ std::int64_t codec_v3_decoder_process_101800(
         format_detector_integrated_set_layout,
         format_detector_integrated_process_block,
         decoder_base + auro_codec_v3::kDecoder_off_FormatDetector);
-    (void)(parser_process ? parser_process : codec_v3_parser_process_integrated_1034e0)(
+    (void)(parser_process ? parser_process : codec_v3_parser_process_integrated)(
         decoder_base + auro_codec_v3::kDecoder_off_Parser);
 
     std::uint64_t v15 = 0u;
@@ -2219,7 +2219,7 @@ std::int64_t codec_v3_decoder_process_101800(
             break;
     }
 
-    OutputGeneratorRuntimeFns1024a9 fns = codec_v3_default_output_runtime_1024a9();
+    OutputGeneratorRuntimeFns1024a9 fns = codec_v3_default_output_runtime();
     const std::uint64_t og_pre_cb = *reinterpret_cast<const std::uint64_t*>(
         decoder_base + auro_codec_v3::kDecoder_off_OutputGenerator + kOgOff_pre_segments_cb);
     if (og_pre_cb == 0u) {
@@ -2258,7 +2258,7 @@ std::int64_t codec_v3_decoder_process_101800(
         status_ptr,
         input_desc,
         input_mask);
-    (void)delay_line_advance_106b20(reinterpret_cast<DelayLineState106b40*>(delay_line_base));
+    (void)delay_line_advance(reinterpret_cast<DelayLineState106b40*>(delay_line_base));
     return 0;
 }
 
@@ -2268,7 +2268,7 @@ std::int64_t auro_codec_v3_Decoder_process(
     std::uint32_t input_mask,
     CodecV3IoBufferDescEb5a0* output_desc,
     std::uint32_t* io_status) {
-    return codec_v3_decoder_process_101800(
+    return codec_v3_decoder_process(
         reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(decoder_base)),
         input_desc,
         input_mask,
@@ -2279,7 +2279,7 @@ std::int64_t auro_codec_v3_Decoder_process(
 }
 
 // auro_codec_v3:_codec_Parser_process.
-std::int64_t codec_v3_parser_process_1034e0(
+std::int64_t codec_v3_parser_process(
     std::uint8_t* parser_base,
     const CodecV3ParserRuntimeFns1034e0* runtime_fns) {
     if (!parser_base || !runtime_fns
@@ -2376,9 +2376,9 @@ std::int64_t codec_v3_parser_process_1034e0(
                             const std::uint32_t ch = *reinterpret_cast<const std::uint32_t*>(v6 + 48u + v15);
                             const std::uint64_t frame_channel_ptr =
                                 *reinterpret_cast<const std::uint64_t*>(v6 + 72u + v15);
-                            const std::uint64_t channel = delay_line_get_channel_from_buffer_106ab0(v31, ch, v32);
+                            const std::uint64_t channel = delay_line_get_channel_from_buffer(v31, ch, v32);
                             std::uint32_t mode = 0;
-                            const bool ok = ::auro3deng::channel_parser_process_103840(
+                            const bool ok = ::auro3deng::channel_parser_process(
                                                 reinterpret_cast<std::uint64_t>(v17),
                                                 frame_channel_ptr,
                                                 channel,
@@ -2466,18 +2466,18 @@ std::int32_t codec_v3_decoder_process_validate(
         return 386;
     if (output_desc->bits_per_sample != 24u)
         return 387;
-    if (!codec_v3_has_required_channel_ptrs_101800(input_desc, input_mask & kCodecV3ChannelMask))
+    if (!codec_v3_has_required_channel_ptrs(input_desc, input_mask & kCodecV3ChannelMask))
         return 388;
     const std::uint32_t required_output_mask =
         state->required_output_mask != 0u ? state->required_output_mask : (input_mask & kCodecV3ChannelMask);
-    if (!codec_v3_has_required_channel_ptrs_101800(output_desc, required_output_mask))
+    if (!codec_v3_has_required_channel_ptrs(output_desc, required_output_mask))
         return 389;
     if (((~state->format_word0 & input_mask) & kCodecV3ChannelMask) != 0u)
         return 384;
     return 0;
 }
 
-std::uint64_t delay_line_get_buffer_106b40(
+std::uint64_t delay_line_get_buffer(
     DelayLineState106b40* state,
     std::uint64_t cursor,
     std::int64_t* io_state) {
@@ -2515,7 +2515,7 @@ std::uint64_t delay_line_get_buffer_u64_state(
     std::uint64_t cursor,
     std::uint64_t* io_state_u64) {
     std::int64_t io_state = 0;
-    const std::uint64_t out = delay_line_get_buffer_106b40(
+    const std::uint64_t out = delay_line_get_buffer(
         reinterpret_cast<DelayLineState106b40*>(delay_line_ptr),
         cursor,
         &io_state);
@@ -2524,7 +2524,7 @@ std::uint64_t delay_line_get_buffer_u64_state(
     return out;
 }
 
-std::uint64_t delay_line_get_channel_from_buffer_106ab0(
+std::uint64_t delay_line_get_channel_from_buffer(
     std::uint64_t delay_line_buffer,
     std::uint32_t channel,
     std::uint64_t start) {
@@ -2545,7 +2545,7 @@ std::uint64_t delay_line_stream_index(
             * static_cast<std::uint64_t>(stage_count);
 }
 
-std::uint64_t delay_line_advance_106b20(DelayLineState106b40* state) {
+std::uint64_t delay_line_advance(DelayLineState106b40* state) {
     if (!state || state->ring_slot_count == 0)
         return 0;
     const std::uint32_t current = state->write_slot_index;
@@ -2556,7 +2556,7 @@ std::uint64_t delay_line_advance_106b20(DelayLineState106b40* state) {
     return wrapped;
 }
 
-std::uint64_t delay_line_write_buffer_106ab0(
+std::uint64_t delay_line_write_buffer(
     DelayLineState106b40* state,
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask) {
@@ -2656,7 +2656,7 @@ void format_detector_sync_callback(
         if (tail.frame_deque_ptr != 0u) {
             (void)frame_deque_pop_back(
                 tail.frame_deque_ptr,
-                frame_mark_as_unused_106cd0_default);
+                frame_mark_as_unused_default);
         }
         // kind==2: clear sync_state only (not expected_frame_end +328).
         if (tail.sync_state != 0u) {
@@ -2674,12 +2674,12 @@ void format_detector_sync_callback(
     const std::uint64_t frame_start = tail.processed_samples + static_cast<std::uint64_t>(rel);
     const std::uint32_t frame_span = static_cast<std::uint32_t>(span != 0u ? span : kCodecV3FrameDequeSlotCopyBytes);
     const std::uint32_t layout_word = tail.layout;
-    const std::uint32_t sub_52ced0_and =
+    const std::uint32_t frame_mask_and =
         (tail.allow_low_9bits != 0u)
-            ? static_cast<std::uint32_t>(auro_codec_v3::kFormatDetector52ced0_frame_mask_and_when_allow_nonzero)
+            ? static_cast<std::uint32_t>(auro_codec_v3::kFormatDetector_frame_mask_and_when_allow_nonzero)
             : static_cast<std::uint32_t>(static_cast<std::int32_t>(
-                auro_codec_v3::kFormatDetector52ced0_frame_mask_and_when_allow_zero));
-    const std::uint32_t active_mask = layout_word & sub_52ced0_and;
+                auro_codec_v3::kFormatDetector_frame_mask_and_when_allow_zero));
+    const std::uint32_t active_mask = layout_word & frame_mask_and;
 
     // Frame_t_construct always, then push only when common_header is valid.
     std::array<std::uint8_t, kCodecV3FrameDequeSlotCopyBytes> frame{};
@@ -2749,9 +2749,9 @@ void format_detector_process(
         }
         state->layout = input_mask;
         const std::uint32_t v6 = (state->allow_low_9bits != 0u)
-            ? static_cast<std::uint32_t>(auro_codec_v3::kFormatDetector52ced0_frame_mask_and_when_allow_nonzero)
+            ? static_cast<std::uint32_t>(auro_codec_v3::kFormatDetector_frame_mask_and_when_allow_nonzero)
             : static_cast<std::uint32_t>(static_cast<std::int32_t>(
-                auro_codec_v3::kFormatDetector52ced0_frame_mask_and_when_allow_zero));
+                auro_codec_v3::kFormatDetector_frame_mask_and_when_allow_zero));
         const std::uint32_t layout_mask = (input_mask & kCodecV3ChannelMask) & v6;
         if (set_layout)
             set_layout(sync_user, layout_mask);
@@ -2976,7 +2976,7 @@ void sync_detector_process_block(
     }
 }
 
-OutputGeneratorSegmentPlan output_generator_build_segment_plan_1024a9(
+OutputGeneratorSegmentPlan output_generator_build_segment_plan(
     std::uint8_t* output_generator_base,
     std::uint32_t timeline_cursor,
     std::uint32_t* io_channel_mask_out) {
@@ -2988,7 +2988,7 @@ OutputGeneratorSegmentPlan output_generator_build_segment_plan_1024a9(
     auto* seg_ctx = reinterpret_cast<std::uint8_t*>(base_q[kOgOff_segment_ctx_ptr / 8]);
 
     std::int64_t dl_state = 0;
-    plan.delay_line_buffer = delay_line_get_buffer_106b40(
+    plan.delay_line_buffer = delay_line_get_buffer(
         reinterpret_cast<DelayLineState106b40*>(base_q[kOgOff_delay_line_ptr / 8]),
         timeline_cursor,
         &dl_state);
@@ -3054,7 +3054,7 @@ OutputGeneratorSegmentPlan output_generator_build_segment_plan_1024a9(
         item.prefer_started_decode_path = frame_has_started;
         plan.segments.push_back(item);
         if (io_channel_mask_out)
-            *io_channel_mask_out |= select_segment_output_mask_1024a9(item);
+            *io_channel_mask_out |= select_segment_output_mask(item);
 
         consumed += seg_len;
         *reinterpret_cast<std::uint32_t*>(seg_ctx + kSegCtxOff_count) = seg_idx + 1;
@@ -3067,7 +3067,7 @@ OutputGeneratorSegmentPlan output_generator_build_segment_plan_1024a9(
     return plan;
 }
 
-std::int64_t output_generator_apply_segments_1024a9(
+std::int64_t output_generator_apply_segments(
     const OutputGeneratorSegmentPlan& plan,
     const OutputGeneratorApplyCallbacks& cb,
     std::uint32_t* io_channel_mask_out) {
@@ -3077,23 +3077,23 @@ std::int64_t output_generator_apply_segments_1024a9(
     std::int64_t rc = 0;
     for (const auto& seg : plan.segments) {
         if (io_channel_mask_out)
-            *io_channel_mask_out |= select_segment_output_mask_1024a9(seg);
+            *io_channel_mask_out |= select_segment_output_mask(seg);
         if (seg.len == 0) {
-            rc = warmup_zero_len_channels_1024a9(seg, cb);
+            rc = warmup_zero_len_channels(seg, cb);
             if (rc != 0)
                 return rc;
             continue;
         }
 
-        for (int ch = next_set_channel_bit_1024a9(seg.channel_mask, 0);
+        for (int ch = next_set_channel_bit(seg.channel_mask, 0);
              ch >= 0;
-             ch = next_set_channel_bit_1024a9(seg.channel_mask, ch + 1)) {
+             ch = next_set_channel_bit(seg.channel_mask, ch + 1)) {
             const auto channel = static_cast<std::uint32_t>(ch);
             const std::uint64_t src = cb.get_delay_line_channel(cb.user, channel, seg.start);
             const std::uint64_t out_base = cb.get_output_channel_base(cb.user, channel);
-            const std::uint64_t dst = out_base + 4ull * segment_output_start_1024a9(seg, cb);
+            const std::uint64_t dst = out_base + 4ull * segment_output_start(seg, cb);
 
-            if (seg.frame_ptr != 0 && use_started_decode_path_1024a9(seg) && cb.decode_channel_segment) {
+            if (seg.frame_ptr != 0 && use_started_decode_path(seg) && cb.decode_channel_segment) {
                 rc = cb.decode_channel_segment(cb.user, &seg, channel, src, dst, seg.len, nullptr);
                 if (rc != 0)
                     return rc;
@@ -3105,11 +3105,11 @@ std::int64_t output_generator_apply_segments_1024a9(
     return rc;
 }
 
-std::int64_t output_generator_prepare_frame_channels_1024a9(
+std::int64_t output_generator_prepare_frame_channels(
     const OutputGeneratorSegment& seg,
     std::uint64_t timeline_cursor,
     const OutputGeneratorFrameInitCallbacks& cb) {
-    if (seg.frame_ptr == 0 || !should_prepare_frame_init_1024a9(seg.frame_ptr, timeline_cursor))
+    if (seg.frame_ptr == 0 || !should_prepare_frame_init(seg.frame_ptr, timeline_cursor))
         return 0;
 
     const std::uint32_t channel_count = cb.get_frame_channel_count(cb.user, seg.frame_ptr);
@@ -3127,7 +3127,7 @@ std::int64_t output_generator_prepare_frame_channels_1024a9(
     return 0;
 }
 
-std::int64_t output_generator_process_segments_1024a9(
+std::int64_t output_generator_process_segments(
     const OutputGeneratorSegmentPlan& plan,
     std::uint64_t timeline_cursor_at_entry,
     const OutputGeneratorFrameInitCallbacks* frame_init_cb,
@@ -3139,30 +3139,30 @@ std::int64_t output_generator_process_segments_1024a9(
     std::uint64_t timeline_cursor = timeline_cursor_at_entry;
     for (const auto& seg : plan.segments) {
         if (frame_init_cb && seg.frame_ptr != 0
-            && should_prepare_frame_init_1024a9(seg.frame_ptr, timeline_cursor)) {
+            && should_prepare_frame_init(seg.frame_ptr, timeline_cursor)) {
             const std::int64_t rc_init =
-                output_generator_prepare_frame_channels_1024a9(seg, timeline_cursor, *frame_init_cb);
+                output_generator_prepare_frame_channels(seg, timeline_cursor, *frame_init_cb);
             if (rc_init != 0)
                 return rc_init;
         }
         if (io_channel_mask_out)
-            *io_channel_mask_out |= select_segment_output_mask_1024a9(seg);
+            *io_channel_mask_out |= select_segment_output_mask(seg);
         if (seg.len == 0) {
-            const std::int64_t rc_warmup = warmup_zero_len_channels_1024a9(seg, apply_cb);
+            const std::int64_t rc_warmup = warmup_zero_len_channels(seg, apply_cb);
             if (rc_warmup != 0)
                 return rc_warmup;
             continue;
         }
 
-        for (int ch = next_set_channel_bit_1024a9(seg.channel_mask, 0);
+        for (int ch = next_set_channel_bit(seg.channel_mask, 0);
              ch >= 0;
-             ch = next_set_channel_bit_1024a9(seg.channel_mask, ch + 1)) {
+             ch = next_set_channel_bit(seg.channel_mask, ch + 1)) {
             const auto channel = static_cast<std::uint32_t>(ch);
             const std::uint64_t src = apply_cb.get_delay_line_channel(apply_cb.user, channel, seg.start);
             const std::uint64_t out_base = apply_cb.get_output_channel_base(apply_cb.user, channel);
-            const std::uint64_t dst = out_base + 4ull * segment_output_start_1024a9(seg, apply_cb);
+            const std::uint64_t dst = out_base + 4ull * segment_output_start(seg, apply_cb);
 
-            if (seg.frame_ptr != 0 && use_started_decode_path_1024a9(seg) && apply_cb.decode_channel_segment) {
+            if (seg.frame_ptr != 0 && use_started_decode_path(seg) && apply_cb.decode_channel_segment) {
                 const std::int64_t rc_dec =
                     apply_cb.decode_channel_segment(apply_cb.user, &seg, channel, src, dst, seg.len, nullptr);
                 if (rc_dec != 0)
@@ -3176,7 +3176,7 @@ std::int64_t output_generator_process_segments_1024a9(
     return 0;
 }
 
-std::int64_t output_generator_process_segments_raw_1024a9(
+std::int64_t output_generator_process_segments_raw(
     std::uint8_t* output_generator_base,
     const OutputGeneratorSegmentPlan& plan,
     std::uint64_t output_channels_table_base,
@@ -3229,35 +3229,35 @@ std::int64_t output_generator_process_segments_raw_1024a9(
     std::uint64_t timeline_cursor = *reinterpret_cast<std::uint64_t*>(output_generator_base + kOgOff_timeline_cursor);
     const std::uint64_t frame_deque_ptr = *reinterpret_cast<std::uint64_t*>(output_generator_base + kOgOff_frame_deque_ptr);
     for (const auto& seg : plan.segments) {
-        if (should_apply_frame_metadata_1024a9(seg.frame_ptr, timeline_cursor)) {
-            if (should_prepare_frame_init_1024a9(seg.frame_ptr, timeline_cursor)) {
+        if (should_apply_frame_metadata(seg.frame_ptr, timeline_cursor)) {
+            if (should_prepare_frame_init(seg.frame_ptr, timeline_cursor)) {
                 const std::int64_t rc_init =
-                    output_generator_prepare_frame_channels_1024a9(seg, timeline_cursor, ficb);
+                    output_generator_prepare_frame_channels(seg, timeline_cursor, ficb);
                 if (rc_init != 0)
                     return rc_init;
             }
-            output_generator_apply_frame_metadata_1024a9(output_generator_base, seg, timeline_cursor, ficb);
-            output_generator_dispatch_metadata_update_1024a9(output_generator_base, fns);
+            output_generator_apply_frame_metadata(output_generator_base, seg, timeline_cursor, ficb);
+            output_generator_dispatch_metadata_update(output_generator_base, fns);
         }
 
         if (seg.len == 0u) {
-            if (!(seg.frame_ptr != 0 && use_started_decode_path_1024a9(seg))) {
-                const std::int64_t rc_warmup = warmup_zero_len_channels_1024a9(seg, acb);
+            if (!(seg.frame_ptr != 0 && use_started_decode_path(seg))) {
+                const std::int64_t rc_warmup = warmup_zero_len_channels(seg, acb);
                 if (rc_warmup != 0)
                     return rc_warmup;
             } else {
-                (void)process_segment_started_path_1024a9(
+                (void)process_segment_started_path(
                     output_generator_base, output_channels_table_base, seg, acb, nullptr);
             }
             if (io_channel_mask_out) {
                 const std::uint32_t external_mask =
-                    (seg.frame_ptr != 0 && use_started_decode_path_1024a9(seg))
-                        ? frame_output_mask_1024a9(seg)
+                    (seg.frame_ptr != 0 && use_started_decode_path(seg))
+                        ? frame_output_mask(seg)
                         : seg.channel_mask;
                 *io_channel_mask_out |= external_mask;
             }
             *reinterpret_cast<std::uint64_t*>(output_generator_base + kOgOff_timeline_cursor) = timeline_cursor;
-            if (is_frame_finished_at_cursor_1024a9(seg.frame_ptr, timeline_cursor)) {
+            if (is_frame_finished_at_cursor(seg.frame_ptr, timeline_cursor)) {
                 if (seg.frame_ptr != 0 && fns.frame_mark_as_unused)
                     fns.frame_mark_as_unused(seg.frame_ptr);
                 if (fns.frame_deque_pop_front)
@@ -3268,20 +3268,20 @@ std::int64_t output_generator_process_segments_raw_1024a9(
 
         bool segment_used_copy_input = false;
         std::uint32_t segment_produced_mask = 0u;
-        if (seg.frame_ptr != 0 && use_started_decode_path_1024a9(seg)) {
-            const std::int64_t rc_started = process_segment_started_path_1024a9(
+        if (seg.frame_ptr != 0 && use_started_decode_path(seg)) {
+            const std::int64_t rc_started = process_segment_started_path(
                 output_generator_base, output_channels_table_base, seg, acb, &segment_produced_mask);
             if (rc_started != 0)
                 return rc_started;
         } else if (seg.frame_ptr != 0) {
-            const std::int64_t rc_prestart = process_segment_prestart_frame_path_1024a9(
+            const std::int64_t rc_prestart = process_segment_prestart_frame_path(
                 output_generator_base, seg, acb, &segment_produced_mask);
             if (rc_prestart != 0)
                 return rc_prestart;
             segment_used_copy_input = acb.copy_input_enabled;
         } else {
             const std::int64_t rc_copy =
-                process_segment_copy_only_path_1024a9(seg, acb, &segment_produced_mask);
+                process_segment_copy_only_path(seg, acb, &segment_produced_mask);
             if (rc_copy != 0)
                 return rc_copy;
             segment_used_copy_input = acb.copy_input_enabled;
@@ -3290,11 +3290,11 @@ std::int64_t output_generator_process_segments_raw_1024a9(
         *reinterpret_cast<std::uint32_t*>(output_generator_base + kOgOff_output_status_flag) =
             segment_used_copy_input ? 0u : 1u;
 
-        const bool started_decode = seg.frame_ptr != 0 && use_started_decode_path_1024a9(seg);
+        const bool started_decode = seg.frame_ptr != 0 && use_started_decode_path(seg);
         // Old: started decode jumps directly to;
         // zero-missing only runs on the delay-line/copy path.
         if (!started_decode) {
-            zero_unproduced_output_channels_1024a9(
+            zero_unproduced_output_channels(
                 seg,
                 acb,
                 segment_produced_mask,
@@ -3306,14 +3306,14 @@ std::int64_t output_generator_process_segments_raw_1024a9(
         if (io_channel_mask_out) {
             const std::uint32_t external_mask =
                 started_decode
-                    ? frame_output_mask_1024a9(seg)
+                    ? frame_output_mask(seg)
                     : seg.channel_mask;
             *io_channel_mask_out |= external_mask;
         }
         timeline_cursor += seg.len;
         *reinterpret_cast<std::uint64_t*>(output_generator_base + kOgOff_timeline_cursor) = timeline_cursor;
 
-        if (is_frame_finished_at_cursor_1024a9(seg.frame_ptr, timeline_cursor)) {
+        if (is_frame_finished_at_cursor(seg.frame_ptr, timeline_cursor)) {
             if (seg.frame_ptr != 0 && fns.frame_mark_as_unused)
                 fns.frame_mark_as_unused(seg.frame_ptr);
             if (fns.frame_deque_pop_front)
@@ -3324,7 +3324,7 @@ std::int64_t output_generator_process_segments_raw_1024a9(
     return 0;
 }
 
-OutputGeneratorSegmentPlan output_generator_build_segment_plan_runtime_1024a9(
+OutputGeneratorSegmentPlan output_generator_build_segment_plan_runtime(
     std::uint8_t* output_generator_base,
     const OutputGeneratorRuntimeFns1024a9& fns,
     std::uint32_t* io_channel_mask_out) {
@@ -3404,7 +3404,7 @@ OutputGeneratorSegmentPlan output_generator_build_segment_plan_runtime_1024a9(
             frame_has_started};
         plan.segments.push_back(item);
         if (io_channel_mask_out)
-            *io_channel_mask_out |= select_segment_output_mask_1024a9(item);
+            *io_channel_mask_out |= select_segment_output_mask(item);
         consumed += seg_len;
         *reinterpret_cast<std::uint32_t*>(seg_ctx + kSegCtxOff_count) = seg_idx + 1;
 
@@ -3416,7 +3416,7 @@ OutputGeneratorSegmentPlan output_generator_build_segment_plan_runtime_1024a9(
     return plan;
 }
 
-void output_generator_refresh_segment_plan_from_ctx_1024a9(
+void output_generator_refresh_segment_plan_from_ctx(
     OutputGeneratorSegmentPlan& plan,
     std::uint8_t* seg_ctx) {
     if (!seg_ctx)
@@ -3450,7 +3450,7 @@ void output_generator_refresh_segment_plan_from_ctx_1024a9(
     }
 }
 
-std::int64_t output_generator_process_1024a9(
+std::int64_t output_generator_process_inner(
     std::uint8_t* output_generator_base,
     std::uint64_t output_channels_table_base,
     const OutputGeneratorRuntimeFns1024a9& fns,
@@ -3462,7 +3462,7 @@ std::int64_t output_generator_process_1024a9(
     std::int64_t result = 0;
 
     OutputGeneratorSegmentPlan plan =
-        output_generator_build_segment_plan_runtime_1024a9(output_generator_base, fns, nullptr);
+        output_generator_build_segment_plan_runtime(output_generator_base, fns, nullptr);
     auto* seg_ctx = output_generator_base
         ? reinterpret_cast<std::uint8_t*>(*reinterpret_cast<std::uint64_t*>(
             output_generator_base + kOgOff_segment_ctx_ptr))
@@ -3486,10 +3486,10 @@ std::int64_t output_generator_process_1024a9(
     }
     if (result != 0)
         return result;
-    output_generator_refresh_segment_plan_from_ctx_1024a9(plan, seg_ctx);
+    output_generator_refresh_segment_plan_from_ctx(plan, seg_ctx);
     if (plan.segment_count == 0)
         return result;
-    return output_generator_process_segments_raw_1024a9(
+    return output_generator_process_segments_raw(
         output_generator_base,
         plan,
         output_channels_table_base,
@@ -3506,7 +3506,7 @@ std::int64_t output_generator_process(
     std::uint32_t* external_mask_inout,
     const CodecV3IoBufferDescEb5a0* input_desc,
     std::uint32_t input_mask) {
-    return output_generator_process_1024a9(
+    return output_generator_process_inner(
         output_generator_base,
         output_channels_table_base,
         fns,

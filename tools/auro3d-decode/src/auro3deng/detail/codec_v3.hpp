@@ -15,7 +15,7 @@ constexpr std::uintptr_t kAuroCodecV3Decoder_channel_Extrapolate_initialize = 0x
 constexpr std::uintptr_t kAuroCodecV3Decoder_channel_Extrapolate_process = 0x104460;
 constexpr std::uintptr_t kAuroCodecV3Decoder_channel_GolombRice_initialize = 0x104E10;
 constexpr std::uintptr_t kAuroCodecV3Decoder_channel_GolombRice_get_errors = 0x104E40;
-constexpr std::uintptr_t kSub_EB420 = 0xEB420;
+constexpr std::uintptr_t kSub = 0xEB420;
 
 constexpr std::uintptr_t kAuroA3dengV3Processor_process = 0xD9AE0;
 constexpr std::uintptr_t kAuroA3dengV3PipelineManager_process_audio = 0xDDD40;
@@ -27,7 +27,7 @@ constexpr std::uintptr_t kAuroMaticV3Engine_process = 0xE1A10;
 constexpr std::uintptr_t kAuroMaticV3XinN_configure = 0xF8630;
 constexpr std::uintptr_t kAuroMaticV3XinN_process = 0xF86F0;
 constexpr std::uintptr_t kAuroMaticV3XinN_default_dynamic = 0x101520;
-constexpr std::uintptr_t kAuroMatic3d3dDefaultTable_unk_2CC00C = 0x2CC00C;
+constexpr std::uintptr_t kAuroMatic3d3dDefaultTable_unk = 0x2CC00C;
 constexpr std::uintptr_t kAuroAsc4heElevationEq_initialize = 0x108FC0;
 constexpr std::uintptr_t kAuroAsc4heElevationEq_process = 0x1090C0;
 constexpr std::uintptr_t kAuroAsc4heVirtualHeight_initialize = 0x10CCF0;
@@ -127,13 +127,13 @@ constexpr std::uint32_t kAuroChannelMaskSurroundLayer = 0x001F0u;
 constexpr std::uint32_t kAuroChannelMaskHeightLayer = 0x3FE00u;
 
 constexpr std::uintptr_t kAuroCodecV3Decoder_set_sync_callback = 0x101AB0;
-constexpr std::uintptr_t kSub_EB840_sync_cb = 0xEB840;
-constexpr std::uintptr_t kSub_EB870_content_cb = 0xEB870;
-constexpr std::uintptr_t kSub_EB8A0_decide_decode_cb = 0xEB8A0;
+constexpr std::uintptr_t kSub_sync_cb = 0xEB840;
+constexpr std::uintptr_t kSub_content_cb = 0xEB870;
+constexpr std::uintptr_t kSub_decide_decode_cb = 0xEB8A0;
 
 /// Глобальные данные CRC init: ленивая генерация 512 байт в, флаг.
-constexpr std::uintptr_t kBss_CRC_table_unk_41ACF0 = 0x41ACF0;
-constexpr std::uintptr_t kBss_CRC_inited_byte_41ACE0 = 0x41ACE0;
+constexpr std::uintptr_t kBss_CRC_table_unk = 0x41ACF0;
+constexpr std::uintptr_t kBss_CRC_inited_byte = 0x41ACE0;
 
 /// Подобъекты внутри auro_codec_v3_Decoder_t (аргумент a1 у construct): из декомпиляции.
 constexpr std::uintptr_t kDecoder_off_Memory = 64;
@@ -141,7 +141,7 @@ constexpr std::uintptr_t kDecoder_off_FormatDetector = 232;
 
 /// FormatDetector sync callback — FrameDeque push on a2==0,
 /// pop_back on a2==2, optional notify this+288 with this+296 ctx (0 1).
-constexpr std::uintptr_t kFormatDetector_sub_52CED0 = 0x52CED0;
+constexpr std::uintptr_t kFormatDetector_sub = 0x52CED0;
 constexpr std::uintptr_t kFormatDetector52ced0_off_notify_fn = 288;
 constexpr std::uintptr_t kFormatDetector52ced0_off_notify_ctx = 296;
 constexpr std::uintptr_t kFormatDetector52ced0_off_layout_word = 304;
@@ -150,8 +150,8 @@ constexpr std::uintptr_t kFormatDetector52ced0_off_frame_deque = 312;
 constexpr std::uintptr_t kFormatDetector52ced0_off_timeline_base_qword = 320;
 constexpr std::uintptr_t kFormatDetector52ced0_off_timeline_end_qword = 328;
 constexpr std::uintptr_t kFormatDetector52ced0_off_allow_low9bits_dword = 340;
-constexpr std::int32_t kFormatDetector52ced0_frame_mask_and_when_allow_nonzero = 0x7FFFFFFF;
-constexpr std::int32_t kFormatDetector52ced0_frame_mask_and_when_allow_zero = -385;
+constexpr std::int32_t kFormatDetector_frame_mask_and_when_allow_nonzero = 0x7FFFFFFF;
+constexpr std::int32_t kFormatDetector_frame_mask_and_when_allow_zero = -385;
 constexpr std::uintptr_t kLibauro_codec_FormatDetector_process = 0x52D060;
 constexpr std::uintptr_t kLibauro_codec_SyncDetector_set_layout = 0x52C460;
 constexpr std::uintptr_t kLibauro_codec_SyncDetector_process_block = 0x52C680;
@@ -212,22 +212,22 @@ constexpr std::uintptr_t kA3DENG_pop = 0x31B7A0;
 constexpr std::uintptr_t kA3DENG_pop_internal = 0x31B7F0;
 constexpr std::uintptr_t kA3DENG_get_output_info = 0x31B4E0;
 /// stack prep + branch to ([rbx+10]==0) or; tail is unwind/abort.
-constexpr std::uintptr_t kA3DENG_sub_6319F0 = 0x6319F0;
-constexpr std::uintptr_t kA3DENG_sub_6318E0 = 0x6318E0;
-constexpr std::uintptr_t kA3DENG_sub_631A70 = 0x631A70;
+constexpr std::uintptr_t kA3DENG_native_fn_1 = 0x6319F0;
+constexpr std::uintptr_t kA3DENG_native_fn_2 = 0x6318E0;
+constexpr std::uintptr_t kA3DENG_native_fn_3 = 0x631A70;
 /// A3DENG:pop_ internal calls.
-constexpr std::uintptr_t kA3DENG_pop_internal_call_sub_6319F0 = 0x31BBC7;
-constexpr std::uintptr_t kA3DENG_sub_631C00 = 0x631C00;
-constexpr std::uintptr_t kA3DENG_sub_631C60 = 0x631C60;
-constexpr std::uintptr_t kA3DENG_sub_631D40 = 0x631D40;
-constexpr std::uintptr_t kA3DENG_sub_631D50 = 0x631D50;
-constexpr std::uintptr_t kA3DENG_sub_635450 = 0x635450;
+constexpr std::uintptr_t kA3DENG_pop_internal_call = 0x31BBC7;
+constexpr std::uintptr_t kA3DENG_native_fn_4 = 0x631C00;
+constexpr std::uintptr_t kA3DENG_native_fn_5 = 0x631C60;
+constexpr std::uintptr_t kA3DENG_native_fn_6 = 0x631D40;
+constexpr std::uintptr_t kA3DENG_native_fn_7 = 0x631D50;
+constexpr std::uintptr_t kA3DENG_native_fn_8 = 0x635450;
 constexpr std::uintptr_t kA3DENG_audio_block_vtbl_op10 = 0x10;
 constexpr std::uintptr_t kA3DENG_audio_block_vtbl_op18 = 0x18;
 constexpr std::uintptr_t kA3DENG_audio_block_vtbl_op40 = 0x40;
 constexpr std::uintptr_t kA3DENG_audio_block_vtbl_op48 = 0x48;
-constexpr std::int32_t kA3DENG_sub_631D50_err_nonempty_queue = -6101; // 0xFFFFE66B
-constexpr std::int32_t kA3DENG_sub_631C60_err = -6094;                // 0xFFFFE672
+constexpr std::int32_t kA3DENG_native_fn_7_err_nonempty_queue = -6101; // 0xFFFFE66B
+constexpr std::int32_t kA3DENG_native_fn_5_err = -6094;                // 0xFFFFE672
 /// Same: embedded auro_codec_v3_decoder_OutputGenerator_* (distinct from slot).
 constexpr std::uintptr_t kLibauro_codec_OutputGenerator_process = 0x52B590;
 constexpr std::uintptr_t kLibauro_codec_OutputGenerator_cross_fade_ = 0x52AFE0;

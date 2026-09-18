@@ -1,4 +1,4 @@
-int next_set_channel_bit_1024a9(std::uint32_t mask, int from_bit_inclusive) {
+int next_set_channel_bit(std::uint32_t mask, int from_bit_inclusive) {
     for (int bit = from_bit_inclusive; bit < static_cast<int>(kCodecV3ChannelCount); ++bit) {
         if (((mask >> bit) & 1u) != 0)
             return bit;
@@ -8,43 +8,43 @@ int next_set_channel_bit_1024a9(std::uint32_t mask, int from_bit_inclusive) {
 
 namespace {
 
-void produced_mask_or_logical_channel_1024a9(std::uint32_t& mask, std::uint32_t channel) {
+void produced_mask_or_logical_channel(std::uint32_t& mask, std::uint32_t channel) {
     if (channel <= 30u)
         mask |= 1u << channel;
 }
 
-void produced_mask_or_started_decode_channel_1024a9(
+void produced_mask_or_started_decode_channel(
     std::uint32_t& mask,
     std::uint64_t frame_channel_ptr) {
     if (frame_channel_ptr == 0u)
         return;
-    produced_mask_or_logical_channel_1024a9(
+    produced_mask_or_logical_channel(
         mask,
         *reinterpret_cast<const std::uint32_t*>(frame_channel_ptr + kFrameChannelOff_pred_src0_idx));
-    produced_mask_or_logical_channel_1024a9(
+    produced_mask_or_logical_channel(
         mask,
         *reinterpret_cast<const std::uint32_t*>(frame_channel_ptr + kFrameChannelOff_pred_src1_idx));
-    produced_mask_or_logical_channel_1024a9(
+    produced_mask_or_logical_channel(
         mask,
         *reinterpret_cast<const std::uint32_t*>(frame_channel_ptr + kFrameChannelOff_pred_src2_idx));
 }
 
 } // namespace
 
-std::uint32_t select_segment_output_mask_1024a9(const OutputGeneratorSegment& seg) {
+std::uint32_t select_segment_output_mask(const OutputGeneratorSegment& seg) {
     // 153: при v131 используется v107=v152 (frame mask), иначе маска delay-line buffer.
-    if (seg.frame_ptr != 0 && use_started_decode_path_1024a9(seg))
+    if (seg.frame_ptr != 0 && use_started_decode_path(seg))
         return seg.frame_flags;
     return seg.channel_mask;
 }
 
-std::uint32_t frame_output_mask_1024a9(const OutputGeneratorSegment& seg) {
+std::uint32_t frame_output_mask(const OutputGeneratorSegment& seg) {
     if (seg.frame_ptr == 0)
         return 0u;
     return *reinterpret_cast<const std::uint32_t*>(seg.frame_ptr + 24u);
 }
 
-std::int64_t process_segment_copy_only_path_1024a9(
+std::int64_t process_segment_copy_only_path(
     const OutputGeneratorSegment& seg,
     const OutputGeneratorApplyCallbacks& acb,
     std::uint32_t* produced_mask_out);
@@ -58,7 +58,7 @@ void copy_i32_samples(std::uint64_t dst_ptr, std::uint64_t src_ptr, std::uint64_
         static_cast<std::size_t>(sample_count) * sizeof(std::int32_t));
 }
 
-bool should_use_scalar_copy_1024a9(
+bool should_use_scalar_copy(
     std::uint64_t src_ptr,
     std::uint64_t dst_ptr,
     std::uint64_t sample_count,
@@ -77,7 +77,7 @@ bool should_use_scalar_copy_1024a9(
     return (dst_ptr < src_end) && (src_ptr < dst_end);
 }
 
-void copy_i32_samples_fast_1024a9(std::uint64_t dst_ptr, std::uint64_t src_ptr, std::uint64_t sample_count) {
+void copy_i32_samples_fast(std::uint64_t dst_ptr, std::uint64_t src_ptr, std::uint64_t sample_count) {
     if (!dst_ptr || !src_ptr || sample_count == 0u)
         return;
 #if AURO3DENG_SSE2_PLATFORM
@@ -105,13 +105,13 @@ void copy_i32_samples_fast_1024a9(std::uint64_t dst_ptr, std::uint64_t src_ptr, 
 #endif
 }
 
-std::uint64_t segment_output_start_1024a9(
+std::uint64_t segment_output_start(
     const OutputGeneratorSegment& seg,
     const OutputGeneratorApplyCallbacks& acb) {
     return (seg.start >= acb.output_block_start) ? (seg.start - acb.output_block_start) : seg.start;
 }
 
-void copy_segment_channel_samples_1024a9(
+void copy_segment_channel_samples(
     const OutputGeneratorSegment& seg,
     const OutputGeneratorApplyCallbacks& acb,
     std::uint32_t channel,
@@ -121,17 +121,17 @@ void copy_segment_channel_samples_1024a9(
     const std::uint64_t out_base = acb.get_output_channel_base(acb.user, channel);
     if (out_base == 0)
         return;
-    const std::uint64_t out_start = segment_output_start_1024a9(seg, acb);
+    const std::uint64_t out_start = segment_output_start(seg, acb);
     const std::uint64_t dst = out_base + 4ull * out_start;
     const std::uint64_t seg_end = out_start + seg.len;
-    if (should_use_scalar_copy_1024a9(src_ptr, dst, seg.len, seg_end)) {
+    if (should_use_scalar_copy(src_ptr, dst, seg.len, seg_end)) {
         copy_i32_samples(dst, src_ptr, seg.len);
     } else {
-        copy_i32_samples_fast_1024a9(dst, src_ptr, seg.len);
+        copy_i32_samples_fast(dst, src_ptr, seg.len);
     }
 }
 
-void zero_i32_samples_1024a9(std::uint64_t dst_ptr, std::uint64_t sample_count) {
+void zero_i32_samples(std::uint64_t dst_ptr, std::uint64_t sample_count) {
     if (!dst_ptr || sample_count == 0)
         return;
     std::memset(
@@ -142,7 +142,7 @@ void zero_i32_samples_1024a9(std::uint64_t dst_ptr, std::uint64_t sample_count) 
 
 // (host): zero output channels in segment mask but outside produced_mask.
 // Native started path (v131) skips this — uses frame+24 mask at only.
-void zero_unproduced_output_channels_1024a9(
+void zero_unproduced_output_channels(
     const OutputGeneratorSegment& seg,
     const OutputGeneratorApplyCallbacks& acb,
     std::uint32_t produced_mask,
@@ -153,13 +153,13 @@ void zero_unproduced_output_channels_1024a9(
         return;
     const std::uint32_t universe = channel_universe_mask & kCodecV3ChannelMask;
     const std::uint32_t missing = universe & ~produced_mask;
-    for (int ch = next_set_channel_bit_1024a9(missing, 0);
+    for (int ch = next_set_channel_bit(missing, 0);
          ch >= 0;
-         ch = next_set_channel_bit_1024a9(missing, ch + 1)) {
+         ch = next_set_channel_bit(missing, ch + 1)) {
         const std::uint64_t out_base = acb.get_output_channel_base(acb.user, static_cast<std::uint32_t>(ch));
         if (out_base == 0u)
             continue;
-        zero_i32_samples_1024a9(out_base + 4ull * segment_output_start_1024a9(seg, acb), seg.len);
+        zero_i32_samples(out_base + 4ull * segment_output_start(seg, acb), seg.len);
     }
 }
 
@@ -211,7 +211,7 @@ std::int64_t output_generator_cross_fade(
 
             if (((delay_mask >> ch) & 1u) == 0)
                 continue;
-            const std::uint64_t old_base = delay_line_get_channel_from_buffer_106ab0(delay_line_buffer, ch, 0);
+            const std::uint64_t old_base = delay_line_get_channel_from_buffer(delay_line_buffer, ch, 0);
             if (old_base == 0)
                 continue;
             const auto* old = reinterpret_cast<const std::int32_t*>(static_cast<std::uintptr_t>(old_base));
@@ -225,20 +225,20 @@ std::int64_t output_generator_cross_fade(
     return reinterpret_cast<std::int64_t>(output_generator_base);
 }
 
-std::int64_t warmup_zero_len_channels_1024a9(
+std::int64_t warmup_zero_len_channels(
     const OutputGeneratorSegment& seg,
     const OutputGeneratorApplyCallbacks& acb) {
     // 181: при v31==0 вызываются get_channel только для активных битов mask.
     // Порядок вызовов по коду — обход только установленных битов, от меньшего к большему.
-    for (int ch = next_set_channel_bit_1024a9(seg.channel_mask, 0);
+    for (int ch = next_set_channel_bit(seg.channel_mask, 0);
          ch >= 0;
-         ch = next_set_channel_bit_1024a9(seg.channel_mask, ch + 1)) {
+         ch = next_set_channel_bit(seg.channel_mask, ch + 1)) {
         (void)acb.get_delay_line_channel(acb.user, static_cast<std::uint32_t>(ch), seg.start);
     }
     return 0;
 }
 
-std::int64_t process_segment_copy_input_path_1024a9(
+std::int64_t process_segment_copy_input_path(
     const OutputGeneratorSegment& seg,
     const OutputGeneratorApplyCallbacks& acb,
     std::uint32_t* produced_mask_out) {
@@ -249,25 +249,25 @@ std::int64_t process_segment_copy_input_path_1024a9(
             *produced_mask_out |= mask;
         return 0;
     }
-    for (int ch = next_set_channel_bit_1024a9(mask, 0);
+    for (int ch = next_set_channel_bit(mask, 0);
          ch >= 0;
-         ch = next_set_channel_bit_1024a9(mask, ch + 1)) {
+         ch = next_set_channel_bit(mask, ch + 1)) {
         const auto channel = static_cast<std::uint32_t>(ch);
         const std::uint64_t src_base =
             acb.get_input_channel_base ? acb.get_input_channel_base(acb.user, channel) : 0u;
         const std::uint64_t out_base = acb.get_output_channel_base(acb.user, channel);
         if (src_base == 0u || out_base == 0u)
             continue;
-        const std::uint64_t dst = out_base + 4ull * segment_output_start_1024a9(seg, acb);
+        const std::uint64_t dst = out_base + 4ull * segment_output_start(seg, acb);
         const std::uint64_t src = src_base + 4ull * seg.start;
         const std::uint64_t seg_end = seg.start + seg.len;
-        if (should_use_scalar_copy_1024a9(src, dst, seg.len, seg_end)) {
+        if (should_use_scalar_copy(src, dst, seg.len, seg_end)) {
             copy_i32_samples(dst, src, seg.len);
         } else {
-            copy_i32_samples_fast_1024a9(dst, src, seg.len);
+            copy_i32_samples_fast(dst, src, seg.len);
         }
         if (produced_mask_out)
-            produced_mask_or_logical_channel_1024a9(*produced_mask_out, channel);
+            produced_mask_or_logical_channel(*produced_mask_out, channel);
     }
     return 0;
 }
@@ -311,7 +311,7 @@ std::uint64_t raw_get_channel_ctx_ptr(void*, std::uint64_t frame_channel_ptr) {
     return frame_channel_ptr + kFrameChannelOff_ctx_words;
 }
 
-std::int64_t golombrice_initialize_104e10(
+std::int64_t golombrice_initialize(
     std::uint64_t gr_state_ptr,
     std::uint32_t* words_ptr,
     std::uint64_t ctx_ptr) {
@@ -329,7 +329,7 @@ std::int64_t golombrice_initialize_104e10(
     return first_word;
 }
 
-std::int64_t extrapolate_initialize_104440(std::uint64_t ex_state_ptr, std::uint64_t frame_channel_ptr) {
+std::int64_t extrapolate_initialize(std::uint64_t ex_state_ptr, std::uint64_t frame_channel_ptr) {
     // auro_codec_v3:_codec_channel_Extrapolate_initialize.
     if (!ex_state_ptr || !frame_channel_ptr)
         return 0;
@@ -339,11 +339,11 @@ std::int64_t extrapolate_initialize_104440(std::uint64_t ex_state_ptr, std::uint
     return 0;
 }
 
-const std::array<float, kExtrapolateScaleTableSize>& extrapolate_scale_table_1042a1() {
+const std::array<float, kExtrapolateScaleTableSize>& extrapolate_scale_table() {
     static const std::array<float, kExtrapolateScaleTableSize> table = [] {
         std::array<float, kExtrapolateScaleTableSize> out{};
         for (std::size_t i = 0; i < out.size(); ++i)
-            out[i] = std::exp(static_cast<float>(i) * kExtrapolateScaleExpStep_1042a1);
+            out[i] = std::exp(static_cast<float>(i) * kExtrapolateScaleExpStep);
 
         // overwrites these exact slots after the expf loop.
         out[60] = 2.0f;
@@ -355,16 +355,16 @@ const std::array<float, kExtrapolateScaleTableSize>& extrapolate_scale_table_104
     return table;
 }
 
-std::int32_t clamp_pcm24_104460(std::int32_t value) {
+std::int32_t clamp_pcm24_impl(std::int32_t value) {
     // mix1/mix2 scalar: clamp to [ -8388608, ] via >= < -8388607.
     if (value >= 0x7FFFFF)
-        return kPcm24Max_104460;
+        return kPcm24Max;
     if (value < -8388607)
-        return kPcm24Min_104460;
+        return kPcm24Min;
     return value;
 }
 
-std::int32_t scale_shift_clamp_pcm24_104460(std::int32_t value, float scale, std::uint32_t shift) {
+std::int32_t scale_shift_clamp_pcm24_impl(std::int32_t value, float scale, std::uint32_t shift) {
     // / uses CVTTSS2SI followed by a 32-bit SHL. The
     // shift therefore wraps in 32 bits before the signed PCM24 clamp; widening
     // it to int64 turns wrapped reconstruction values into long full-scale
@@ -374,20 +374,20 @@ std::int32_t scale_shift_clamp_pcm24_104460(std::int32_t value, float scale, std
     const std::int32_t shifted = shift < 32u
         ? static_cast<std::int32_t>(static_cast<std::uint32_t>(scaled) << shift)
         : 0;
-    if (shifted >= kPcm24Max_104460)
-        return kPcm24Max_104460;
-    if (shifted < kPcm24Min_104460)
-        return kPcm24Min_104460;
+    if (shifted >= kPcm24Max)
+        return kPcm24Max;
+    if (shifted < kPcm24Min)
+        return kPcm24Min;
     return static_cast<std::int32_t>(shifted);
 }
 
-std::int32_t div4_trunc0_104460(std::int32_t value) {
+std::int32_t div4_trunc0(std::int32_t value) {
     const std::int32_t bias = (value >> 31) & 3;
     return (value + bias) >> 2;
 }
 
 // extrapolate_mix3: v47 = v39 + 3*v46 + 3; if (3*v46+v39 >= 0) v47 = 3*v46+v39; v49 = v47 >> 2.
-std::int32_t div4_mix3_52e5c0(std::int32_t v39, std::int32_t v46) {
+std::int32_t div4_mix3(std::int32_t v39, std::int32_t v46) {
     const std::int32_t v48 = 3 * v46 + v39;
     std::int32_t v47 = v39 + 3 * v46 + 3;
     if (v48 >= 0)
@@ -418,7 +418,7 @@ extrapolate_process(
     if (!src)
         return 0;
 
-    const auto& table = extrapolate_scale_table_1042a1();
+    const auto& table = extrapolate_scale_table();
     const std::uint32_t quant_shift = frame_channel[kFrameChannelOff_ex_quant_shift / 4u];
     if (quant_shift > 24u)
         return 0;
@@ -437,7 +437,7 @@ extrapolate_process(
         const float scale = table[scale_index];
         for (std::uint64_t i = 0; i < sample_count; ++i) {
             const std::int32_t scaled = static_cast<std::int32_t>(static_cast<float>(mask & src[i]) * scale);
-            dst0[i] = clamp_pcm24_104460(scaled);
+            dst0[i] = clamp_pcm24_impl(scaled);
         }
 
         (void)errors_buf_ptr; // mode==1 path in ignores error buffer.
@@ -518,8 +518,8 @@ extrapolate_process(
         const float scale0 = table[scale_idx0];
         const float scale1 = table[scale_idx1];
         for (std::uint64_t i = 0; i < sample_count; ++i) {
-            dst0[i] = scale_shift_clamp_pcm24_104460(dst0[i], scale0, shift);
-            dst1[i] = scale_shift_clamp_pcm24_104460(dst1[i], scale1, shift);
+            dst0[i] = scale_shift_clamp_pcm24_impl(dst0[i], scale0, shift);
+            dst1[i] = scale_shift_clamp_pcm24_impl(dst1[i], scale1, shift);
         }
         return 0;
     }
@@ -567,7 +567,7 @@ extrapolate_process(
                 *reinterpret_cast<std::int32_t*>(ex_state_ptr + kExStateOff_mode3_last_a_dword);
             const std::int32_t v26 = 4 * v38 - 3 * v39;
             const std::int32_t decoded = src[produced] >> shift;
-            dst0[produced] = div4_mix3_52e5c0(v39, v26);
+            dst0[produced] = div4_mix3(v39, v26);
             dst1[produced] = static_cast<std::int32_t>(frame_channel[kFrameChannelOff_seed2_primary / 4u]);
             dst2[produced] =
                 decoded - (errors[2 * produced] + errors[2 * produced + 1]) - dst1[produced] - dst0[produced];
@@ -607,7 +607,7 @@ extrapolate_process(
             for (std::uint64_t i = produced; i < sample_count; ++i) {
                 const std::int32_t decoded = src[i] >> shift;
                 const std::int32_t v46 = 4 * v38 - 3 * v39;
-                const std::int32_t v49 = div4_mix3_52e5c0(v39, v46);
+                const std::int32_t v49 = div4_mix3(v39, v46);
                 const std::int32_t err_pair =
                     errors[2 * i] + errors[2 * i + 1u];
                 const std::int32_t a1_1 =
@@ -671,9 +671,9 @@ extrapolate_process(
         const float scale1 = table[scale_idx1];
         const float scale2 = table[scale_idx2];
         for (std::uint64_t i = 0; i < sample_count; ++i) {
-            dst0[i] = scale_shift_clamp_pcm24_104460(dst0[i], scale0, shift);
-            dst1[i] = scale_shift_clamp_pcm24_104460(dst1[i], scale1, shift);
-            dst2[i] = scale_shift_clamp_pcm24_104460(dst2[i], scale2, shift);
+            dst0[i] = scale_shift_clamp_pcm24_impl(dst0[i], scale0, shift);
+            dst1[i] = scale_shift_clamp_pcm24_impl(dst1[i], scale1, shift);
+            dst2[i] = scale_shift_clamp_pcm24_impl(dst2[i], scale2, shift);
         }
         return 0;
     }
@@ -681,7 +681,7 @@ extrapolate_process(
     return 0;
 }
 
-std::uint32_t gr_read_stream_bit_104e40(std::uint64_t gr_state_ptr) {
+std::uint32_t gr_read_stream_bit(std::uint64_t gr_state_ptr) {
     auto* words_ptr = reinterpret_cast<std::uint32_t*>(*reinterpret_cast<std::uint64_t*>(gr_state_ptr + kGrStateOff_words_ptr_qword));
     std::int32_t bit_index = *reinterpret_cast<std::int32_t*>(gr_state_ptr + kGrStateOff_bit_index_dword);
     if (!words_ptr || bit_index < 0 || bit_index > 31)
@@ -698,29 +698,29 @@ std::uint32_t gr_read_stream_bit_104e40(std::uint64_t gr_state_ptr) {
     return bit;
 }
 
-void gr_flush_label71_104e40(
+void gr_flush_label71(
     std::uint64_t gr_state_ptr,
     std::uint32_t value_mask_cursor,
     std::uint32_t& accum_bits) {
     // v58 = 2 * v22; do { read bit; v7 = bit + 2*v7; v58 *= 2; } while (v58);
     std::uint32_t flush_scale = value_mask_cursor << 1u;
     while (flush_scale != 0u) {
-        accum_bits = gr_read_stream_bit_104e40(gr_state_ptr) + 2u * accum_bits;
+        accum_bits = gr_read_stream_bit(gr_state_ptr) + 2u * accum_bits;
         flush_scale *= 2u;
     }
 }
 
-std::uint32_t gr_append_bits_104e40(std::uint64_t gr_state_ptr, std::uint32_t accum_bits, std::uint32_t bit_count) {
+std::uint32_t gr_append_bits(std::uint64_t gr_state_ptr, std::uint32_t accum_bits, std::uint32_t bit_count) {
     for (std::uint32_t i = 0; i < bit_count; ++i)
-        accum_bits = gr_read_stream_bit_104e40(gr_state_ptr) + 2u * accum_bits;
+        accum_bits = gr_read_stream_bit(gr_state_ptr) + 2u * accum_bits;
     return accum_bits;
 }
 
-std::uint32_t gr_pow2_table_104e40(std::uint32_t bit_index) {
+std::uint32_t gr_pow2_table(std::uint32_t bit_index) {
     return (bit_index < 31u) ? (1u << bit_index) : 0x80000000u;
 }
 
-std::uint32_t gr_extract_packed_unsigned_104e40(
+std::uint32_t gr_extract_packed_unsigned(
     const std::uint32_t* packed_words,
     std::uint32_t packed_index,
     std::uint32_t bit_width,
@@ -739,7 +739,7 @@ std::uint32_t gr_extract_packed_unsigned_104e40(
     return ((first_word & first_mask) << bits_from_next) | (next_word >> (32u - bits_from_next));
 }
 
-std::int32_t gr_sign_extend_104e40(std::uint32_t raw_value, std::uint32_t bit_width) {
+std::int32_t gr_sign_extend(std::uint32_t raw_value, std::uint32_t bit_width) {
     if (bit_width == 0u)
         return 0;
     if (bit_width >= 32u)
@@ -752,7 +752,7 @@ std::int32_t gr_sign_extend_104e40(std::uint32_t raw_value, std::uint32_t bit_wi
 }
 
 // auro_codec_v3_decoder_channel_GolombRice_get_errors _codec_channel_GolombRice_get_errors.
-std::int64_t golombrice_get_errors_104e40(
+std::int64_t golombrice_get_errors(
     std::uint64_t gr_state_ptr,
     std::uint64_t frame_channel_ptr,
     std::uint64_t errors_buf_ptr,
@@ -788,7 +788,7 @@ std::int64_t golombrice_get_errors_104e40(
     const std::uint32_t value_mask = (bit_width >= 32u) ? 0xFFFFFFFFu : (~(0xFFFFFFFFu << bit_width));
 
     for (std::uint64_t i = 0; i < sample_count; ++i) {
-        std::uint32_t unary_scale = gr_pow2_table_104e40(
+        std::uint32_t unary_scale = gr_pow2_table(
             *reinterpret_cast<std::uint32_t*>(gr_state_ptr + kGrStateOff_k_dword));
         std::uint32_t unary_mask = 0x80000000u;
         std::uint32_t counter = *reinterpret_cast<std::uint32_t*>(gr_state_ptr + kGrStateOff_counter_dword);
@@ -797,7 +797,7 @@ std::int64_t golombrice_get_errors_104e40(
         if ((((flags >> 30u) & 1u) != 0u) && counter == 0u) {
             const std::uint32_t dynamic_k = accum_bits >> 29u;
             *reinterpret_cast<std::uint32_t*>(gr_state_ptr + kGrStateOff_k_dword) = dynamic_k;
-            unary_scale = gr_pow2_table_104e40(dynamic_k);
+            unary_scale = gr_pow2_table(dynamic_k);
             unary_mask = 0x10000000u;
         }
 
@@ -809,7 +809,7 @@ std::int64_t golombrice_get_errors_104e40(
             unary_mask >>= 1u;
             while (true) {
                 if (unary_mask == 1u) {
-                    accum_bits = gr_append_bits_104e40(gr_state_ptr, accum_bits, 31u);
+                    accum_bits = gr_append_bits(gr_state_ptr, accum_bits, 31u);
                     unary_mask = 0x80000000u;
                 }
                 ++unary_count;
@@ -821,7 +821,7 @@ std::int64_t golombrice_get_errors_104e40(
 
         std::uint32_t value_mask_cursor = unary_mask >> 1u;
         if (value_mask_cursor == 1u) {
-            accum_bits = gr_append_bits_104e40(gr_state_ptr, accum_bits, 31u);
+            accum_bits = gr_append_bits(gr_state_ptr, accum_bits, 31u);
             value_mask_cursor = 0x80000000u;
         }
 
@@ -829,11 +829,11 @@ std::int64_t golombrice_get_errors_104e40(
         const std::uint32_t k_value = *reinterpret_cast<std::uint32_t*>(gr_state_ptr + kGrStateOff_k_dword);
         for (std::uint32_t bit = 0; bit < k_value; ++bit) {
             if ((accum_bits & value_mask_cursor) != 0) {
-                extra_value += (bit < 16u) ? kDword289CE0[bit] : gr_pow2_table_104e40(bit);
+                extra_value += (bit < 16u) ? kDword289CE0[bit] : gr_pow2_table(bit);
             }
             value_mask_cursor >>= 1u;
             if (value_mask_cursor == 1u) {
-                accum_bits = gr_append_bits_104e40(gr_state_ptr, accum_bits, 31u);
+                accum_bits = gr_append_bits(gr_state_ptr, accum_bits, 31u);
                 value_mask_cursor = 0x80000000u;
             }
         }
@@ -841,21 +841,21 @@ std::int64_t golombrice_get_errors_104e40(
         const std::uint32_t code_index = extra_value + unary_scale * unary_count;
         const std::uint32_t packed_index0 = bit_width * code_index;
         const std::uint32_t raw0 =
-            gr_extract_packed_unsigned_104e40(packed_words, packed_index0, bit_width, value_mask);
-        *out = gr_sign_extend_104e40(raw0, bit_width);
+            gr_extract_packed_unsigned(packed_words, packed_index0, bit_width, value_mask);
+        *out = gr_sign_extend(raw0, bit_width);
 
         if (mode == 3u) {
             const std::uint32_t packed_index1 = bit_width * (base_index + code_index);
             const std::uint32_t raw1 =
-                gr_extract_packed_unsigned_104e40(packed_words, packed_index1, bit_width, value_mask);
-            out[1] = gr_sign_extend_104e40(raw1, bit_width);
+                gr_extract_packed_unsigned(packed_words, packed_index1, bit_width, value_mask);
+            out[1] = gr_sign_extend(raw1, bit_width);
             out += 2;
         } else {
             ++out;
         }
 
 
-        gr_flush_label71_104e40(gr_state_ptr, value_mask_cursor, accum_bits);
+        gr_flush_label71(gr_state_ptr, value_mask_cursor, accum_bits);
     }
 
     *reinterpret_cast<std::uint32_t*>(gr_state_ptr + kGrStateOff_accum_bits_dword) = accum_bits;
@@ -866,14 +866,14 @@ std::int64_t raw_gr_initialize(void* user, std::uint64_t gr_state_ptr, std::uint
     auto* c = reinterpret_cast<OgRawRuntimeCtx*>(user);
     if (c->fns.golombrice_initialize)
         return c->fns.golombrice_initialize(gr_state_ptr, words_ptr, ctx_ptr);
-    return golombrice_initialize_104e10(gr_state_ptr, words_ptr, ctx_ptr);
+    return golombrice_initialize(gr_state_ptr, words_ptr, ctx_ptr);
 }
 
 std::int64_t raw_ex_initialize(void* user, std::uint64_t ex_state_ptr, std::uint64_t frame_channel_ptr) {
     auto* c = reinterpret_cast<OgRawRuntimeCtx*>(user);
     if (c->fns.extrapolate_initialize)
         return c->fns.extrapolate_initialize(ex_state_ptr, frame_channel_ptr);
-    return extrapolate_initialize_104440(ex_state_ptr, frame_channel_ptr);
+    return extrapolate_initialize(ex_state_ptr, frame_channel_ptr);
 }
 
 std::uint64_t raw_get_delay_line_channel(void* user, std::uint32_t channel, std::uint64_t start) {
@@ -931,7 +931,7 @@ bool raw_find_frame_channel_slot(
     return false;
 }
 
-bool should_apply_frame_metadata_1024a9(std::uint64_t frame_ptr, std::uint64_t timeline_cursor) {
+bool should_apply_frame_metadata(std::uint64_t frame_ptr, std::uint64_t timeline_cursor) {
     if (frame_ptr == 0)
         return false;
     const std::uint32_t frame_start = *reinterpret_cast<const std::uint32_t*>(frame_ptr + 0);
@@ -939,8 +939,8 @@ bool should_apply_frame_metadata_1024a9(std::uint64_t frame_ptr, std::uint64_t t
     return frame_start == static_cast<std::uint32_t>(timeline_cursor);
 }
 
-bool should_prepare_frame_init_1024a9(std::uint64_t frame_ptr, std::uint64_t timeline_cursor) {
-    if (!should_apply_frame_metadata_1024a9(frame_ptr, timeline_cursor))
+bool should_prepare_frame_init(std::uint64_t frame_ptr, std::uint64_t timeline_cursor) {
+    if (!should_apply_frame_metadata(frame_ptr, timeline_cursor))
         return false;
     const std::uint32_t channel_count =
         *reinterpret_cast<const std::uint32_t*>(frame_ptr + kFrameOff_channel_count_dword);
@@ -948,7 +948,7 @@ bool should_prepare_frame_init_1024a9(std::uint64_t frame_ptr, std::uint64_t tim
     return channel_count != 0;
 }
 
-void output_generator_store_channel_gain_1024a9(
+void output_generator_store_channel_gain(
     std::uint8_t* output_generator_base,
     std::uint32_t channel,
     std::int32_t coefficient) {
@@ -960,14 +960,14 @@ void output_generator_store_channel_gain_1024a9(
         static_cast<float>(coefficient) * -0.1f;
 }
 
-void output_generator_apply_frame_metadata_1024a9(
+void output_generator_apply_frame_metadata(
     std::uint8_t* output_generator_base,
     const OutputGeneratorSegment& seg,
     std::uint64_t timeline_cursor,
     const OutputGeneratorFrameInitCallbacks& cb) {
     if (!output_generator_base || seg.frame_ptr == 0)
         return;
-    if (!should_apply_frame_metadata_1024a9(seg.frame_ptr, timeline_cursor))
+    if (!should_apply_frame_metadata(seg.frame_ptr, timeline_cursor))
         return;
 
     const std::uint64_t total_samples =
@@ -993,7 +993,7 @@ void output_generator_apply_frame_metadata_1024a9(
                 // mode==1: single gain v29[27] v29[0].
                 const std::uint32_t ch = fc[27u];
                 if (ch <= 30u) {
-                    output_generator_store_channel_gain_1024a9(
+                    output_generator_store_channel_gain(
                         output_generator_base, ch, static_cast<std::int32_t>(fc[0u]));
                 }
             } else {
@@ -1002,17 +1002,17 @@ void output_generator_apply_frame_metadata_1024a9(
                 for (;;) {
                     const std::uint32_t ch0 = fc[v31 + 27u];
                     if (ch0 <= 30u) {
-                        output_generator_store_channel_gain_1024a9(
+                        output_generator_store_channel_gain(
                             output_generator_base, ch0, static_cast<std::int32_t>(fc[v31]));
                         const std::uint32_t ch1 = fc[v31 + 28u];
                         if (ch1 <= 30u) {
-                            output_generator_store_channel_gain_1024a9(
+                            output_generator_store_channel_gain(
                                 output_generator_base, ch1, static_cast<std::int32_t>(fc[v31 + 1u]));
                         }
                     } else {
                         const std::uint32_t ch1 = fc[v31 + 28u];
                         if (ch1 <= 30u) {
-                            output_generator_store_channel_gain_1024a9(
+                            output_generator_store_channel_gain(
                                 output_generator_base, ch1, static_cast<std::int32_t>(fc[v31 + 1u]));
                         }
                     }
@@ -1023,7 +1023,7 @@ void output_generator_apply_frame_metadata_1024a9(
                 if ((mode & 1u) != 0u) {
                     const std::uint32_t ch = fc[v31 + 27u];
                     if (ch <= 30u) {
-                        output_generator_store_channel_gain_1024a9(
+                        output_generator_store_channel_gain(
                             output_generator_base, ch, static_cast<std::int32_t>(fc[v31]));
                     }
                 }
@@ -1042,7 +1042,7 @@ void output_generator_apply_frame_metadata_1024a9(
     }
 }
 
-void output_generator_dispatch_metadata_update_1024a9(
+void output_generator_dispatch_metadata_update(
     std::uint8_t* output_generator_base,
     const OutputGeneratorRuntimeFns1024a9& fns) {
     if (!output_generator_base)
@@ -1063,7 +1063,7 @@ void output_generator_dispatch_metadata_update_1024a9(
     cb(ctx, metadata_table);
 }
 
-std::int64_t process_segment_started_path_1024a9(
+std::int64_t process_segment_started_path(
     std::uint8_t* output_generator_base,
     std::uint64_t output_channels_table_base,
     const OutputGeneratorSegment& seg,
@@ -1090,10 +1090,10 @@ std::int64_t process_segment_started_path_1024a9(
             OutputGeneratorExtrapolateSources ex_src{};
             const std::uint64_t scratch_base = *reinterpret_cast<std::uint64_t*>(output_generator_base + kOgOff_scratch_base);
             const std::uint64_t total_samples = *reinterpret_cast<std::uint64_t*>(output_generator_base + kOgOff_total_samples);
-            ex_src = output_generator_select_extrapolate_sources_1024a9(
+            ex_src = output_generator_select_extrapolate_sources(
                 output_channels_table_base,
                 frame_ch,
-                segment_output_start_1024a9(seg, acb),
+                segment_output_start(seg, acb),
                 scratch_base,
                 total_samples);
             ex_src.frame_slot_index = i;
@@ -1104,20 +1104,20 @@ std::int64_t process_segment_started_path_1024a9(
             if (rc_dec != 0)
                 return rc_dec;
             if (produced_mask_out)
-                produced_mask_or_started_decode_channel_1024a9(*produced_mask_out, frame_ch);
+                produced_mask_or_started_decode_channel(*produced_mask_out, frame_ch);
         } else {
             (void)acb.get_delay_line_channel(acb.user, ch, seg.start);
             if (seg.len == 0)
                 continue;
-            copy_segment_channel_samples_1024a9(seg, acb, ch, src);
+            copy_segment_channel_samples(seg, acb, ch, src);
             if (produced_mask_out)
-                produced_mask_or_logical_channel_1024a9(*produced_mask_out, ch);
+                produced_mask_or_logical_channel(*produced_mask_out, ch);
         }
     }
     return 0;
 }
 
-std::int64_t process_segment_prestart_frame_path_1024a9(
+std::int64_t process_segment_prestart_frame_path(
     std::uint8_t* output_generator_base,
     const OutputGeneratorSegment& seg,
     const OutputGeneratorApplyCallbacks& acb,
@@ -1125,9 +1125,9 @@ std::int64_t process_segment_prestart_frame_path_1024a9(
     if (produced_mask_out)
         *produced_mask_out = 0u;
     if (seg.frame_ptr == 0)
-        return process_segment_copy_only_path_1024a9(seg, acb, produced_mask_out);
+        return process_segment_copy_only_path(seg, acb, produced_mask_out);
     if (seg.len == 0)
-        return warmup_zero_len_channels_1024a9(seg, acb);
+        return warmup_zero_len_channels(seg, acb);
 
     // v143: frame есть, started=0 — decode в scratch, затем copy delay-line -> output.
     const std::uint32_t frame_channel_count =
@@ -1159,38 +1159,38 @@ std::int64_t process_segment_prestart_frame_path_1024a9(
                 return rc_dec;
         }
         if (seg.len != 0)
-            copy_segment_channel_samples_1024a9(seg, acb, ch, src);
+            copy_segment_channel_samples(seg, acb, ch, src);
         if (produced_mask_out)
-            produced_mask_or_logical_channel_1024a9(*produced_mask_out, ch);
+            produced_mask_or_logical_channel(*produced_mask_out, ch);
     }
     // v143 ->: copy_input идёт после decode+copy delay.
     if (acb.copy_input_enabled) {
-        const std::int64_t rc = process_segment_copy_input_path_1024a9(seg, acb, produced_mask_out);
+        const std::int64_t rc = process_segment_copy_input_path(seg, acb, produced_mask_out);
         if (rc != 0)
             return rc;
     }
     return 0;
 }
 
-std::int64_t process_segment_copy_only_path_1024a9(
+std::int64_t process_segment_copy_only_path(
     const OutputGeneratorSegment& seg,
     const OutputGeneratorApplyCallbacks& acb,
     std::uint32_t* produced_mask_out) {
     if (produced_mask_out)
         *produced_mask_out = 0u;
     if (acb.copy_input_enabled)
-        return process_segment_copy_input_path_1024a9(seg, acb, produced_mask_out);
+        return process_segment_copy_input_path(seg, acb, produced_mask_out);
     if (seg.len == 0) {
-        return warmup_zero_len_channels_1024a9(seg, acb);
+        return warmup_zero_len_channels(seg, acb);
     }
-    for (int ch = next_set_channel_bit_1024a9(seg.channel_mask, 0);
+    for (int ch = next_set_channel_bit(seg.channel_mask, 0);
          ch >= 0;
-         ch = next_set_channel_bit_1024a9(seg.channel_mask, ch + 1)) {
+         ch = next_set_channel_bit(seg.channel_mask, ch + 1)) {
         const auto channel = static_cast<std::uint32_t>(ch);
         const std::uint64_t src = acb.get_delay_line_channel(acb.user, channel, seg.start);
-        copy_segment_channel_samples_1024a9(seg, acb, channel, src);
+        copy_segment_channel_samples(seg, acb, channel, src);
         if (produced_mask_out)
-            produced_mask_or_logical_channel_1024a9(*produced_mask_out, channel);
+            produced_mask_or_logical_channel(*produced_mask_out, channel);
     }
     return 0;
 }
@@ -1233,7 +1233,7 @@ std::int64_t raw_decode_channel_segment(
     if (c->fns.golombrice_get_errors) {
         (void)c->fns.golombrice_get_errors(gr_state, frame_ch, errors_buf, sample_count);
     } else {
-        (void)golombrice_get_errors_104e40(gr_state, frame_ch, errors_buf, sample_count);
+        (void)golombrice_get_errors(gr_state, frame_ch, errors_buf, sample_count);
     }
     std::uint64_t s0 = 0, s1 = 0, s2 = 0;
     if (extrap_sources) {
@@ -1304,14 +1304,14 @@ bool codec_v3_split_equivalence_self_test(std::string& detail) {
         std::vector<std::int32_t> whole2(kSamples, 0);
         alignas(8) std::array<std::uint8_t, kGrStateBytes> whole_gr{};
         alignas(8) std::array<std::uint8_t, kExStateBytes> whole_ex{};
-        (void)golombrice_initialize_104e10(
+        (void)golombrice_initialize(
             reinterpret_cast<std::uint64_t>(whole_gr.data()),
             gr_words.data(),
             reinterpret_cast<std::uint64_t>(gr_context.data()));
-        (void)extrapolate_initialize_104440(
+        (void)extrapolate_initialize(
             reinterpret_cast<std::uint64_t>(whole_ex.data()),
             reinterpret_cast<std::uint64_t>(frame_channel.data()));
-        (void)golombrice_get_errors_104e40(
+        (void)golombrice_get_errors(
             reinterpret_cast<std::uint64_t>(whole_gr.data()),
             reinterpret_cast<std::uint64_t>(frame_channel.data()),
             reinterpret_cast<std::uint64_t>(whole_errors.data()),
@@ -1332,18 +1332,18 @@ bool codec_v3_split_equivalence_self_test(std::string& detail) {
             std::vector<std::int32_t> split2(kSamples, 0);
             alignas(8) std::array<std::uint8_t, kGrStateBytes> split_gr{};
             alignas(8) std::array<std::uint8_t, kExStateBytes> split_ex{};
-            (void)golombrice_initialize_104e10(
+            (void)golombrice_initialize(
                 reinterpret_cast<std::uint64_t>(split_gr.data()),
                 gr_words.data(),
                 reinterpret_cast<std::uint64_t>(gr_context.data()));
-            (void)extrapolate_initialize_104440(
+            (void)extrapolate_initialize(
                 reinterpret_cast<std::uint64_t>(split_ex.data()),
                 reinterpret_cast<std::uint64_t>(frame_channel.data()));
 
             std::size_t offset = 0u;
             for (const std::size_t count : split_cases[split_index]) {
                 const std::size_t error_offset = offset * (mode == 3u ? 2u : 1u);
-                (void)golombrice_get_errors_104e40(
+                (void)golombrice_get_errors(
                     reinterpret_cast<std::uint64_t>(split_gr.data()),
                     reinterpret_cast<std::uint64_t>(frame_channel.data()),
                     reinterpret_cast<std::uint64_t>(split_errors.data() + error_offset),

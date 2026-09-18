@@ -6,7 +6,7 @@
 
 namespace auro3d::encode {
 
-/// Exact inverse of decoder gr_sign_extend_104e40. Widths below 32 are
+/// Exact inverse of decoder gr_sign_extend. Widths below 32 are
 /// sign-and-magnitude, not two's-complement. Width 32 is copied as int32.
 bool pack_golomb_error(
     std::int32_t value,

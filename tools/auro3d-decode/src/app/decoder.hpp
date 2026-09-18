@@ -380,7 +380,7 @@ private:
     bool run_native_xinn_partial_step(std::uint32_t copy_back_mask);
     bool run_native_asc4he_partial_step(std::uint32_t copy_back_mask);
     void rebuild_codec_v3_output_generator_state();
-    void parser_rebind_frame_parse_results_103610(std::uint64_t frame_ptr);
+    void parser_rebind_frame_parse_results_impl(std::uint64_t frame_ptr);
     void apply_native_input_channel_mapping();
     void apply_native_output_channel_mapping();
     std::int32_t* native_input_buffer(unsigned index);

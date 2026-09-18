@@ -15,12 +15,12 @@ std::uint64_t safe_min_u64(std::uint64_t a, std::uint64_t b) {
     return (a < b) ? a : b;
 }
 
-bool use_started_decode_path_1024a9(const OutputGeneratorSegment& seg) {
+bool use_started_decode_path(const OutputGeneratorSegment& seg) {
     // v131 started[i]: decode-ветка, отдельно от frame_has_started (timeline).
     return seg.prefer_started_decode_path;
 }
 
-bool is_frame_finished_at_cursor_1024a9(std::uint64_t frame_ptr, std::uint64_t timeline_cursor) {
+bool is_frame_finished_at_cursor(std::uint64_t frame_ptr, std::uint64_t timeline_cursor) {
     if (frame_ptr == 0)
         return false;
     const std::int32_t frame_end = *reinterpret_cast<const std::int32_t*>(frame_ptr + kFrameOff_end_dword);
@@ -82,8 +82,8 @@ std::uint64_t memory_delay_line_payload_sum(
 
 namespace {
 
-CodecV3ParserRuntimeFns1034e0 codec_v3_default_parser_runtime_1034e0();
-OutputGeneratorRuntimeFns1024a9 codec_v3_default_output_runtime_1024a9();
+CodecV3ParserRuntimeFns1034e0 codec_v3_default_parser_runtime();
+OutputGeneratorRuntimeFns1024a9 codec_v3_default_output_runtime();
 
 // rodata — маски для BitReader_get_unsigned_bits.
 constexpr std::uint32_t kDword2732C0[33] = {
@@ -207,45 +207,45 @@ void channel_crc_reset(std::uint64_t crc_state) {
 
 namespace {
 
-alignas(16) std::uint16_t g_crc_word_41acf0[256]{};
+alignas(16) std::uint16_t g_crc_word[256]{};
 std::atomic<std::uint8_t> g_crc_table_ready{0};
 
 #if AURO3DENG_CRC_SSE41
 
 // Константы.rodata из (get_bytes).
-alignas(16) static const std::uint8_t kCrcXmm_1c2f60[16] = {
+alignas(16) static const std::uint8_t kCrcXmm0[16] = {
     0x08, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00};
-alignas(16) static const std::uint8_t kCrcXmm_1c2c30[16] = {
+alignas(16) static const std::uint8_t kCrcXmm1[16] = {
     0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00};
-alignas(16) static const std::uint8_t kCrcXmm_1c3090[16] = {
+alignas(16) static const std::uint8_t kCrcXmm2[16] = {
     0x04, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00};
-alignas(16) static const std::uint8_t kCrcXmm_1c30a0[16] = {
+alignas(16) static const std::uint8_t kCrcXmm3[16] = {
     0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00, 0x06, 0x00, 0x07, 0x00};
-alignas(16) static const std::uint8_t kCrcXmm_1c30b0[16] = {
+alignas(16) static const std::uint8_t kCrcXmm4[16] = {
     0x00, 0xfe, 0x00, 0x00, 0x00, 0xfe, 0x00, 0x00, 0x00, 0xfe, 0x00, 0x00, 0x00, 0xfe, 0x00, 0x00};
-alignas(16) static const std::uint8_t kCrcXmm_1c30c0[16] = {
+alignas(16) static const std::uint8_t kCrcXmm5[16] = {
     0x21, 0x10, 0x00, 0x00, 0x21, 0x10, 0x00, 0x00, 0x21, 0x10, 0x00, 0x00, 0x21, 0x10, 0x00, 0x00};
-alignas(16) static const std::uint8_t kCrcXmm_1c30d0[16] = {
+alignas(16) static const std::uint8_t kCrcXmm6[16] = {
     0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0x0c, 0x0d, 0x08, 0x09, 0x0c, 0x0d, 0x0c, 0x0d, 0x0e, 0x0f};
-alignas(16) static const std::uint8_t kCrcXmm_1c30e0[16] = {
+alignas(16) static const std::uint8_t kCrcXmm7[16] = {
     0x21, 0x10, 0x21, 0x10, 0x21, 0x10, 0x21, 0x10, 0x21, 0x10, 0x21, 0x10, 0x21, 0x10, 0x21, 0x10};
-alignas(16) static const std::uint8_t kCrcXmm_1c30f0[16] = {
+alignas(16) static const std::uint8_t kCrcXmm8[16] = {
     0x01, 0x00, 0x03, 0x02, 0x05, 0x04, 0x07, 0x06, 0x09, 0x08, 0x0b, 0x0a, 0x0d, 0x0c, 0x0f, 0x0e};
-alignas(16) static const std::uint8_t kCrcXmm_1c3100[16] = {
+alignas(16) static const std::uint8_t kCrcXmm9[16] = {
     0x08, 0x00, 0x08, 0x00, 0x08, 0x00, 0x08, 0x00, 0x08, 0x00, 0x08, 0x00, 0x08, 0x00, 0x08, 0x00};
 
-void crc_table_fill_106f00_sse41() {
-    __m128i si128 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm_1c3090));
-    __m128i v1 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm_1c2c30));
-    __m128i v2 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm_1c30a0));
+void crc_table_fill_sse41() {
+    __m128i si128 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm2));
+    __m128i v1 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm1));
+    __m128i v2 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm3));
     __int64 v3 = 0;
-    __m128i v4 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm_1c30b0));
-    __m128i v5 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm_1c30c0));
-    __m128i v6 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm_1c30d0));
-    __m128i v7 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm_1c30e0));
-    __m128i v8 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm_1c30f0));
-    __m128i v9 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm_1c3100));
-    __m128i v10 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm_1c2f60));
+    __m128i v4 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm4));
+    __m128i v5 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm5));
+    __m128i v6 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm6));
+    __m128i v7 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm7));
+    __m128i v8 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm8));
+    __m128i v9 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm9));
+    __m128i v10 = _mm_load_si128(reinterpret_cast<const __m128i*>(kCrcXmm0));
     const __m128i zero = _mm_setzero_si128();
     do {
         __m128i v11 = _mm_cmpgt_epi16(zero, _mm_srai_epi16(_mm_slli_epi16(v2, 8u), 8u));
@@ -285,7 +285,7 @@ void crc_table_fill_106f00_sse41() {
         __m128i v33 = _mm_blendv_epi8(v32, _mm_xor_si128(v32, v7), v31);
         __m128i v34 = _mm_cmpgt_epi16(zero, v33);
         __m128i v35 = _mm_add_epi16(v33, v33);
-        *reinterpret_cast<__m128i*>(reinterpret_cast<std::uint8_t*>(g_crc_word_41acf0) + v3) =
+        *reinterpret_cast<__m128i*>(reinterpret_cast<std::uint8_t*>(g_crc_word) + v3) =
             _mm_shuffle_epi8(_mm_blendv_epi8(v35, _mm_xor_si128(v35, v7), v34), v8);
         v2 = _mm_add_epi16(v2, v9);
         v1 = _mm_add_epi32(v1, v10);
@@ -296,7 +296,7 @@ void crc_table_fill_106f00_sse41() {
 
 #endif // AURO3DENG_CRC_SSE41
 
-void crc_table_fill_106f00_scalar() {
+void crc_table_fill_scalar() {
     for (std::uint32_t i = 0; i != 256u; ++i) {
         std::uint16_t v = static_cast<std::uint16_t>(i << 8u);
         for (std::uint32_t bit = 0; bit != 8u; ++bit) {
@@ -305,7 +305,7 @@ void crc_table_fill_106f00_scalar() {
             else
                 v = static_cast<std::uint16_t>(v << 1u);
         }
-        g_crc_word_41acf0[i] =
+        g_crc_word[i] =
             static_cast<std::uint16_t>((static_cast<std::uint16_t>(v & 0x00FFu) << 8u) | (v >> 8u));
     }
 }
@@ -316,9 +316,9 @@ void crc_table_ensure_once() {
     std::uint8_t expected = 0;
     if (g_crc_table_ready.compare_exchange_strong(expected, 1, std::memory_order_acq_rel)) {
 #if AURO3DENG_CRC_SSE41
-        crc_table_fill_106f00_sse41();
+        crc_table_fill_sse41();
 #else
-        crc_table_fill_106f00_scalar();
+        crc_table_fill_scalar();
 #endif
         g_crc_table_ready.store(2, std::memory_order_release);
         return;
@@ -349,15 +349,15 @@ std::uint64_t channel_crc_process(
             const std::uint32_t mask =
                 253u + 2u * static_cast<std::uint32_t>(
                     (result + static_cast<std::uint32_t>(i)) >= 0x10u);
-            const std::uint16_t v7 = g_crc_word_41acf0[
+            const std::uint16_t v7 = g_crc_word[
                 ((v6 & mask) ^ static_cast<std::uint8_t>(v3)) & 0xFFu];
-            const std::uint32_t v8 = g_crc_word_41acf0[
+            const std::uint32_t v8 = g_crc_word[
                 static_cast<std::uint8_t>(
                     static_cast<std::uint8_t>(v7)
                     ^ static_cast<std::uint8_t>(v3 >> 8)
                     ^ static_cast<std::uint8_t>((v6 >> 8) & 0xFFu))];
             v3 = static_cast<std::uint16_t>(
-                g_crc_word_41acf0[static_cast<std::uint8_t>(
+                g_crc_word[static_cast<std::uint8_t>(
                     static_cast<std::uint8_t>(v8)
                     ^ static_cast<std::uint8_t>(v7 >> 8)
                     ^ static_cast<std::uint8_t>((v6 >> 16) & 0xFFu))]
@@ -475,7 +475,7 @@ std::int64_t channel_parser_construct(
     return v;
 }
 
-std::uint32_t ida_signed_shift_u32_103840(std::uint32_t value, std::int32_t shift) {
+std::uint32_t signed_shift_u32(std::uint32_t value, std::int32_t shift) {
     // channel_Parser_process: v << (*(_BYTE *)a1 - *((_BYTE *)a1 + 4)) v << -(char)rb.
     // Native is x86 SHL with count = (int8_t)shift; 32-bit SHL uses count & 31.
     // Example: rb=5 → count=-5 → 0xFB & 31 = 27 → left-align 5 bits into MSB.
@@ -484,7 +484,7 @@ std::uint32_t ida_signed_shift_u32_103840(std::uint32_t value, std::int32_t shif
 }
 
 // auro_codec_v3:_codec_channel_Parser_process.
-std::int64_t channel_parser_process_103840(
+std::int64_t channel_parser_process(
     std::uint64_t parser_base,
     std::uint64_t frame_channel_ptr,
     std::uint64_t channel_ptr,
@@ -866,7 +866,7 @@ channel_get_carrier_layout(
                         static_cast<std::int32_t>(a1[0]) - static_cast<std::int32_t>(a1[1]);
                     *reinterpret_cast<std::uint32_t*>(
                         frame_channel_ptr + kFrameChannelOff_ctx_words + 4u * idx) =
-                        ida_signed_shift_u32_103840(vv, sh);
+                        signed_shift_u32(vv, sh);
                     a1[0] = 0u;
                     a1[1] = 27u;
                     a1[2] = 22u;
@@ -901,7 +901,7 @@ channel_get_carrier_layout(
                 const std::int32_t sh = -static_cast<std::int32_t>(rb);
                 *reinterpret_cast<std::uint32_t*>(
                     frame_channel_ptr + kFrameChannelOff_stream_words + 4u * idx) =
-                    ida_signed_shift_u32_103840(tail, sh);
+                    signed_shift_u32(tail, sh);
                 // v13=1; with br_ok after successful remaining read → a1[2] = 23.
                 if (*br_ok != 0u)
                     a1[2] = 23u;
@@ -1092,16 +1092,16 @@ void frame_mark_as_unused(
     }
 }
 
-void frame_mark_as_unused_106cd0_default(std::uint64_t frame_ptr) {
+void frame_mark_as_unused_default(std::uint64_t frame_ptr) {
     frame_mark_as_unused(frame_ptr, channel_parse_result_mark_usage);
 }
 
 std::int64_t parser_frame_mark_as_unused_cb(std::uint64_t frame_ptr) {
-    frame_mark_as_unused_106cd0_default(frame_ptr);
+    frame_mark_as_unused_default(frame_ptr);
     return 0;
 }
 
-bool output_generator_plan_is_consistent_1024a9(const OutputGeneratorSegmentPlan& plan) {
+bool output_generator_plan_is_consistent(const OutputGeneratorSegmentPlan& plan) {
     if (plan.segment_count != plan.segments.size())
         return false;
     if (plan.segment_count != 0 && plan.delay_line_buffer == 0)
@@ -1116,7 +1116,7 @@ struct NativeFrameDequeView530240 {
     std::uint32_t capacity = 0;
 };
 
-bool read_native_frame_deque_530240(std::uint64_t frame_deque_ptr, NativeFrameDequeView530240& out) {
+bool read_native_frame_deque(std::uint64_t frame_deque_ptr, NativeFrameDequeView530240& out) {
     if (frame_deque_ptr == 0u)
         return false;
     const auto* raw = reinterpret_cast<const std::uint8_t*>(static_cast<std::uintptr_t>(frame_deque_ptr));
@@ -1132,13 +1132,13 @@ bool read_native_frame_deque_530240(std::uint64_t frame_deque_ptr, NativeFrameDe
     return true;
 }
 
-std::uint64_t native_frame_deque_slot_index_530240(std::uint64_t logical_index, std::uint32_t capacity) {
+std::uint64_t native_frame_deque_slot_index(std::uint64_t logical_index, std::uint32_t capacity) {
     return (logical_index >> 32u) != 0u
         ? logical_index % capacity
         : static_cast<std::uint32_t>(logical_index) % capacity;
 }
 
-std::uint64_t native_frame_deque_frame_ptr_530240(const NativeFrameDequeView530240& view, std::uint64_t slot_index) {
+std::uint64_t native_frame_deque_frame_ptr(const NativeFrameDequeView530240& view, std::uint64_t slot_index) {
     return view.storage + 336ull * slot_index;
 }
 
@@ -1146,12 +1146,12 @@ std::uint64_t frame_deque_find_first_with_end_after(
     std::uint64_t frame_deque_ptr,
     std::uint64_t sample_pos) {
     NativeFrameDequeView530240 native{};
-    if (read_native_frame_deque_530240(frame_deque_ptr, native)) {
+    if (read_native_frame_deque(frame_deque_ptr, native)) {
         const std::int32_t sample_pos32 = static_cast<std::int32_t>(sample_pos);
         for (std::uint64_t i = 0; i < native.count; ++i) {
             const std::uint64_t idx =
-                native_frame_deque_slot_index_530240(native.head + i, native.capacity);
-            const std::uint64_t frame_ptr = native_frame_deque_frame_ptr_530240(native, idx);
+                native_frame_deque_slot_index(native.head + i, native.capacity);
+            const std::uint64_t frame_ptr = native_frame_deque_frame_ptr(native, idx);
             const std::int32_t frame_end32 = *reinterpret_cast<const std::int32_t*>(frame_ptr + 8u);
             if ((sample_pos32 - frame_end32) < 0)
                 return frame_ptr;
@@ -1177,16 +1177,16 @@ std::int64_t frame_deque_push_back(
     std::uint64_t frame_ptr,
     std::uint64_t copy_bytes) {
     NativeFrameDequeView530240 native{};
-    if (read_native_frame_deque_530240(frame_deque_ptr, native)) {
+    if (read_native_frame_deque(frame_deque_ptr, native)) {
         if (!frame_ptr)
             return 0;
         auto* raw = reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(frame_deque_ptr));
         const std::uint64_t idx =
-            native_frame_deque_slot_index_530240(native.head + native.count, native.capacity);
+            native_frame_deque_slot_index(native.head + native.count, native.capacity);
         *reinterpret_cast<std::uint64_t*>(raw + 8u) = native.count + 1u;
         std::memcpy(
             reinterpret_cast<void*>(static_cast<std::uintptr_t>(
-                native_frame_deque_frame_ptr_530240(native, idx))),
+                native_frame_deque_frame_ptr(native, idx))),
             reinterpret_cast<const void*>(static_cast<std::uintptr_t>(frame_ptr)),
             static_cast<std::size_t>(std::min<std::uint64_t>(copy_bytes, 336u)));
         return 1;
@@ -1211,17 +1211,17 @@ std::uint64_t frame_deque_pop_front(
     std::uint64_t frame_deque_ptr,
     void (*frame_mark_as_unused)(std::uint64_t frame_ptr)) {
     NativeFrameDequeView530240 native{};
-    if (read_native_frame_deque_530240(frame_deque_ptr, native)) {
+    if (read_native_frame_deque(frame_deque_ptr, native)) {
         if (native.count == 0u)
             return 0u;
         auto* raw = reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(frame_deque_ptr));
-        const std::uint64_t idx = native_frame_deque_slot_index_530240(native.head, native.capacity);
-        const std::uint64_t frame_ptr = native_frame_deque_frame_ptr_530240(native, idx);
+        const std::uint64_t idx = native_frame_deque_slot_index(native.head, native.capacity);
+        const std::uint64_t frame_ptr = native_frame_deque_frame_ptr(native, idx);
         if (frame_mark_as_unused)
             frame_mark_as_unused(frame_ptr);
         const std::uint64_t next_head = native.head + 1u;
         *reinterpret_cast<std::uint64_t*>(raw + 0u) =
-            native_frame_deque_slot_index_530240(next_head, native.capacity);
+            native_frame_deque_slot_index(next_head, native.capacity);
         *reinterpret_cast<std::uint64_t*>(raw + 8u) = native.count - 1u;
         return (next_head >> 32u) != 0u
             ? next_head / native.capacity
@@ -1242,13 +1242,13 @@ std::uint64_t frame_deque_pop_front(
 
 std::uint64_t frame_deque_pop_front_keep_frame(std::uint64_t frame_deque_ptr) {
     NativeFrameDequeView530240 native{};
-    if (read_native_frame_deque_530240(frame_deque_ptr, native)) {
+    if (read_native_frame_deque(frame_deque_ptr, native)) {
         if (native.count == 0u)
             return 0u;
         auto* raw = reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(frame_deque_ptr));
         const std::uint64_t next_head = native.head + 1u;
         *reinterpret_cast<std::uint64_t*>(raw + 0u) =
-            native_frame_deque_slot_index_530240(next_head, native.capacity);
+            native_frame_deque_slot_index(next_head, native.capacity);
         *reinterpret_cast<std::uint64_t*>(raw + 8u) = native.count - 1u;
         return (next_head >> 32u) != 0u
             ? next_head / native.capacity
@@ -1267,13 +1267,13 @@ std::uint64_t frame_deque_pop_back(
     std::uint64_t frame_deque_ptr,
     void (*frame_mark_as_unused)(std::uint64_t frame_ptr)) {
     NativeFrameDequeView530240 native{};
-    if (read_native_frame_deque_530240(frame_deque_ptr, native)) {
+    if (read_native_frame_deque(frame_deque_ptr, native)) {
         if (native.count == 0u)
             return 0u;
         auto* raw = reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(frame_deque_ptr));
         const std::uint64_t idx =
-            native_frame_deque_slot_index_530240(native.head + native.count - 1u, native.capacity);
-        const std::uint64_t frame_ptr = native_frame_deque_frame_ptr_530240(native, idx);
+            native_frame_deque_slot_index(native.head + native.count - 1u, native.capacity);
+        const std::uint64_t frame_ptr = native_frame_deque_frame_ptr(native, idx);
         if (frame_mark_as_unused)
             frame_mark_as_unused(frame_ptr);
         *reinterpret_cast<std::uint64_t*>(raw + 8u) = native.count - 1u;
@@ -1293,7 +1293,7 @@ std::uint64_t frame_deque_pop_back(
 std::uint64_t
 frame_deque_count(std::uint64_t frame_deque_ptr) {
     NativeFrameDequeView530240 native{};
-    if (read_native_frame_deque_530240(frame_deque_ptr, native))
+    if (read_native_frame_deque(frame_deque_ptr, native))
         return native.count;
     const auto* dq = reinterpret_cast<const FrameDequeState13d570*>(frame_deque_ptr);
     if (!dq || dq->capacity == 0u)
@@ -1304,12 +1304,12 @@ frame_deque_count(std::uint64_t frame_deque_ptr) {
 std::uint64_t
 frame_deque_frame_at(std::uint64_t frame_deque_ptr, std::uint64_t logical_index) {
     NativeFrameDequeView530240 native{};
-    if (read_native_frame_deque_530240(frame_deque_ptr, native)) {
+    if (read_native_frame_deque(frame_deque_ptr, native)) {
         if (logical_index >= native.count)
             return 0u;
         const std::uint64_t idx =
-            native_frame_deque_slot_index_530240(native.head + logical_index, native.capacity);
-        return native_frame_deque_frame_ptr_530240(native, idx);
+            native_frame_deque_slot_index(native.head + logical_index, native.capacity);
+        return native_frame_deque_frame_ptr(native, idx);
     }
     const auto* dq = reinterpret_cast<const FrameDequeState13d570*>(frame_deque_ptr);
     if (!dq || dq->capacity == 0u || logical_index >= dq->count)
@@ -1323,14 +1323,14 @@ frame_deque_back(std::uint64_t frame_deque_ptr, std::uint64_t* storage_index_out
     if (storage_index_out)
         *storage_index_out = 0u;
     NativeFrameDequeView530240 native{};
-    if (read_native_frame_deque_530240(frame_deque_ptr, native)) {
+    if (read_native_frame_deque(frame_deque_ptr, native)) {
         if (native.count == 0u)
             return 0u;
         const std::uint64_t idx =
-            native_frame_deque_slot_index_530240(native.head + native.count - 1u, native.capacity);
+            native_frame_deque_slot_index(native.head + native.count - 1u, native.capacity);
         if (storage_index_out)
             *storage_index_out = idx;
-        return native_frame_deque_frame_ptr_530240(native, idx);
+        return native_frame_deque_frame_ptr(native, idx);
     }
     const auto* dq = reinterpret_cast<const FrameDequeState13d570*>(frame_deque_ptr);
     if (!dq || dq->capacity == 0u || dq->count == 0u)
@@ -1414,7 +1414,7 @@ frame_deque_back(frame_deque_ptr, &ready_tail);
 thread_local ParserReadyFrameCopyContext g_parser_ready_frame_copy_ctx{};
 thread_local bool g_parser_ready_frame_copy_active = false;
 
-std::int64_t parser_frame_deque_push_back_with_optional_copy_530290(
+std::int64_t parser_frame_deque_push_back_with_optional_copy(
     std::uint64_t frame_deque_ptr,
     std::uint64_t frame_ptr) {
     if (g_parser_ready_frame_copy_active
@@ -1438,7 +1438,7 @@ void parser_state_sink_notify(ParserStateSinkContext* sink, std::uint32_t state)
     if (sink->state_ptr)
         *sink->state_ptr = state;
     if (sink->dispatch)
-        codec_v3_content_callback_eb870(sink->dispatch, state != 0u ? 1 : 0);
+        codec_v3_content_callback(sink->dispatch, state != 0u ? 1 : 0);
 }
 
 std::int64_t decoder_run_parser(DecoderParserRunContext1034e0* ctx) {
@@ -1457,7 +1457,7 @@ std::int64_t decoder_run_parser(DecoderParserRunContext1034e0* ctx) {
     }
     *reinterpret_cast<std::uint32_t*>(parser_blob.data() + 648u) = *ctx->parser_state_inout;
 
-    const std::int64_t rc = codec_v3_parser_process_1034e0(parser_blob.data(), &ctx->runtime_fns);
+    const std::int64_t rc = codec_v3_parser_process(parser_blob.data(), &ctx->runtime_fns);
 
     if (parser_slots_bytes != 0u && ctx->parser_slots_base != nullptr) {
         std::memcpy(ctx->parser_slots_base, parser_blob.data() + 56u, parser_slots_bytes);
@@ -1474,7 +1474,7 @@ std::int64_t decoder_run_parser_stage(DecoderParserStageContext1034e0* ctx) {
         if (*ctx->parser_state_ptr == next_state)
             return;
         *ctx->parser_state_ptr = next_state;
-        codec_v3_content_callback_eb870(ctx->dispatch, (next_state != 0u) ? 1 : 0);
+        codec_v3_content_callback(ctx->dispatch, (next_state != 0u) ? 1 : 0);
     };
 
     if (ctx == nullptr || ctx->parser_state_ptr == nullptr)
@@ -1498,7 +1498,7 @@ std::int64_t decoder_run_parser_stage(DecoderParserStageContext1034e0* ctx) {
     state_sink.dispatch = ctx->dispatch;
     state_sink.state_ptr = ctx->parser_state_ptr;
 
-    auto pfn = codec_v3_default_parser_runtime_1034e0();
+    auto pfn = codec_v3_default_parser_runtime();
     if (ctx->runtime_fns.delay_line_get_buffer)
         pfn.delay_line_get_buffer = ctx->runtime_fns.delay_line_get_buffer;
     if (ctx->runtime_fns.frame_deque_find_first_with_end_after)
@@ -1511,7 +1511,7 @@ std::int64_t decoder_run_parser_stage(DecoderParserStageContext1034e0* ctx) {
         g_parser_ready_frame_copy_ctx.copied_slot_capacity = kCodecV3FrameDequeCopiedSlotCapacity;
         g_parser_ready_frame_copy_ctx.parse_result_bytes = kParseResultStrideBytes;
         g_parser_ready_frame_copy_active = true;
-        pfn.frame_deque_push_back = parser_frame_deque_push_back_with_optional_copy_530290;
+        pfn.frame_deque_push_back = parser_frame_deque_push_back_with_optional_copy;
     }
     if (ctx->runtime_fns.frame_deque_pop_front)
         pfn.frame_deque_pop_front = ctx->runtime_fns.frame_deque_pop_front;
@@ -1562,7 +1562,7 @@ std::int64_t decoder_run_output_stage(
     run_ctx.produced_output_mask = ctx->produced_output_mask;
     run_ctx.runtime_fns = runtime_fns
         ? OutputGeneratorRuntimeFns1024a9{}
-        : codec_v3_default_output_runtime_1024a9();
+        : codec_v3_default_output_runtime();
     if (runtime_fns) {
         const auto& ext = *reinterpret_cast<const OutputGeneratorRuntimeFns1024a9*>(runtime_fns);
         if (ext.delay_line_get_channel) run_ctx.runtime_fns.delay_line_get_channel = ext.delay_line_get_channel;
@@ -1715,7 +1715,7 @@ std::int64_t decoder_run_dispatch(DecoderDispatchRunContextEb5a0* ctx) {
         &input_desc,
         &output_desc,
         &io_status,
-        codec_v3_process_partial_eb5a0,
+        codec_v3_process_partial,
         &runtime);
 }
 
@@ -1746,7 +1746,7 @@ std::int64_t decoder_run_step(DecoderStepRunContext101800* ctx) {
     }
     // Decoder_process advances only after OutputGenerator_process.
     if (ctx->dispatch_ctx && ctx->dispatch_ctx->delay_line)
-        (void)delay_line_advance_106b20(ctx->dispatch_ctx->delay_line);
+        (void)delay_line_advance(ctx->dispatch_ctx->delay_line);
     return 0;
 }
 
@@ -1756,7 +1756,7 @@ void notify_codec_v3_state_change(CodecV3DispatchStateEb5a0* state, std::int64_t
     state->sink.notify(state->sink.user, kind);
 }
 
-CodecV3IoBufferDescEb5a0 prepare_codec_v3_desc_eb5a0(
+CodecV3IoBufferDescEb5a0 prepare_codec_v3_desc(
     const CodecV3IoBufferDescEb5a0* src,
     std::uint32_t sample_rate) {
     CodecV3IoBufferDescEb5a0 out{};
@@ -1770,7 +1770,7 @@ CodecV3IoBufferDescEb5a0 prepare_codec_v3_desc_eb5a0(
     return out;
 }
 
-bool codec_v3_has_required_channel_ptrs_101800(const CodecV3IoBufferDescEb5a0* desc, std::uint32_t mask) {
+bool codec_v3_has_required_channel_ptrs(const CodecV3IoBufferDescEb5a0* desc, std::uint32_t mask) {
     if (!desc)
         return false;
     for (std::uint32_t bit = 0; bit < kCodecV3ChannelCount; ++bit) {

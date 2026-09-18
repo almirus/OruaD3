@@ -135,8 +135,8 @@ constexpr std::uintptr_t kExStateOff_mode3_last_c_dword = 36;    // a1+36: previ
 constexpr std::uintptr_t kExStateOff_frame_channel_ptr_qword = 40;
 
 constexpr std::size_t kExtrapolateScaleTableSize = 244;
-constexpr float kExtrapolateScaleExpStep_1042a1 = 0.011512925465f;
-constexpr std::int32_t kPcm24Max_104460 = 0x7FFFFF;
-constexpr std::int32_t kPcm24Min_104460 = -8388607;
+constexpr float kExtrapolateScaleExpStep = 0.011512925465f;
+constexpr std::int32_t kPcm24Max = 0x7FFFFF;
+constexpr std::int32_t kPcm24Min = -8388607;
 
 } // namespace auro3deng
